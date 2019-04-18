@@ -1,0 +1,103 @@
+<packet>
+  <proto name="geninfo" pos="0" showname="General information" size="77">
+    <field name="num" pos="0" show="1" showname="Number" value="1" size="77"/>
+    <field name="len" pos="0" show="77" showname="Frame Length" value="4d" size="77"/>
+    <field name="caplen" pos="0" show="77" showname="Captured Length" value="4d" size="77"/>
+    <field name="timestamp" pos="0" show="Sep 18, 2013 00:24:19.000000000 EDT" showname="Captured Time" value="1379478259.000000000" size="77"/>
+  </proto>
+  <proto name="frame" showname="Frame 1: 77 bytes on wire (616 bits), 77 bytes captured (616 bits)" size="77" pos="0">
+    <field name="frame.encap_type" showname="Encapsulation type: Token Ring (2)" size="0" pos="0" show="2"/>
+    <field name="frame.time" showname="Arrival Time: Sep 18, 2013 00:24:19.000000000 EDT" size="0" pos="0" show="Sep 18, 2013 00:24:19.000000000 EDT"/>
+    <field name="frame.offset_shift" showname="Time shift for this packet: 0.000000000 seconds" size="0" pos="0" show="0.000000000"/>
+    <field name="frame.time_epoch" showname="Epoch Time: 1379478259.000000000 seconds" size="0" pos="0" show="1379478259.000000000"/>
+    <field name="frame.time_delta" showname="Time delta from previous captured frame: 0.000000000 seconds" size="0" pos="0" show="0.000000000"/>
+    <field name="frame.time_delta_displayed" showname="Time delta from previous displayed frame: 0.000000000 seconds" size="0" pos="0" show="0.000000000"/>
+    <field name="frame.time_relative" showname="Time since reference or first frame: 0.000000000 seconds" size="0" pos="0" show="0.000000000"/>
+    <field name="frame.number" showname="Frame Number: 1" size="0" pos="0" show="1"/>
+    <field name="frame.len" showname="Frame Length: 77 bytes (616 bits)" size="0" pos="0" show="77"/>
+    <field name="frame.cap_len" showname="Capture Length: 77 bytes (616 bits)" size="0" pos="0" show="77"/>
+    <field name="frame.marked" showname="Frame is marked: False" size="0" pos="0" show="0"/>
+    <field name="frame.ignored" showname="Frame is ignored: False" size="0" pos="0" show="0"/>
+    <field name="frame.protocols" showname="Protocols in frame: tr:llc:ip:udp:tftp" size="0" pos="0" show="tr:llc:ip:udp:tftp"/>
+  </proto>
+  <proto name="tr" showname="Token-Ring" size="14" pos="0">
+    <field name="tr.ac" showname="Access Control: 0x10, Frame" size="1" pos="0" show="0x00000010" value="10">
+      <field name="tr.priority" showname="000. .... = Priority: 0" size="1" pos="0" show="0" value="0" unmaskedvalue="10"/>
+      <field name="tr.frame" showname="...1 .... = Frame: Frame" size="1" pos="0" show="1" value="1" unmaskedvalue="10"/>
+      <field name="tr.monitor_cnt" showname=".... 0... = Monitor Count: 0" size="1" pos="0" show="0" value="0" unmaskedvalue="10"/>
+      <field name="tr.priority_reservation" showname=".... .000 = Priority Reservation: 0" size="1" pos="0" show="0" value="0" unmaskedvalue="10"/>
+    </field>
+    <field name="tr.fc" showname="Frame Control: 0x40, Frame Type: LLC, Frame PCF: Normal buffer" size="1" pos="1" show="0x00000040" value="40">
+      <field name="tr.frame_type" showname="01.. .... = Frame Type: LLC (1)" size="1" pos="1" show="1" value="1" unmaskedvalue="40"/>
+      <field name="tr.frame_pcf" showname=".... 0000 = Frame PCF: Normal buffer (0)" size="1" pos="1" show="0" value="0" unmaskedvalue="40"/>
+    </field>
+    <field name="tr.dst" showname="Destination: IbmInter_01:2b:59 (00:20:35:01:2b:59)" size="6" pos="2" show="00:20:35:01:2b:59" value="002035012b59"/>
+    <field name="tr.src" showname="Source: IbmRisc6_17:93:f8 (00:06:29:17:93:f8)" size="6" pos="8" show="00:06:29:17:93:f8" value="0006291793f8"/>
+    <field name="tr.addr" showname="Source or Destination Address: IbmInter_01:2b:59 (00:20:35:01:2b:59)" hide="yes" size="6" pos="2" show="00:20:35:01:2b:59" value="002035012b59"/>
+    <field name="tr.addr" showname="Source or Destination Address: IbmRisc6_17:93:f8 (00:06:29:17:93:f8)" hide="yes" size="6" pos="8" show="00:06:29:17:93:f8" value="0006291793f8"/>
+    <field name="tr.sr" showname="Source Routed: False" size="1" pos="8" show="0" value="00"/>
+    <field name="tr.src" showname="Source: IbmRisc6_17:93:f8 (00:06:29:17:93:f8)" hide="yes" size="6" pos="8" show="00:06:29:17:93:f8" value="0006291793f8"/>
+  </proto>
+  <proto name="llc" showname="Logical-Link Control" size="8" pos="14">
+    <field name="llc.dsap" showname="DSAP: SNAP (0xaa)" size="1" pos="14" show="0x000000aa" value="aa">
+      <field name="llc.dsap.sap" showname="1010 101. = SAP: SNAP" size="1" pos="14" show="85" value="55" unmaskedvalue="aa"/>
+      <field name="llc.dsap.ig" showname=".... ...0 = IG Bit: Individual" size="1" pos="14" show="0" value="0" unmaskedvalue="aa"/>
+    </field>
+    <field name="llc.ssap" showname="SSAP: SNAP (0xaa)" size="1" pos="15" show="0x000000aa" value="aa">
+      <field name="llc.ssap.sap" showname="1010 101. = SAP: SNAP" size="1" pos="15" show="85" value="55" unmaskedvalue="aa"/>
+      <field name="llc.ssap.cr" showname=".... ...0 = CR Bit: Command" size="1" pos="15" show="0" value="0" unmaskedvalue="aa"/>
+    </field>
+    <field name="llc.control" showname="Control field: U, func=UI (0x03)" size="1" pos="16" show="0x00000003" value="03">
+      <field name="llc.control.u_modifier_cmd" showname="000. 00.. = Command: Unnumbered Information (0x00)" size="1" pos="16" show="0x00000000" value="0" unmaskedvalue="03"/>
+      <field name="llc.control.ftype" showname=".... ..11 = Frame type: Unnumbered frame (0x3)" size="1" pos="16" show="0x00000003" value="3" unmaskedvalue="03"/>
+    </field>
+    <field name="llc.oui" showname="Organization Code: 00:00:00 (Officially Xerox, but" size="3" pos="17" show="0" value="000000"/>
+    <field name="llc.type" showname="Type: IPv4 (0x0800)" size="2" pos="20" show="0x00000800" value="0800"/>
+  </proto>
+  <proto name="ip" showname="Internet Protocol Version 4, Src: 192.168.44.123, Dst: 192.168.44.213" size="20" pos="22">
+    <field name="ip.version" showname="0100 .... = Version: 4" size="1" pos="22" show="4" value="4" unmaskedvalue="45"/>
+    <field name="ip.hdr_len" showname=".... 0101 = Header Length: 20 bytes (5)" size="1" pos="22" show="20" value="45"/>
+    <field name="ip.dsfield" showname="Differentiated Services Field: 0x00 (DSCP: CS0, ECN: Not-ECT)" size="1" pos="23" show="0x00000000" value="00">
+      <field name="ip.dsfield.dscp" showname="0000 00.. = Differentiated Services Codepoint: Default (0)" size="1" pos="23" show="0" value="0" unmaskedvalue="00"/>
+      <field name="ip.dsfield.ecn" showname=".... ..00 = Explicit Congestion Notification: Not ECN-Capable Transport (0)" size="1" pos="23" show="0" value="0" unmaskedvalue="00"/>
+    </field>
+    <field name="ip.len" showname="Total Length: 55" size="2" pos="24" show="55" value="0037"/>
+    <field name="ip.id" showname="Identification: 0xf939 (63801)" size="2" pos="26" show="0x0000f939" value="f939"/>
+    <field name="ip.flags" showname="Flags: 0x0000" size="2" pos="28" show="0x00000000" value="0000">
+      <field name="ip.flags.rb" showname="0... .... .... .... = Reserved bit: Not set" size="2" pos="28" show="0" value="0" unmaskedvalue="0000"/>
+      <field name="ip.flags.df" showname=".0.. .... .... .... = Don&#x27;t fragment: Not set" size="2" pos="28" show="0" value="0" unmaskedvalue="0000"/>
+      <field name="ip.flags.mf" showname="..0. .... .... .... = More fragments: Not set" size="2" pos="28" show="0" value="0" unmaskedvalue="0000"/>
+      <field name="ip.frag_offset" showname="...0 0000 0000 0000 = Fragment offset: 0" size="2" pos="28" show="0" value="0" unmaskedvalue="0000"/>
+    </field>
+    <field name="ip.ttl" showname="Time to live: 64" size="1" pos="30" show="64" value="40"/>
+    <field name="ip.proto" showname="Protocol: UDP (17)" size="1" pos="31" show="17" value="11"/>
+    <field name="ip.checksum" showname="Header checksum: 0xa6db [correct]" size="2" pos="32" show="0x0000a6db" value="a6db"/>
+    <field name="ip.checksum.status" showname="Header checksum status: Good" size="0" pos="32" show="1"/>
+    <field name="ip.checksum_calculated" showname="Calculated Checksum: 0xa6db" size="2" pos="32" show="0x0000a6db" value="a6db"/>
+    <field name="ip.src" showname="Source: 192.168.44.123" size="4" pos="34" show="192.168.44.123" value="c0a82c7b"/>
+    <field name="ip.addr" showname="Source or Destination Address: 192.168.44.123" hide="yes" size="4" pos="34" show="192.168.44.123" value="c0a82c7b"/>
+    <field name="ip.src_host" showname="Source Host: 192.168.44.123" hide="yes" size="4" pos="34" show="192.168.44.123" value="c0a82c7b"/>
+    <field name="ip.host" showname="Source or Destination Host: 192.168.44.123" hide="yes" size="4" pos="34" show="192.168.44.123" value="c0a82c7b"/>
+    <field name="ip.dst" showname="Destination: 192.168.44.213" size="4" pos="38" show="192.168.44.213" value="c0a82cd5"/>
+    <field name="ip.addr" showname="Source or Destination Address: 192.168.44.213" hide="yes" size="4" pos="38" show="192.168.44.213" value="c0a82cd5"/>
+    <field name="ip.dst_host" showname="Destination Host: 192.168.44.213" hide="yes" size="4" pos="38" show="192.168.44.213" value="c0a82cd5"/>
+    <field name="ip.host" showname="Source or Destination Host: 192.168.44.213" hide="yes" size="4" pos="38" show="192.168.44.213" value="c0a82cd5"/>
+  </proto>
+  <proto name="udp" showname="User Datagram Protocol, Src Port: 63801, Dst Port: 69" size="8" pos="42">
+    <field name="udp.srcport" showname="Source Port: 63801" size="2" pos="42" show="63801" value="f939"/>
+    <field name="udp.dstport" showname="Destination Port: 69" size="2" pos="44" show="69" value="0045"/>
+    <field name="udp.port" showname="Source or Destination Port: 63801" hide="yes" size="2" pos="42" show="63801" value="f939"/>
+    <field name="udp.port" showname="Source or Destination Port: 69" hide="yes" size="2" pos="44" show="69" value="0045"/>
+    <field name="udp.length" showname="Length: 35" size="2" pos="46" show="35" value="0023"/>
+    <field name="udp.checksum" showname="Checksum: 0x8d73 [correct]" size="2" pos="48" show="0x00008d73" value="8d73">
+      <field name="udp.checksum_calculated" showname="Calculated Checksum: 0x8d73" size="2" pos="48" show="0x00008d73" value="8d73"/>
+    </field>
+    <field name="udp.checksum.status" showname="Checksum Status: Good" size="0" pos="48" show="1"/>
+    <field name="udp.stream" showname="Stream index: 0" size="0" pos="50" show="0"/>
+  </proto>
+  <proto name="tftp" showname="Trivial File Transfer Protocol" size="27" pos="50">
+    <field name="tftp.opcode" showname="Opcode: Read Request (1)" size="2" pos="50" show="1" value="0001"/>
+    <field name="tftp.source_file" showname="Source File: C:\IBMTCPIP\lccm.1" size="19" pos="52" show="C:\IBMTCPIP\lccm.1" value="433a5c49424d54435049505c6c63636d2e3100"/>
+    <field name="tftp.type" showname="Type: octet" size="6" pos="71" show="octet" value="6f6374657400"/>
+  </proto>
+</packet>

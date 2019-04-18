@@ -1,0 +1,9 @@
+<packet>
+<section>1</section>
+<section>0.000000</section>
+<section>192.168.44.123</section>
+<section>192.168.44.213</section>
+<section>TFTP</section>
+<section>77</section>
+<section>Read Request, File: C:\IBMTCPIP\lccm.1, Transfer type: octet</section>
+</packet>

@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<psml version="0" creator="wireshark/2.6.6">
+<structure>
+<section>No.</section>
+<section>Time</section>
+<section>Source</section>
+<section>Destination</section>
+<section>Protocol</section>
+<section>Length</section>
+<section>Info</section>
+</structure>
+
+<packet>
+<section>1</section>
+<section>0.000000</section>
+<section>192.168.86.246</section>
+<section>52.20.230.126</section>
+<section>TLSv1.2</section>
+<section>129</section>
+<section>Application Data</section>
+</packet>
+
+<packet>
+<section>2</section>
+<section>0.014887</section>
+<section>52.20.230.126</section>
+<section>192.168.86.246</section>
+<section>TLSv1.2</section>
+<section>103</section>
+<section>Application Data</section>
+</packet>
+
+<packet>
+<section>3</section>
+<section>0.014923</section>
+<section>192.168.86.246</section>
+<section>52.20.230.126</section>
+<section>TCP</section>
+<section>66</section>
+<section>42184 \xe2\x86\x92 443 [ACK] Seq=64 Ack=38 Win=319 Len=0 TSval=207433870 TSecr=1059345504</section>
+</packet>
+
+<packet>
+<section>4</section>
+<section>0.136177</section>
+<section>192.168.86.246</section>
+<section>31.13.66.56</section>
+<section>TLSv1.2</section>
+<section>97</section>
+<section>Application Data</section>
+</packet>
+
+<packet>
+<section>5</section>
+<section>0.171548</section>
+<section>31.13.66.56</section>
+<section>192.168.86.246</section>
+<section>TLSv1.2</section>
+<section>104</section>
+<section>Application Data</section>
+</packet>
+
+<packet>
+<section>6</section>
+<section>0.171592</section>
+<section>192.168.86.246</section>
+<section>31.13.66.56</section>
+<section>TCP</section>
+<section>66</section>
+<section>41706 \xe2\x86\x92 443 [ACK] Seq=32 Ack=39 Win=1158 Len=0 TSval=2139377236 TSecr=2419013918</section>
+</packet>
+
+<packet>
+<section>7</section>
+<section>0.616580</section>
+<section>192.168.86.246</section>
+<section>239.255.255.250</section>
+<section>SSDP</section>
+<section>143</section>
+<section>M-SEARCH * HTTP/1.1 </section>
+</packet>
+
+<packet>
+<section>8</section>
+<section>0.659367</section>
+<section>192.168.86.75</section>
+<section>239.255.255.250</section>
+<section>SSDP</section>
+<section>143</section>
+<section>M-SEARCH * HTTP/1.1 </section>
+</packet>
+
+<packet>
+<section>9</section>
+<section>0.666992</section>
+<section>172.104.218.101</section>
+<section>192.168.86.246</section>
+<section>TLSv1.2</section>
+<section>100</section>
+<section>Application Data</section>
+</packet>
+
+<packet>
+<section>10</section>
+<section>0.667023</section>
+<section>192.168.86.246</section>
+<section>172.104.218.101</section>
+<section>TCP</section>
+<section>66</section>
+<section>44504 \xe2\x86\x92 443 [ACK] Seq=1 Ack=35 Win=319 Len=0 TSval=1319742541 TSecr=2345224981</section>
+</packet>
+
+<packet>
+<section>11</section>
+<section>0.670219</section>
+<section>192.168.86.1</section>
+<section>192.168.86.246</section>
+<section>SSDP</section>
+<section>386</section>
+<section>HTTP/1.1 200 OK </section>
+</packet>
+
+<packet>
+<section>12</section>
+<section>1.034536</section>
+<section>192.168.86.246</section>
+<section>192.168.86.22</section>
+<section>TCP</section>
+<section>183</section>
+<section>38108 \xe2\x86\x92 8009 [PSH, ACK] Seq=1 Ack=1 Win=359 Len=117 TSval=1442266250 TSecr=6907223 [TCP segment of a reassembled PDU]</section>
+</packet>
+
+<packet>
+<section>13</section>
+<section>1.051383</section>
+<section>192.168.86.246</section>
+<section>192.168.86.22</section>
+<section>TCP</section>
+<section>66</section>
+<section>38108 \xe2\x86\x92 8009 [ACK] Seq=118 Ack=118 Win=359 Len=0 TSval=1442266267 TSecr=6907724</section>
+</packet>
+
+<packet>
+<section>14</section>
+<section>1.676315</section>
+<section>Google_d2:76:12</section>
+<section>Tp-LinkT_19:de:6c</section>
+<section>ARP</section>
+<section>42</section>
+<section>Who has 192.168.86.246? Tell 192.168.86.1</section>
+</packet>
+
+<packet>
+<section>15</section>
+<section>1.676325</section>
+<section>Tp-LinkT_19:de:6c</section>
+<section>Google_d2:76:12</section>
+<section>ARP</section>
+<section>42</section>
+<section>192.168.86.246 is at e8:de:27:19:de:6c</section>
+</packet>
+
+<packet>
+<section>16</section>
+<section>1.747769</section>
+<section>192.168.86.246</section>
+<section>35.174.87.41</section>
+<section>TLSv1.2</section>
+<section>126</section>
+<section>Application Data</section>
+</packet>
+
+<packet>
+<section>17</section>
+<section>1.811271</section>
+<section>35.174.87.41</section>
+<section>192.168.86.246</section>
+<section>TLSv1.2</section>
+<section>120</section>
+<section>Application Data</section>
+</packet>
+
+<packet>
+<section>18</section>
+<section>1.811307</section>
+<section>192.168.86.246</section>
+<section>35.174.87.41</section>
+<section>TCP</section>
+<section>66</section>
+<section>53828 \xe2\x86\x92 443 [ACK] Seq=61 Ack=55 Win=274 Len=0 TSval=3132579163 TSecr=294067238</section>
+</packet>
+
+</psml>
