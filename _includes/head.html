@@ -1,0 +1,43 @@
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if site.termshark.author %}{{ site.termshark.author }} &#8226; {% endif %}{{ site.termshark.tagline | strip_html }}</title>
+
+  <link rel="apple-touch-icon" href="{{ site.baseurl }}{{ site.termshark.logo }}"/>
+
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/normalize.css">
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/main.css">
+  <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href='https://fonts.googleapis.com/css?family=Vollkorn' rel='stylesheet' type='text/css'>
+
+  <link rel="canonical" href="{{ site.url }}{{ site.baseurl }}{{ page.url }}">
+
+  <meta name="author" content="{{ site.termshark.author }}">
+  <meta name="description" content="{{ site.termshark.tagline }}"/>
+
+  <!-- Open Graph tags -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:title" content="{{ site.termshark.tagline }}"/>
+  <meta property="og:url" content="{{ site.url }}{{ site.baseurl }}{{ page.url }}"/>
+  <meta property="og:image" content="{{ site.url }}{{ site.baseurl }}{{ site.termshark.logo }}"/>
+  <meta property="og:description" content="{{ site.termshark.description }}"/>
+  <meta property="og:site_name" content="{{ site.termshark.tagline }}">
+
+  <!-- Twitter Card tags -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{ site.termshark.tagline }}">
+  {% if site.twitter.site %}
+  <meta name="twitter:site" content="{{ site.twitter.site }}">
+  {% endif %}
+  {% if site.twitter.creator %}
+  <meta name="twitter:creator" content="{{ site.twitter.creator }}">
+  {% endif %}
+  <meta name="twitter:url" content="{{ site.url }}{{ site.baseurl }}{{ page.url }}">
+  <meta name="twitter:description" content="{{ site.termshark.description }}">
+  <meta name="twitter:image:src" content="{{ site.url }}{{ site.baseurl }}{{ site.termshark.logo }}">
+
+  {% if site.termshark.include_analytics %}
+  {% include analytics.html %}
+  {% endif %}
+
+</head>

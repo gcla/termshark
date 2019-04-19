@@ -1,0 +1,27 @@
+---
+layout: base
+---
+<div class="wrapper">
+    <header>
+        {% if site.termshark.logo %}
+        <div class="logo-container">
+          <a class="logo" href="{{ page.baseurl }}{{site.termshark.logo}}" style="background-image: url('{{ site.baseurl }}{{ site.termshark.logo }}')"></a>
+        </div>
+        {% endif %}
+
+        {% if site.termshark.author %}
+        <div class="author-container"><h1>{{ site.termshark.author }}</h1></div>
+        {% endif %}
+
+        {% if site.termshark.tagline %}
+        <div class="tagline-container"><p>{{ site.termshark.tagline }}</p></div>
+        {% endif %}
+    </header>
+    <main>
+      {% if site.termshark.include_content %}
+      <div class="content">
+        {% include content.html %}
+      </div>
+      {% endif %}
+    </main>
+</div>
