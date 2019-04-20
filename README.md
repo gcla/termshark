@@ -13,6 +13,8 @@ If you're debugging on a remote machine with a large pcap and no desire to scp i
 - Copy ranges of packets to the clipboard from the terminal
 - Written in Golang, compiles to a single executable on each platform - downloads available for Linux (+termux), macOS, FreeBSD, and Windows
 
+tshark has many more features that termshark doesn't expose yet! See [What's Next](docs/FAQ.md#whats-next).
+
 ## Building
 
 Termshark uses Go modules, so it's best to compile with Go 1.11 or higher. Set `GO111MODULE=on` then run:
