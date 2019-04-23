@@ -2230,6 +2230,10 @@ func cmain() int {
 	// argument is a pcap file e.g. termshark foo.pcap
 	if pcapf == "" && opts.Iface == "" {
 		pcapf = string(opts.Args.FilterOrFile)
+		// `termshark` => `termshark -i 1` (livecapture on default interface if no args)
+		if pcapf == "" {
+			opts.Iface = "1"
+		}
 	} else {
 		// Add it to filter args. Figure out later if they're capture or display.
 		filterArgs = append(filterArgs, opts.Args.FilterOrFile)
