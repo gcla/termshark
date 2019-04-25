@@ -2343,7 +2343,7 @@ func cmain() int {
 		// This is the earliest version I could determine gives reliable results in termshark.
 		// tshark compiled against tag v1.10.1 doesn't populate the hex view.
 		mver, _ := semver.Make("1.10.2")
-		if tver.LTE(mver) {
+		if tver.LT(mver) {
 			fmt.Fprintf(os.Stderr, "termshark will not operate correctly with a tshark older than %v (found %v)\n", mver, tver)
 			return 1
 		}
