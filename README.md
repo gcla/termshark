@@ -17,7 +17,7 @@ tshark has many more features that termshark doesn't expose yet! See [What's Nex
 
 ## Installation (FreeBSD)
 
-Termshark is in the FreeBSD ports tree!.  To install the package, run:
+Termshark is in the FreeBSD ports tree!  To install the package, run:
 
 ```pkg install termshark```
 
