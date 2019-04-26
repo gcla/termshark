@@ -1,5 +1,5 @@
-﻿# Termshark 
-A terminal user-interface for tshark, inspired by Wireshark. 
+# Termshark
+A terminal user-interface for tshark, inspired by Wireshark.
 
 ![demo1](https://drive.google.com/uc?export=view&id=1vDecxjqwJrtMGJjOObL-LLvi-1pBVByt)
 

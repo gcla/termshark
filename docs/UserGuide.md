@@ -1,4 +1,4 @@
-﻿# User Guide
+# User Guide
 
 Termshark provides a terminal-based user interface for analyzing packet captures. It's inspired by Wireshark, and depends on tshark for all its intelligence. Termshark is run from the command-line. You can see its options with
 
@@ -70,7 +70,7 @@ Press `/` to focus on the display filter. Now you can type in a Wireshark displa
 
 ![filterbad](https://drive.google.com/uc?export=view&id=1KobuhX7KfA_i2VU-lCllPc3FkLUBEmQi)
 
-When the filter widget is green, you can hit the "Apply" button to make its value take effect. Termshark will then reload the packets with the new display filter applied. 
+When the filter widget is green, you can hit the "Apply" button to make its value take effect. Termshark will then reload the packets with the new display filter applied.
 
 ![filterbad](https://drive.google.com/uc?export=view&id=10AVIaRtLWgqJ_fi0kWS_PI-vOogZTVv-)
 
@@ -112,7 +112,7 @@ As you navigate the packet structure, different sections of the bottom view - a 
 
 ## Packet Hex View
 
-Termshark's bottom view shows the bytes that the packet comprises. Like Wireshark, they are displayed in a hexdump-like format. Hit the `t` key to switch from the hex bytes to the printable bytes and vice versa. As you move around the bytes, the middle (structure) view will update to show you where you are in the packet's structure. 
+Termshark's bottom view shows the bytes that the packet comprises. Like Wireshark, they are displayed in a hexdump-like format. Hit the `t` key to switch from the hex bytes to the printable bytes and vice versa. As you move around the bytes, the middle (structure) view will update to show you where you are in the packet's structure.
 
 ## Reading from an Interface
 
@@ -155,12 +155,12 @@ You can hit the `left` and `right` arrow keys to expand or contract the selected
 
 Select the format you want and hit `enter` (or click). Copy mode is available in the packet structure and packet hex views.
 
-This feature comes with a caveat! If you are connected to a remote machine e.g. via ssh, then you should use the `-X` flag to forward X11. On Linux, the default copy command is `xsel`. If you forward X11 with ssh, then the packet data will be copied to your desktop machine's clipboard. You can customize the copy command using termshark's config file e.g. 
+This feature comes with a caveat! If you are connected to a remote machine e.g. via ssh, then you should use the `-X` flag to forward X11. On Linux, the default copy command is `xsel`. If you forward X11 with ssh, then the packet data will be copied to your desktop machine's clipboard. You can customize the copy command using termshark's config file e.g.
 ```toml
 [main]
   copy-command = ["xsel", "-i", "-p"]
 ```
-to instead set the primary selection. If forwarding X11 is not an option, you could instead upload the data (received via stdin) to a service like pastebin, and print the URL on stdout - termshark will display the copy command's output in a dialog when the command completes. See the [FAQ](FAQ.md). 
+to instead set the primary selection. If forwarding X11 is not an option, you could instead upload the data (received via stdin) to a service like pastebin, and print the URL on stdout - termshark will display the copy command's output in a dialog when the command completes. See the [FAQ](FAQ.md).
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
 
@@ -169,7 +169,7 @@ If you are running on OSX, termux (Android) or Windows, termshark assumes you ar
 
 Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_HOME/termshark.toml``` (e.g. ```~/.config/termshark/termshark.toml``` on Linux). All options are saved under the ```[main]``` section. The available options are:
 
-- ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard. 
+- ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 - ```copy-command-timeout``` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
 - ```recent-files``` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
 - ```recent-filters``` (string list) - recently used Wireshark display filters.
@@ -180,6 +180,6 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 - ```pdml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PDML.
 - ```psml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PSML.
 - ```validated-tsharks``` - (string list) - termshark saves the path of each ``tshark`` binary it invokes (in case the user upgrades the system ```tshark```). If the selected (e.g. ```PATH```) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
-- ```ui-cache-size``` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000. 
+- ```ui-cache-size``` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
 - ```pcap-cache-size``` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of 1000. This setting determines how many such bundles termshark will keep cached. The default is 32.
 
