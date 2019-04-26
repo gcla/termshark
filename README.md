@@ -15,6 +15,16 @@ If you're debugging on a remote machine with a large pcap and no desire to scp i
 
 tshark has many more features that termshark doesn't expose yet! See [What's Next](docs/FAQ.md#whats-next).
 
+## Installation (FreeBSD)
+
+Termshark is in the FreeBSD ports tree!  To install the package, run:
+
+```pkg install termshark```
+
+To build/install the port, run:
+
+```cd /usr/ports/net/termshark/ && make install clean```
+
 ## Building
 
 Termshark uses Go modules, so it's best to compile with Go 1.11 or higher. Set `GO111MODULE=on` then run:
