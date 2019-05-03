@@ -56,6 +56,20 @@ func (w *TSharkFields) Init() error {
 		}
 	}
 
+	err = w.InitNoCache()
+	if err != nil {
+		return err
+	}
+
+	err = WriteGob(CacheFile("tsharkfields.gob.gz"), w.fields)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *TSharkFields) InitNoCache() error {
 	cmd := exec.Command(TSharkBin(), []string{"-G", "fields"}...)
 
 	out, err := cmd.StdoutPipe()
@@ -101,11 +115,6 @@ func (w *TSharkFields) Init() error {
 	}
 
 	cmd.Wait()
-
-	err = WriteGob(CacheFile("tsharkfields.gob.gz"), top)
-	if err != nil {
-		return err
-	}
 
 	w.fields = top
 

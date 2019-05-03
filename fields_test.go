@@ -14,7 +14,7 @@ import (
 func TestFields1(t *testing.T) {
 
 	fields := NewFields()
-	err := fields.Init()
+	err := fields.InitNoCache()
 	assert.NoError(t, err)
 
 	m1, ok := fields.fields.M["tcp"]
