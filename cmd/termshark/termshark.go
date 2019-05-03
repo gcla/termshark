@@ -233,7 +233,7 @@ A wireshark-inspired tui for tshark. Analyze network traffic interactively from 
 'esc' - Activate menu
 't'   - In bytes view, switch hex ⟷ ascii
 '+/-' - Adjust horizontal split
-'</>' - Adjust vertical split 
+'</>' - Adjust vertical split
 '?'   - Display help
 
 In the filter, type a wireshark display filter expression.
