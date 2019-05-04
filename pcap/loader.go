@@ -449,9 +449,12 @@ func (c *Loader) doNewFilterOperation(newfilt string, cb interface{}, fn RunFn) 
 		if c.State()&LoadingPsml != 0 {
 			c.stopLoadPsml()
 		}
+		if c.State()&LoadingPdml != 0 {
+			c.stopLoadPdml()
+		}
 
 		c.When(func() bool {
-			return c.State()&LoadingPsml == 0
+			return c.State() == 0 || c.State() == LoadingIface
 		}, func() {
 			c.doNewFilterOperation(newfilt, cb, fn)
 		})
