@@ -2635,7 +2635,7 @@ func cmain() int {
 	defer filterWidget.Close()
 
 	applyw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		scheduler.RequestNewFilter(filterWidget.Value(), makePacketViewUpdater(app))
+		scheduler.RequestNewFilter(filterWidget.Value(), saveRecents{makePacketViewUpdater(app), "", filterWidget.Value()})
 	}))
 
 	filterWidget.OnValid(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
