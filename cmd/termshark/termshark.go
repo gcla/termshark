@@ -255,7 +255,8 @@ right    - Select next inner-most widget{{end}}
 
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
 	tsopts struct {
-		PassThru string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
+		PassThru    string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
+		Tail        flags.Filename `value-name:"<tail-file>" long:"tail" description:"Tail a file!"` // TODO
 		PrintIfaces bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
 	}
 
@@ -268,7 +269,7 @@ right    - Select next inner-most widget{{end}}
 		DisplayFilter string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
 		CaptureFilter string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
 		PassThru      string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
-		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal.."`
+		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal."`
 		Help          bool           `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
 		Version       bool           `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
@@ -279,7 +280,7 @@ right    - Select next inner-most widget{{end}}
 
 	// If args are passed through to tshark (e.g. stdout not a tty), then
 	// strip these out so tshark doesn't fail.
-	termsharkOnly = []string{"--pass-thru", "--log-tty"}
+	termsharkOnly = []string{"--pass-thru", "--log-tty", "--tail"}
 )
 
 func flagIsTrue(val string) bool {
@@ -2157,6 +2158,16 @@ func cmain() int {
 			passthru = false
 		} else {
 			return 1
+		}
+	}
+
+	if tsopts.Tail != "" {
+		err = termshark.TailFile(string(tsopts.Tail))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v", err)
+			return 1
+		} else {
+			return 0
 		}
 	}
 

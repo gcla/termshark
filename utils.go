@@ -26,8 +26,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gcla/gowid"
 	"github.com/blang/semver"
+	"github.com/gcla/gowid"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
@@ -76,7 +76,7 @@ func DumpcapBin() string {
 func TailCommand() []string {
 	def := []string{"tail", "-f", "-c", "+0"}
 	if runtime.GOOS == "windows" {
-		def[0] = "c:\\cygwin64\\bin\\tail.exe"
+		def = []string{os.Args[0], "--tail"}
 	}
 	return ConfStringSlice("main.tail-command", def)
 }
