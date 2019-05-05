@@ -256,6 +256,7 @@ right    - Select next inner-most widget{{end}}
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
 	tsopts struct {
 		PassThru string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
+		PrintIfaces bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
 	}
 
 	// Termshark's own command line arguments. Used if we don't pass through to tshark.
@@ -263,6 +264,7 @@ right    - Select next inner-most widget{{end}}
 		Iface         string         `value-name:"<interface>" short:"i" description:"Interface to read."`
 		Pcap          flags.Filename `value-name:"<file>" short:"r" description:"Pcap file to read."`
 		DecodeAs      []string       `short:"d" description:"Specify dissection of layer type." value-name:"<layer type>==<selector>,<decode-as protocol>"`
+		PrintIfaces   bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
 		DisplayFilter string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
 		CaptureFilter string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
 		PassThru      string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
@@ -2161,7 +2163,11 @@ func cmain() int {
 	// Run after accessing the config so I can use the configured tshark binary, if there is one. I need that
 	// binary in the case that termshark is run where stdout is not a tty, in which case I exec tshark - but
 	// it makes sense to use the one in termshark.toml
-	if passthru && (flagIsTrue(tsopts.PassThru) || (tsopts.PassThru == "auto" && !isatty.IsTerminal(os.Stdout.Fd()))) {
+	if passthru &&
+		(flagIsTrue(tsopts.PassThru) ||
+			(tsopts.PassThru == "auto" && !isatty.IsTerminal(os.Stdout.Fd())) ||
+			tsopts.PrintIfaces) {
+
 		bin, err := exec.LookPath(tsharkBin)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error looking up tshark binary: %v\n", err)
