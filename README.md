@@ -15,7 +15,17 @@ If you're debugging on a remote machine with a large pcap and no desire to scp i
 
 tshark has many more features that termshark doesn't expose yet! See [What's Next](docs/FAQ.md#whats-next).
 
-## Installation (FreeBSD)
+## Install Packages 
+
+### Arch Linux
+
+- [termshark-bin](https://aur.archlinux.org/packages/termshark-bin): binary
+  package which simply copies the released binary to install directory. Made by
+  [jerry73204](https://github.com/jerry73204)
+- [termshark-git](https://aur.archlinux.org/packages/termshark-git): Compiles
+  from source, made by [Thann](https://github.com/Thann) 
+
+### FreeBSD
 
 Termshark is in the FreeBSD ports tree!  To install the package, run:
 
