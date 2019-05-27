@@ -35,6 +35,14 @@ To build/install the port, run:
 
 ```cd /usr/ports/net/termshark/ && make install clean```
 
+# Ubuntu
+
+You can use the PPA *nicolais/termshark* to install termshark:
+
+ * `sudo add-apt-repository ppa:nicolais/termshark`
+
+ * `sudo apt install termshark`
+
 ## Building
 
 Termshark uses Go modules, so it's best to compile with Go 1.11 or higher. Set `GO111MODULE=on` then run:
