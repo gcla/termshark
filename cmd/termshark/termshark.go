@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -2114,6 +2115,13 @@ func main() {
 }
 
 func cmain() int {
+	sigChan := make(chan os.Signal, 100)
+	if runtime.GOOS == "windows" {
+		signal.Notify(sigChan, os.Interrupt)
+	} else {
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	}
+
 	viper.SetConfigName("termshark") // no need to include file extension - looks for file called termshark.ini for example
 
 	stdConf := configdir.New("", "termshark")
@@ -3056,6 +3064,9 @@ Loop:
 				// We know we're not idle, so stop any load so the quit op happens quickly for the user.
 				scheduler.RequestStopLoad(stateHandler{})
 			}
+
+		case <-sigChan:
+			quitRequestedChan <- struct{}{}
 
 		case fn := <-opsChan:
 			// We run the requested operation - because operations are now enabled, since this channel
