@@ -15,7 +15,7 @@ If you're debugging on a remote machine with a large pcap and no desire to scp i
 
 tshark has many more features that termshark doesn't expose yet! See [What's Next](docs/FAQ.md#whats-next).
 
-## Install Packages 
+## Install Packages
 
 ### Arch Linux
 
@@ -34,6 +34,14 @@ Termshark is in the FreeBSD ports tree!  To install the package, run:
 To build/install the port, run:
 
 ```cd /usr/ports/net/termshark/ && make install clean```
+
+### Ubuntu
+
+You can use the PPA *nicolais/termshark* to install termshark:
+
+- ```sudo add-apt-repository --update ppa:nicolais/termshark```
+
+- ```sudo apt install termshark```
 
 ## Building
 
