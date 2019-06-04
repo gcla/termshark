@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	fsnotify "gopkg.in/fsnotify.v1"
+	fsnotify "gopkg.in/fsnotify/fsnotify.v1"
 )
 
 //======================================================================
