@@ -21,7 +21,7 @@ import (
 	"github.com/gcla/termshark"
 	lru "github.com/hashicorp/golang-lru"
 	log "github.com/sirupsen/logrus"
-	fsnotify "gopkg.in/fsnotify.v1"
+	fsnotify "gopkg.in/fsnotify/fsnotify.v1"
 )
 
 //======================================================================
