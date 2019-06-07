@@ -211,7 +211,7 @@ var (
 {{define "Header"}}{{template "NameVer" .}}
 
 {{template "OneLine"}}
-See https://github.com/gcla/termshark for more information.{{end}}
+See https://termshark.io for more information.{{end}}
 
 {{define "Footer"}}
 If --pass-thru is true (or auto, and stdout is not a tty), tshark will be
