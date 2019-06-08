@@ -17,31 +17,7 @@ tshark has many more features that termshark doesn't expose yet! See [What's Nex
 
 ## Install Packages
 
-### Arch Linux
-
-- [termshark-bin](https://aur.archlinux.org/packages/termshark-bin): binary
-  package which simply copies the released binary to install directory. Made by
-  [jerry73204](https://github.com/jerry73204)
-- [termshark-git](https://aur.archlinux.org/packages/termshark-git): Compiles
-  from source, made by [Thann](https://github.com/Thann) 
-
-### FreeBSD
-
-Termshark is in the FreeBSD ports tree!  To install the package, run:
-
-```pkg install termshark```
-
-To build/install the port, run:
-
-```cd /usr/ports/net/termshark/ && make install clean```
-
-### Ubuntu
-
-You can use the PPA *nicolais/termshark* to install termshark:
-
-- ```sudo add-apt-repository --update ppa:nicolais/termshark```
-
-- ```sudo apt install termshark```
+Termshark is pre-packaged for the following platforms: [Arch Linux](docs/Packages.md#arch-linux), [Debian (unstable)](docs/Packages.md#debian), [FreeBSD](docs/Packages.md#freebsd), [Homebrew](docs/Packages.md#homebrew), [SnapCraft](docs/Packages.md#snapcraft) and [Ubuntu](docs/Packages.md#ubuntu).
 
 ## Building
 
