@@ -163,13 +163,13 @@ var (
 	hexTopSelectedFgReg      *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorWhite)
 	hexTopSelectedBgReg      *modeswap.Color = modeswap.New(brightBlue, gowid.ColorBlue)
 	hexBottomUnselectedFgReg *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexBottomUnselectedBgReg *modeswap.Color = modeswap.New(mediumGray, gowid.ColorBlack)
+	hexBottomUnselectedBgReg *modeswap.Color = modeswap.New(lightGray, gowid.ColorBlack)
 	hexBottomSelectedFgReg   *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexBottomSelectedBgReg   *modeswap.Color = modeswap.New(mediumGray, gowid.ColorBlack)
+	hexBottomSelectedBgReg   *modeswap.Color = modeswap.New(lightGray, gowid.ColorBlack)
 	hexCurUnselectedFgReg    *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
 	hexCurUnselectedBgReg    *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
 	hexLineFgReg             *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexLineBgReg             *modeswap.Color = modeswap.New(mediumGray, gowid.ColorBlack)
+	hexLineBgReg             *modeswap.Color = modeswap.New(lightGray, gowid.ColorBlack)
 	filterValidBgReg         *modeswap.Color = modeswap.New(brightGreen, gowid.ColorGreen)
 
 	regularPalette gowid.Palette = gowid.Palette{
