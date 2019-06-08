@@ -10,9 +10,14 @@ Here's how to install termshark on various OSes and with various package manager
 - [termshark-git](https://aur.archlinux.org/packages/termshark-git): Compiles
   from source, made by [Thann](https://github.com/Thann) 
 
-## Debian (unstable)
+## Debian
 
-Coming soon!
+Termshark is only available in unstable/sid at the moment.
+
+```bash
+apt update
+apt install termshark
+```
 
 ## FreeBSD
 
@@ -26,9 +31,12 @@ To build/install the port, run:
 
 ```cd /usr/ports/net/termshark/ && make install clean```
 
-## Homebrew (macOS)
+## Homebrew
 
-Recipe submitted for inclusion - coming soon! See the [PR](https://github.com/Homebrew/homebrew-core/pull/40233)
+```bash
+brew update
+brew install termshark
+```
 
 ## SnapCraft
 
