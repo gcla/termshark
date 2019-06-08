@@ -15,5 +15,5 @@ require (
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/sys v0.0.0-20190416152802-12500544f89f // indirect
-	gopkg.in/fsnotify.v1 v1.4.7
+	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 )
