@@ -2640,6 +2640,8 @@ func cmain() int {
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				menu1.Close(app)
 				darkMode = !darkMode
+				viper.Set("main.dark-mode", darkMode)
+				viper.WriteConfig()
 			},
 		},
 		simpleMenuItem{
