@@ -17,7 +17,7 @@ tshark has many more features that termshark doesn't expose yet! See [What's Nex
 
 ## Install Packages
 
-Termshark is pre-packaged for the following platforms: [Arch Linux](docs/Packages.md#arch-linux), [FreeBSD](docs/Packages.md#freebsd), [SnapCraft](docs/Packages.md#snapcraft) and [Ubuntu](docs/Packages.md#ubuntu).
+Termshark is pre-packaged for the following platforms: [Arch Linux](docs/Packages.md#arch-linux), [Debian (unstable)](docs/Packages.md#debian), [FreeBSD](docs/Packages.md#freebsd), [Homebrew](docs/Packages.md#homebrew), [SnapCraft](docs/Packages.md#snapcraft) and [Ubuntu](docs/Packages.md#ubuntu).
 
 ## Building
 
