@@ -59,6 +59,16 @@ snap connect termshark:raw-usb
 snap connect termshark:removable-media
 ```
 
+## Termux (Android)
+
+```bash
+pkg install root-repo
+pkg install termshark
+```
+
+Note that termshark does not require a rooted phone to inspect a pcap, but it does depend on tshark which is itself in Termux's root-repo for programs that do work best on a rooted phone.
+
+
 ## Ubuntu
 
 Thanks to [Nicolai Søberg](https://github.com/NicolaiSoeborg)
