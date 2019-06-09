@@ -68,6 +68,7 @@ pkg install termshark
 
 Note that termshark does not require a rooted phone to inspect a pcap, but it does depend on tshark which is itself in Termux's root-repo for programs that do work best on a rooted phone.
 
+![device art](https://drive.google.com/uc?export=view&id=1RzilBvj5YFsSqv72kO6yOD0Oil88mwp3)
 
 ## Ubuntu
 
