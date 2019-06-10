@@ -65,8 +65,13 @@ snap connect termshark:removable-media
 pkg install root-repo
 pkg install termshark
 ```
-
 Note that termshark does not require a rooted phone to inspect a pcap, but it does depend on tshark which is itself in Termux's root-repo for programs that do work best on a rooted phone.
+
+If you would like to use termshark's copy-mode to copy sections of packets to your Android clipboard, you will also need [Termux:API](https://play.google.com/store/apps/details?id=com.termux.api&hl=en_US). Install from the Play Store, then from termux, type:
+
+```bash
+pkg install termux-api
+```
 
 ![device art](https://drive.google.com/uc?export=view&id=1RzilBvj5YFsSqv72kO6yOD0Oil88mwp3)
 
