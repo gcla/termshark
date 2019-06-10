@@ -72,6 +72,33 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "jerry73204",
+      "name": "jerry73204",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/7629150?v=4",
+      "profile": "https://github.com/jerry73204",
+      "contributions": [
+        "platform"
+      ]
+    },
+    {
+      "login": "Thann",
+      "name": "Jon Knapp",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/578515?v=4",
+      "profile": "http://thann.github.com",
+      "contributions": [
+        "platform"
+      ]
+    },
+    {
+      "login": "mharjac",
+      "name": "Mario Harjac",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/2997453?v=4",
+      "profile": "https://github.com/mharjac",
+      "contributions": [
+        "platform"
+      ]
     }
   ],
   "contributorsPerLine": 7
