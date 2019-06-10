@@ -63,6 +63,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "denyspozniak",
+      "name": "Denys",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/22612345?v=4",
+      "profile": "https://github.com/denyspozniak",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7
