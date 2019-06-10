@@ -21,20 +21,16 @@ Then edit ```~/.config/termshark/termshark.toml``` and set
 
 ## Can I run termshark on Android?
 
-Yes, through the amazing termux package. Here are the steps:
+Yes, termshark is now packaged for Termux in the `root-repo` repository. Here's how to get it running:
 
-- Install [Termux](https://play.google.com/store/apps/details?id=com.termux&hl=en_US) and [Termux:API](https://play.google.com/store/apps/details?id=com.termux.api&hl=en_US) through the Google Play Store
+- Install [Termux](https://play.google.com/store/apps/details?id=com.termux&hl=en_US) and [Termux:API](https://play.google.com/store/apps/details?id=com.termux.api&hl=en_US) through the Google Play Store. Termux:API is needed for access to Android's clipboard, in case you want to use termshark to copy sections of packets.
 - Run termux and type
+
 ```bash
-pkg update
+pkg install root-repo
 pkg install termux-api
+pkg install termshark
 ```
-- Now you need to install tshark. Get the termux X11 packages first:
-```bash
-pkg install x11-repo
-pkg install tshark
-```
-- Finally, copy the termshark Android binary to somewhere in your termux ```PATH```.
 
 ## If I load a big pcap, termshark doesn't load all the packets at once - why?
 
