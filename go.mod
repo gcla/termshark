@@ -5,7 +5,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gcla/deep v1.0.2
 	github.com/gcla/gowid v1.0.0
-	github.com/gdamore/tcell v1.1.2-0.20190412054914-dcf1bb30770e
+	github.com/gdamore/tcell v1.1.3-0.20190613063818-ca8fb5bcc94b
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/mattn/go-isatty v0.0.7
