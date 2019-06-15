@@ -4,7 +4,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.0.0
+	github.com/gcla/gowid v1.0.1-0.20190615031029-665ea7b65f36
 	github.com/gdamore/tcell v1.1.2-0.20190412054914-dcf1bb30770e
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/jessevdk/go-flags v1.4.0
@@ -14,6 +14,6 @@ require (
 	github.com/sirupsen/logrus v1.4.1
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.3.0
-	golang.org/x/sys v0.0.0-20190416152802-12500544f89f // indirect
+	golang.org/x/sys v0.0.0-20190614160838-b47fdc937951 // indirect
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 )

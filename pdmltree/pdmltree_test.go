@@ -197,7 +197,8 @@ var p1 string = `<packet>
 
 func TestPdml1(t *testing.T) {
 
-	tree := DecodePacket([]byte(p1))
+	dummy := make(ExpandedPaths, 0)
+	tree := DecodePacket([]byte(p1), &dummy)
 
 	assert.Equal(t, 8, len(tree.Children_))
 	assert.Equal(t, 13, len(tree.Children_[0].Children_))

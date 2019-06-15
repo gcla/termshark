@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,8 @@ import (
 )
 
 //======================================================================
+
+type ExpandedPaths [][]string
 
 type EmptyIterator struct{}
 
@@ -52,19 +55,22 @@ func (p *Iterator) Value() tree.IModel {
 }
 
 type Model struct {
-	UiName    string            `xml:"-"`
-	Name      string            `xml:"-"` // needed for stripping geninfp from UI
-	Expanded  bool              `xml:"-"`
-	Pos       int               `xml:"-"`
-	Size      int               `xml:"-"`
-	Hide      bool              `xml:"-"`
-	Children_ []*Model          `xml:",any"`
-	Content   []byte            `xml:",innerxml"` // needed for copying PDML to clipboard
-	NodeName  string            `xml:"-"`
-	Attrs     map[string]string `xml:"-"`
+	UiName         string            `xml:"-"`
+	Name           string            `xml:"-"` // needed for stripping geninfp from UI
+	Expanded       bool              `xml:"-"`
+	Pos            int               `xml:"-"`
+	Size           int               `xml:"-"`
+	Hide           bool              `xml:"-"`
+	Children_      []*Model          `xml:",any"`
+	Content        []byte            `xml:",innerxml"` // needed for copying PDML to clipboard
+	NodeName       string            `xml:"-"`
+	Attrs          map[string]string `xml:"-"`
+	Parent         *Model            `xml:"-"`
+	ExpandedFields *ExpandedPaths    `xml:"-"`
 }
 
 var _ tree.IModel = (*Model)(nil)
+var _ tree.ICollapsible = (*Model)(nil)
 
 // This ignores the first child, "Frame 15", because its range covers the whole packet
 // which results in me always including that in the layers for any position.
@@ -134,7 +140,9 @@ func (n *Model) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	return res
 }
 
-func DecodePacket(data []byte) *Model { // nil if failure
+// Make a *Model from the slice of bytes, and expand nodes according
+// to the map parameter.
+func DecodePacket(data []byte, exp *ExpandedPaths) *Model { // nil if failure
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	var n Model
@@ -145,7 +153,49 @@ func DecodePacket(data []byte) *Model { // nil if failure
 	}
 
 	tr := n.removeUnneeded()
+	tr.makeParentLinks(exp) // TODO - fixup
+	tr.expandAllPaths(*exp)
 	return tr
+}
+
+//type pathMap map[string]pathMap
+
+func (p *Model) expandAllPaths(exp ExpandedPaths) {
+	for _, path := range exp {
+		// path is [udp, udp.srcport,...]
+		p.expandByPath(path)
+	}
+}
+
+func (p *Model) expandByPath(path []string) {
+	if len(path) == 0 {
+		return
+	}
+	p2 := path[0]
+	if p.Name == p2 {
+		subpath := path[1:]
+		if len(subpath) == 0 {
+			// Only explicitly expand the leaf - the paths must include
+			// a path ending at each node along the way for a complete path
+			// expansion. This lets us collapse root nodes and preserve the
+			// state of inner nodes
+			p.Expanded = true
+		} else {
+			for _, ch := range p.Children_ {
+				ch.expandByPath(subpath)
+			}
+		}
+	}
+}
+
+func (p *Model) makeParentLinks(exp *ExpandedPaths) {
+	if p != nil {
+		p.ExpandedFields = exp
+		for _, ch := range p.Children_ {
+			ch.Parent = p
+			ch.makeParentLinks(exp)
+		}
+	}
 }
 
 func (p *Model) removeUnneeded() *Model {
@@ -207,27 +257,54 @@ func (p *Model) stringAt(level int) string {
 	}
 }
 
-//func (p *Model) Children() tree.IIterator {
-//}
+func (p *Model) PathToRoot() []string {
+	if p == nil {
+		return []string{}
+	}
+	return append(p.Parent.PathToRoot(), p.Name)
+}
 
 func (p *Model) IsCollapsed() bool {
-	//return false
 	return !p.Expanded
-	// fp := d.FullPath()
-	// if v, res := (*d.cache)[fp]; res {
-	// 	return (v == collapsed)
-	// } else {
-	// 	return true
-	// }
 }
 
 func (p *Model) SetCollapsed(app gowid.IApp, isCollapsed bool) {
-	// fp := d.FullPath()
 	if isCollapsed {
 		p.Expanded = false
 	} else {
 		p.Expanded = true
 	}
+	path := p.PathToRoot()
+	if p.Expanded {
+		// We need to add an expanded entry for [/], [/, tcp], [/, tcp, tcp.srcport] - because
+		// expanding a node implicitly expands all parent nodes. But contracting an outer node
+		// should leave the expanded state of inner nodes alone.
+		for i := 0; i < len(path); i++ {
+			p.ExpandedFields.addExpanded(path[0 : i+1])
+		}
+	} else {
+		p.ExpandedFields.removeExpanded(path)
+	}
+}
+
+func (m *ExpandedPaths) addExpanded(path []string) bool {
+	for _, p := range *m {
+		if reflect.DeepEqual(p, path) {
+			return false
+		}
+	}
+	*m = append(*m, path)
+	return true
+}
+
+func (m *ExpandedPaths) removeExpanded(path []string) bool {
+	for i, p := range *m {
+		if reflect.DeepEqual(p, path) {
+			*m = append((*m)[:i], (*m)[i+1:]...)
+			return true
+		}
+	}
+	return false
 }
 
 //======================================================================
