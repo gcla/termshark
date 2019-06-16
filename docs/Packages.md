@@ -37,6 +37,12 @@ To build/install the port, run:
 brew update
 brew install termshark
 ```
+## Kali Linux
+
+```bash
+apt update
+apt install termshark
+```
 
 ## SnapCraft
 
