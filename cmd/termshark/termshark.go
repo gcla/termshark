@@ -121,9 +121,14 @@ var fillSpace *fill.Widget
 var fillVBar *fill.Widget
 var colSpace *gowid.ContainerWidget
 
-var packetStructWidgets *lru.Cache
+var curPacketStructWidget *copymodetree.Widget
 var packetHexWidgets *lru.Cache
 var packetListView *rowFocusTableWidget
+
+var curExpandedStructNodes pdmltree.ExpandedPaths // a path to each expanded node in the packet, preserved while navigating
+var curStructPosition tree.IPos                   // e.g. [0, 2, 1] -> the indices of the expanded nodes
+var curPdmlPosition []string                      // e.g. [ , tcp, tcp.srcport ] -> the path from focus to root in the current struct
+var curStructWidgetState interface{}              // e.g. {linesFromTop: 1, ...} -> the positioning of the current struct widget
 
 var cacheRequests []pcap.LoadPcapSlice
 var cacheRequestsChan chan struct{} // false means started, true means finished
@@ -357,6 +362,7 @@ func init() {
 	quitRequestedChan = make(chan struct{}, 1) // buffered because send happens from ui goroutine, which runs global select
 	cacheRequestsChan = make(chan struct{}, 1000)
 	cacheRequests = make([]pcap.LoadPcapSlice, 0)
+	curExpandedStructNodes = make(pdmltree.ExpandedPaths, 0, 20)
 	opts.DarkMode = func(val bool) {
 		darkModeSwitch = val
 		darkModeSwitchSet = true
@@ -599,7 +605,6 @@ func swallowMouseScroll(ev *tcell.EventMouse, app gowid.IApp) bool {
 
 // run in app goroutine
 func clearPacketViews(app gowid.IApp) {
-	packetStructWidgets.Purge()
 	packetHexWidgets.Purge()
 
 	packetListViewHolder.SetSubWidget(nullw, app)
@@ -617,7 +622,7 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 	}
 	// Note that level should never end up < 0
 
-	// We know ou tree widget will never display the root node, so everything will be indented at
+	// We know our tree widget will never display the root node, so everything will be indented at
 	// least one level. So we know this will never end up negative.
 	level := -2
 	for cur := pos; cur != nil; cur = tree.ParentPosition(cur) {
@@ -1656,10 +1661,8 @@ func setPacketListWidgets(packetPsmlHeaders []string, packetPsmlData [][]string,
 }
 
 func expandStructWidgetAtPosition(row int, pos int, app gowid.IApp) {
-	if val, ok := packetStructWidgets.Get(row); ok {
-		trw := val.(*copymodetree.Widget)
-
-		walker := trw.Walker().(*termshark.NoRootWalker)
+	if curPacketStructWidget != nil {
+		walker := curPacketStructWidget.Walker().(*termshark.NoRootWalker)
 		curTree := walker.Tree().(*pdmltree.Model)
 
 		finalPos := make([]int, 0)
@@ -1680,7 +1683,7 @@ func expandStructWidgetAtPosition(row int, pos int, app gowid.IApp) {
 				}
 			}
 			if chosenTree != nil {
-				chosenTree.Expanded = true
+				chosenTree.SetCollapsed(app, false)
 				finalPos = append(finalPos, chosenIdx+hack)
 				curTree = chosenTree
 				hack = 0
@@ -1690,13 +1693,23 @@ func expandStructWidgetAtPosition(row int, pos int, app gowid.IApp) {
 			}
 		}
 		if len(finalPos) > 0 {
-			tp := tree.NewPosExt(finalPos)
+			curStructPosition = tree.NewPosExt(finalPos)
 			// this is to account for the fact that noRootWalker returns the next widget
 			// in the tree. Whatever position we find, we need to go back one to make up for this.
-			walker.SetFocus(tp, app)
-			trw.GoToMiddle(app)
+			walker.SetFocus(curStructPosition, app)
+
+			curPacketStructWidget.GoToMiddle(app)
+			curStructWidgetState = curPacketStructWidget.State()
+
+			updateCurrentPdmlPosition(walker.Tree())
 		}
 	}
+}
+
+func updateCurrentPdmlPosition(tr tree.IModel) {
+	treeAtCurPos := curStructPosition.GetSubStructure(tr)
+	// Save [/, tcp, tcp.srcport] - so we can apply if user moves in packet list
+	curPdmlPosition = treeAtCurPos.(*pdmltree.Model).PathToRoot()
 }
 
 func getLayersFromStructWidget(row int, pos int) []hexdumper.LayerStyler {
@@ -1711,7 +1724,7 @@ func getLayersFromStructWidget(row int, pos int) []hexdumper.LayerStyler {
 				log.Fatal(err)
 			}
 
-			tr := pdmltree.DecodePacket(data)
+			tr := pdmltree.DecodePacket(data, &curExpandedStructNodes)
 			tr.Expanded = true
 
 			layers = tr.HexLayers(pos, false)
@@ -1791,82 +1804,126 @@ func getStructWidgetKey(row int) []byte {
 func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 	var res gowid.IWidget = missingMsgw
 
-	if val, ok := packetStructWidgets.Get(row); ok {
-		res = val.(gowid.IWidget)
-	} else {
-		row2 := (row / 1000) * 1000
-		if ws, ok := loader.PacketCache.Get(row2); ok {
-			srca := ws.(pcap.CacheEntry).Pdml
-			if len(srca) > row%1000 {
-				data, err := xml.Marshal(srca[row%1000])
-				if err != nil {
-					log.Fatal(err)
+	row2 := (row / 1000) * 1000
+	if ws, ok := loader.PacketCache.Get(row2); ok {
+		srca := ws.(pcap.CacheEntry).Pdml
+		if len(srca) > row%1000 {
+			data, err := xml.Marshal(srca[row%1000])
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			tr := pdmltree.DecodePacket(data, &curExpandedStructNodes)
+			tr.Expanded = true
+
+			var pos tree.IPos = tree.NewPos()
+			pos = tree.NextPosition(pos, tr) // Start ahead by one, then never go back
+
+			rwalker := tree.NewWalker(tr, pos,
+				tree.NewCachingMaker(tree.WidgetMakerFunction(makeStructNodeWidget)),
+				tree.DecoratorFunction(makeStructNodeDecoration))
+			// Without the caching layer, clicking on a button has no effect
+			walker := termshark.NewNoRootWalker(rwalker)
+
+			// Send the layers represents the tree expansion to hex.
+			// This could be the user clicking inside the tree. Or it might be the position changing
+			// in the hex widget, resulting in a callback to programmatically change the tree expansion,
+			// which then calls back to the hex
+			updateHex := func(app gowid.IApp, twalker tree.ITreeWalker) {
+				newhex := getHexWidgetToDisplay(row)
+				if newhex != nil {
+
+					newtree := twalker.Tree().(*pdmltree.Model)
+					newpos := twalker.Focus().(tree.IPos)
+
+					leaf := newpos.GetSubStructure(twalker.Tree()).(*pdmltree.Model)
+
+					coverWholePacket := false
+
+					// This skips the "frame" node in the pdml that covers the entire range of bytes. If newpos
+					// is [0] then the user has chosen that node by interacting with the struct view (the hex view
+					// can't choose any position that maps to the first pdml child node) - so in this case, we
+					// send back a layer spanning the entire packet. Otherwise we don't want to send back that
+					// packet-spanning layer because it will always be the layer returned, meaning the hexdumper
+					// will always show the entire packet highlighted.
+					if newpos.Equal(tree.NewPosExt([]int{0})) {
+						coverWholePacket = true
+					}
+
+					newlayers := newtree.HexLayers(leaf.Pos, coverWholePacket)
+					if len(newlayers) > 0 {
+						newhex.SetLayers(newlayers, app)
+
+						curhexpos := newhex.Position()
+						smallestlayer := newlayers[len(newlayers)-1]
+
+						if !(smallestlayer.Start <= curhexpos && curhexpos < smallestlayer.End) {
+							// This might trigger a callback from the hex layer since the position is set. Which will call
+							// back into here. But then this logic should not be triggered because the new pos will be
+							// inside the smallest layer
+							newhex.SetPosition(smallestlayer.Start, app)
+						}
+					}
 				}
 
-				tr := pdmltree.DecodePacket(data)
-				tr.Expanded = true
+			}
 
-				var pos tree.IPos = tree.NewPos()
-				pos = tree.NextPosition(pos, tr) // Start ahead by one, then never go back
+			tb := copymodetree.New(tree.New(walker), copyModePalette{})
+			res = tb
+			// Save this in case the hex layer needs to change it
+			curPacketStructWidget = tb
 
-				// Without the caching layer, clicking on a button has no effect
-				walker := termshark.NewNoRootWalker(tree.NewWalker(tr, pos,
-					tree.NewCachingMaker(tree.WidgetMakerFunction(makeStructNodeWidget)),
-					tree.NewCachingDecorator(tree.DecoratorFunction(makeStructNodeDecoration))))
+			// if not nil, it means the user has interacted with some struct widget at least once causing
+			// a focus change. We track the current focus e.g. [0, 2, 1] - the indices through the tree leading
+			// to the focused item. We programatically adjust the focus widget of the new struct (e.g. after
+			// navigating down one in the packet list), but only if we can move focus to the same PDML field
+			// as the old struct. For example, if we are on tcp.srcport in the old packet, and we can
+			// open up tcp.srcport in the new packet, then we do so. This is not perfect, because I use the old
+			// pdml tre eposition, which is a sequence of integer indices. This means if the next packet has
+			// an extra layer before TCP, say some encapsulation, then I could still open up tcp.srcport, but
+			// I don't find it because I find the candidate focus widget using the list of integer indices.
+			if curStructPosition != nil {
 
-				// Send the layers represents the tree expansion to hex.
-				// This could be the user clicking inside the tree. Or it might be the position changing
-				// in the hex widget, resulting in a callback to programmatically change the tree expansion,
-				// which then calls back to the hex
-				updateHex := func(app gowid.IApp, twalker tree.ITreeWalker) {
-					newhex := getHexWidgetToDisplay(row)
-					if newhex != nil {
+				curPos := curStructPosition                           // e.g. [0, 2, 1]
+				treeAtCurPos := curPos.GetSubStructure(walker.Tree()) // e.g. the TCP *pdmltree.Model
+				if treeAtCurPos != nil && deep.Equal(curPdmlPosition, treeAtCurPos.(*pdmltree.Model).PathToRoot()) == nil {
+					// if the newly selected struct has a node at [0, 2, 1] and it maps to tcp.srcport via the same path,
 
-						newtree := twalker.Tree().(*pdmltree.Model)
-						newpos := twalker.Focus().(tree.IPos)
+					// set the focus widget of the new struct i.e. which leaf has focus
+					walker.SetFocus(curPos, app)
 
-						leaf := newpos.GetSubStructure(twalker.Tree()).(*pdmltree.Model)
-
-						coverWholePacket := false
-
-						// This skips the "frame" node in the pdml that covers the entire range of bytes. If newpos
-						// is [0] then the user has chosen that node by interacting with the struct view (the hex view
-						// can't choose any position that maps to the first pdml child node) - so in this case, we
-						// send back a layer spanning the entire packet. Otherwise we don't want to send back that
-						// packet-spanning layer because it will always be the layer returned, meaning the hexdumper
-						// will always show the entire packet highlighted.
-						if newpos.Equal(tree.NewPosExt([]int{0})) {
-							coverWholePacket = true
-						}
-
-						newlayers := newtree.HexLayers(leaf.Pos, coverWholePacket)
-						if len(newlayers) > 0 {
-							newhex.SetLayers(newlayers, app)
-
-							curhexpos := newhex.Position()
-							smallestlayer := newlayers[len(newlayers)-1]
-
-							if !(smallestlayer.Start <= curhexpos && curhexpos < smallestlayer.End) {
-								// This might trigger a callback from the hex layer since the position is set. Which will call
-								// back into here. But then this logic should not be triggered because the new pos will be
-								// inside the smallest layer
-								newhex.SetPosition(smallestlayer.Start, app)
-							}
-						}
+					if curStructWidgetState != nil {
+						// we scrolled the previous struct a bit, apply it to the new one too
+						tb.SetState(curStructWidgetState, app)
+					} else {
+						// First change by the user, so remember it and use it when navigating to the next
+						curStructWidgetState = tb.State()
 					}
 
 				}
 
-				walker.OnFocusChanged(tree.MakeCallback("cb", func(app gowid.IApp, twalker tree.ITreeWalker) {
-					updateHex(app, twalker)
-				}))
-
-				updateHex(app, walker)
-
-				tb := copymodetree.New(tree.New(walker), copyModePalette{})
-				res = tb
-				packetStructWidgets.Add(row, res)
+			} else {
+				curStructPosition = walker.Focus().(tree.IPos)
 			}
+
+			tb.OnFocusChanged(gowid.MakeWidgetCallback("cb", gowid.WidgetChangedFunction(func(app gowid.IApp, w gowid.IWidget) {
+				curStructWidgetState = tb.State()
+			})))
+
+			walker.OnFocusChanged(tree.MakeCallback("cb", func(app gowid.IApp, twalker tree.ITreeWalker) {
+				updateHex(app, twalker)
+				// need to save the position, so it can be applied to the next struct widget
+				// if brought into focus by packet list navigation
+				curStructPosition = walker.Focus().(tree.IPos)
+
+				updateCurrentPdmlPosition(walker.Tree())
+			}))
+
+			// Update hex at the end, having set up callbacks. We want to make sure that
+			// navigating around the hext view expands the struct view in such a way as to
+			// preserve these changes when navigating the packet view
+			updateHex(app, walker)
+
 		}
 	}
 	return res
@@ -2533,11 +2590,6 @@ func cmain() int {
 	widgetCacheSize := termshark.ConfInt("main.ui-cache-size", 1000)
 	if widgetCacheSize < 64 {
 		widgetCacheSize = 64
-	}
-	packetStructWidgets, err = lru.New(widgetCacheSize)
-	if err != nil {
-		fmt.Printf("Internal error: %v\n", err)
-		return 1
 	}
 	packetHexWidgets, err = lru.New(widgetCacheSize)
 	if err != nil {
