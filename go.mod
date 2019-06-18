@@ -16,3 +16,5 @@ require (
 	github.com/stretchr/testify v1.3.0
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 )
+
+replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20190617025252-1097a48ec082
