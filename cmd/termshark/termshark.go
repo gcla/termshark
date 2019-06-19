@@ -2419,6 +2419,12 @@ func cmain() int {
 			fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", pcapf, err)
 			return 1
 		}
+		if pcapffile, err := os.Open(pcapf); err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", pcapf, err)
+			return 1
+		} else {
+			pcapffile.Close()
+		}
 	}
 
 	// Helpful to use logging when enumerating interfaces below, so do it first
