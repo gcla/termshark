@@ -1821,7 +1821,7 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 
 			rwalker := tree.NewWalker(tr, pos,
 				tree.NewCachingMaker(tree.WidgetMakerFunction(makeStructNodeWidget)),
-				tree.DecoratorFunction(makeStructNodeDecoration))
+				tree.NewCachingDecorator(tree.DecoratorFunction(makeStructNodeDecoration)))
 			// Without the caching layer, clicking on a button has no effect
 			walker := termshark.NewNoRootWalker(rwalker)
 
