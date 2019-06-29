@@ -1,0 +1,22 @@
+language: go
+
+env:
+  - GO111MODULE=on
+
+go:
+  - 1.11.x
+  - 1.12.x
+
+notifications:
+  email: true
+
+before_install:
+  - sudo apt-get install -y tshark
+
+addons:
+  apt:
+    update: true
+    
+script:
+  - go test -v ./...  
+
