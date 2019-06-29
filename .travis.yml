@@ -11,5 +11,5 @@ notifications:
   email: true
 
 script:
-  - go test -v -race ./...  
+  - go test -v ./...  
 
