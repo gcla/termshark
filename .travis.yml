@@ -1,22 +1,24 @@
 language: go
-
 env:
+  matrix:
   - GO111MODULE=on
-
+  global:
+    secure: I+3P2j2pxXjaKBAemdC/NN8SozyG4BEcMXJqUPY4jmiJO6aVXHkEQUMHzk1hCzNNo2QA2ACz0ptSUKx9AIXlQuGmLPsbNGkCaLklT8+lLgwISbM+BGs3w8Bz777czbD1c2zHjb3k/90fgo0j+96Y+qpJOo3GAEBsz8Q47GQEZUFM05DPzd2Opj6fXkZBY0qaG5cXHF8UisgpYL4E6iYnXnPS7O3jPnyL28QnzYV9zsZGfPGWTSo0vOaO2l5gmPNZ33w+fnuN9pLayh6L8lLDYlwzAyzMUx9HTgp1qLknSzPmhSIqn1OebKVX5UiTWlfI/5mJj2TI0E/S+sFNTlkNR3r1qoNs09m7zRijxkQVKNj/Pzx5fbT5yYB6g7kPuD6Ag1NQb3TPocxOk/m4OHoU7m1kSl7IKr9LmNIGwEAzwIOPwxoHBXsSiZo4Zu4uD0pl6Jse7NTXCc5sPZagEwac70TZ0aPwuOwQDnwPU8PUUfDQwoYtuXkY8uv/lBki0y1JV8vVTNZoel6ZwJuJPB6IXn4ctI7c+MtX1eIg0zppkjaqnpi3eKbtpFGlbOAtquChd4LEr1O+Q5IJyPg7DFVfscH41owWR9T3sYXSpjVU8XKsAfjazS4Xx/brFItlvLjRQHdpZzng23EWBeYP9nCM5X5UZ2xEnrDJXefhrsHqWLw=
 go:
-  - 1.11.x
-  - 1.12.x
-
+- 1.11.x
+- 1.12.x
 notifications:
   email: true
-
 before_install:
-  - sudo apt-get install -y tshark
-
+- sudo apt-get install -y tshark
 addons:
   apt:
     update: true
-    
 script:
-  - go test -v ./...  
-
+- go test -v ./...
+deploy:
+- provider: script
+  skip_cleanup: true
+  script: curl -sL https://git.io/goreleaser | bash
+  on:
+    condition: "$TRAVIS_OS_NAME = linux"
