@@ -827,8 +827,12 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	// Returns true if it's an error we should bring to user's attention
 	unexpectedError := func(err error) bool {
 		cancelled := atomic.LoadInt32(&stageIsCancelled)
-		if err != io.EOF && cancelled == 0 {
-			return true
+		if cancelled == 0 {
+			if err != io.EOF {
+				if err, ok := err.(*xml.SyntaxError); !ok || err.Msg != "unexpected EOF" {
+					return true
+				}
+			}
 		}
 		return false
 	}
