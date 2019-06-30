@@ -269,7 +269,7 @@ var (
 	}
 
 	helpTmpl = template.Must(template.New("Help").Parse(`
-{{define "NameVer"}}termshark v{{.Version}}{{end}}
+{{define "NameVer"}}termshark {{.Version}}{{end}}
 
 {{define "OneLine"}}A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.{{end}}
 

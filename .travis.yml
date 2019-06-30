@@ -1,15 +1,24 @@
 language: go
 env:
-  matrix:
-  - GO111MODULE=on
   global:
-    secure: I+3P2j2pxXjaKBAemdC/NN8SozyG4BEcMXJqUPY4jmiJO6aVXHkEQUMHzk1hCzNNo2QA2ACz0ptSUKx9AIXlQuGmLPsbNGkCaLklT8+lLgwISbM+BGs3w8Bz777czbD1c2zHjb3k/90fgo0j+96Y+qpJOo3GAEBsz8Q47GQEZUFM05DPzd2Opj6fXkZBY0qaG5cXHF8UisgpYL4E6iYnXnPS7O3jPnyL28QnzYV9zsZGfPGWTSo0vOaO2l5gmPNZ33w+fnuN9pLayh6L8lLDYlwzAyzMUx9HTgp1qLknSzPmhSIqn1OebKVX5UiTWlfI/5mJj2TI0E/S+sFNTlkNR3r1qoNs09m7zRijxkQVKNj/Pzx5fbT5yYB6g7kPuD6Ag1NQb3TPocxOk/m4OHoU7m1kSl7IKr9LmNIGwEAzwIOPwxoHBXsSiZo4Zu4uD0pl6Jse7NTXCc5sPZagEwac70TZ0aPwuOwQDnwPU8PUUfDQwoYtuXkY8uv/lBki0y1JV8vVTNZoel6ZwJuJPB6IXn4ctI7c+MtX1eIg0zppkjaqnpi3eKbtpFGlbOAtquChd4LEr1O+Q5IJyPg7DFVfscH41owWR9T3sYXSpjVU8XKsAfjazS4Xx/brFItlvLjRQHdpZzng23EWBeYP9nCM5X5UZ2xEnrDJXefhrsHqWLw=
+  - GO111MODULE=on
+  - GOOGLE_APPLICATION_CREDENTIALS=/tmp/google.json
+  - secure: I+3P2j2pxXjaKBAemdC/NN8SozyG4BEcMXJqUPY4jmiJO6aVXHkEQUMHzk1hCzNNo2QA2ACz0ptSUKx9AIXlQuGmLPsbNGkCaLklT8+lLgwISbM+BGs3w8Bz777czbD1c2zHjb3k/90fgo0j+96Y+qpJOo3GAEBsz8Q47GQEZUFM05DPzd2Opj6fXkZBY0qaG5cXHF8UisgpYL4E6iYnXnPS7O3jPnyL28QnzYV9zsZGfPGWTSo0vOaO2l5gmPNZ33w+fnuN9pLayh6L8lLDYlwzAyzMUx9HTgp1qLknSzPmhSIqn1OebKVX5UiTWlfI/5mJj2TI0E/S+sFNTlkNR3r1qoNs09m7zRijxkQVKNj/Pzx5fbT5yYB6g7kPuD6Ag1NQb3TPocxOk/m4OHoU7m1kSl7IKr9LmNIGwEAzwIOPwxoHBXsSiZo4Zu4uD0pl6Jse7NTXCc5sPZagEwac70TZ0aPwuOwQDnwPU8PUUfDQwoYtuXkY8uv/lBki0y1JV8vVTNZoel6ZwJuJPB6IXn4ctI7c+MtX1eIg0zppkjaqnpi3eKbtpFGlbOAtquChd4LEr1O+Q5IJyPg7DFVfscH41owWR9T3sYXSpjVU8XKsAfjazS4Xx/brFItlvLjRQHdpZzng23EWBeYP9nCM5X5UZ2xEnrDJXefhrsHqWLw=
+  - secure: FLDaxfvg2nwSPo045nwSINI/84MgGwlku/ZgkvVbDQUNiIUc305UhaNCPuxq503Y2OJdw39wN3kkLQd08g4vYHXygBYTEr7k63D1Dq+0GltItTGPpMmhW2LCZFxMZ6QLVpLf/LGYY9DviT+zIXfDJekgvCcxT9cXTWxaKNAxENnvbUu/arnNg0liL9zyhoCIMiEJmJ/Pybq9MkL8mv+4i6DpzWTh6vGsO2OXfN52QQ/y4TqnJYsOfsRzKX30AzX+OvONUOhwt4j5AbQWn1VTFHWUz++GhY/LerJxOXYea2GqaY0NZ0+cvpUaMRpeAENJA778IQvRojMZnWgyRm7RAScHkJ0dT8CTuCkIXn/XN/r+bmTBdoB9C9DuDovo2Y86HgOeM1ZIRGjgNAja6oBJ7xi94m8TlsjoQuPl4eilB8Y5dX+tkUGTOZ90zWaP5xViAMIZpTiMS8ZWnHOGWB3M4EfmDDiaX6SOEcT7QFQMS/kj0RtBSZlXYcXEfvZnduW2eykfYeOVoDZoBZOiB93yVfhg5NrOeaKPe3XiiqlTygNUNRllO1SaYB317EQwSPAuFG1X2ocS0uHvVNT/DvoHDTmztEvJBB3aI+9jZbj1ZzVFtD525MaVGHCvXpCYjfKkhq3eMTsdTFOH2QlW2cf1UWhMPQyvMABr4C0Ro0ep/Kk=
+branches:
+  only:
+  - gh-pages
+  - "/.*/"
+git:
+  depth: false
 go:
 - 1.11.x
 - 1.12.x
 notifications:
   email: true
 before_install:
+- openssl aes-256-cbc -K $encrypted_1286cb654632_key -iv $encrypted_1286cb654632_iv
+  -in configs/termshark-dd01307f2423.json.enc -out /tmp/google.json -d
 - sudo apt-get install -y tshark
 addons:
   apt:
@@ -19,6 +28,20 @@ script:
 deploy:
 - provider: script
   skip_cleanup: true
-  script: curl -sL https://git.io/goreleaser | bash
+  script: bash scripts/do-release.sh
   on:
-    condition: "$TRAVIS_OS_NAME = linux"
+    all_branches: true
+    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.12.x"
+- provider: gcs
+  skip_cleanup: true
+  access_key_id: GOOGKKO2OYB5BE3XDNBJMDRK
+  secret_access_key:
+    secure: fKoBQYUVQLh5gZB/LE3jmv9atfuOh1oM3YZ+9nIvv39771WbI9nfcxpO9/LZldoWludUeamR8fGz8rqzP19g6aZK+tTAvBG8XZnbEIi7lCtrLmBY6FB7t9VkcA5oPyAd+ygnUF4BRh92gqGbYx4vdJdjPUSruiIq8HTw1eSdLCIjl2h+Rk4KSpmnPmZk1YtWI9TDkBG8dRLnIq16Rwb0ep5oeK1Omlvqr5PiuwUL3gJFfE7KWznjs2hv52yAXQY6J8vWyiifBnQI7wq3JvbcV0PkJjQ7oyCsIx56R4dMl+UjFynmA7PpOiZqCj+Rp4EcBmGnh1ofS7U9hDfvLiy9jbHNwPUBiYQj2aD/fykMmXvAUwqzvjxCqx1Ky/QweBcVUbs2jOwiCofl4gSrPYdB2dkcZ8I0x9BhhbByOIEN42MNdYGucaqAia8yP8fDgfofi7H3XW3dZCySFbpb2n2poskpDFqEiJdubtm4b15YxV3gKn0NppJVojlMinEFk0jQh0BIVSY6/30rygamhbTps7JR2rNRo/82QIStZ00ME8CgFBQuEU0tOvyX3ifJAsTJPy3g4/0p3SGLrc0iV9CW3ieboA0vXJQ7DkR+yAyKhvz0QoAZs3QiAxfJLFvKxe2L/UGlKqisRghW7WRiZn8AzQNuD0jhi63SqimA2q/HFe8=
+  bucket: termshark
+  acl: public-read
+  local-dir: dist
+  upload-dir: "$TRAVIS_COMMIT"
+  on:
+    repo: gcla/termshark
+    all_branches: true
+    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.12.x"
