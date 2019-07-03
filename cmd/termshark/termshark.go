@@ -3323,10 +3323,13 @@ Loop:
 				// apply a filter, I need to know if the load was cancelled previously because
 				// if it was cancelled, I need to load from the temp pcap; if not cancelled,
 				// (meaning still running), then I just apply a new filter and have the pcap
-				// reader read from the fifo
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					openError("Loading was cancelled.", app)
-				}))
+				// reader read from the fifo. Only do this if the user isn't quitting the app,
+				// otherwise it looks clumsy.
+				if !quitRequested {
+					app.Run(gowid.RunFunction(func(app gowid.IApp) {
+						openError("Loading was cancelled.", app)
+					}))
+				}
 			}
 			// Reset
 			loaderPsmlFinChan = loader.PsmlFinishedChan
