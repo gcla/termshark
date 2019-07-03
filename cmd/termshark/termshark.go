@@ -113,10 +113,12 @@ var progressHolder *holder.Widget
 var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
 
-var nullw *null.Widget
-var loadingw gowid.IWidget
-var structmsgHolder *holder.Widget
-var missingMsgw gowid.IWidget
+var nullw *null.Widget                       // empty
+var loadingw gowid.IWidget                   // "loading..."
+var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
+var missingMsgw gowid.IWidget                // centered, holding singlePacketViewMsgHolder
+var emptyStructViewTimer *time.Ticker
+var emptyHexViewTimer *time.Ticker
 var fillSpace *fill.Widget
 var fillVBar *fill.Widget
 var colSpace *gowid.ContainerWidget
@@ -137,9 +139,13 @@ var loader *pcap.Loader
 var scheduler *pcap.Scheduler
 var captureFilter string // global for now, might make it possible to change in app at some point
 var tmplData map[string]interface{}
-var darkModeSwitchSet bool // whether switch was passed at command line
-var darkModeSwitch bool    // set via command line
-var darkMode bool          // global state in app
+var darkModeSwitchSet bool   // whether switch was passed at command line
+var darkModeSwitch bool      // set via command line
+var darkMode bool            // global state in app
+var autoScrollSwitchSet bool // whether switch was passed at command line
+var autoScrollSwitch bool    // set via command line
+var autoScroll bool          // true if the packet list should auto-scroll when listening on an interface.
+var newPacketsArrived bool   // true if current updates are due to new packets when listening on an interface.
 
 var fixed gowid.RenderFixed
 var flow gowid.RenderFlow
@@ -336,6 +342,7 @@ right    - Select next inner-most widget{{end}}
 		PassThru      string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
 		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal.."`
 		DarkMode      func(bool)     `long:"dark-mode" optional:"true" optional-value:"true" description:"Use dark-mode."`
+		AutoScroll    func(bool)     `long:"auto-scroll" optional:"true" optional-value:"true" description:"Automatically scroll during live capture."`
 		Help          bool           `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
 		Version       bool           `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
@@ -366,6 +373,10 @@ func init() {
 	opts.DarkMode = func(val bool) {
 		darkModeSwitch = val
 		darkModeSwitchSet = true
+	}
+	opts.AutoScroll = func(val bool) {
+		autoScrollSwitch = val
+		autoScrollSwitchSet = true
 	}
 }
 
@@ -1535,19 +1546,18 @@ func setProgressWidget(app gowid.IApp) {
 	filterCols.SetDimensions(ds, app)
 }
 
+// setLowerWidgets will set the packet structure and packet hex views, if there
+// is suitable data to display. If not, they are left as-is.
 func setLowerWidgets(app gowid.IApp) {
-	var sw1 gowid.IWidget = missingMsgw
-	var sw2 gowid.IWidget = missingMsgw
+	var sw1 gowid.IWidget
+	var sw2 gowid.IWidget
 	if packetListView != nil {
 		if fxy, err := packetListView.FocusXY(); err == nil {
-			row2 := fxy.Row
-			row3, _ := packetListView.Model().RowIdentifier(row2)
-			row := int(row3)
+			row2, _ := packetListView.Model().RowIdentifier(fxy.Row)
+			row := int(row2)
 
 			hex := getHexWidgetToDisplay(row)
-			if hex == nil {
-				sw1 = missingMsgw
-			} else {
+			if hex != nil {
 				// The 't' key will switch from hex <-> ascii
 				sw1 = enableselected.New(appkeys.New(
 					hex,
@@ -1556,17 +1566,29 @@ func setLowerWidgets(app gowid.IApp) {
 					}).SwitchView,
 				))
 			}
-			//str := getStructWidgetToDisplay(row, hex)
 			str := getStructWidgetToDisplay(row, app)
-			if str == nil {
-				sw2 = missingMsgw
-			} else {
+			if str != nil {
 				sw2 = enableselected.New(str)
 			}
 		}
 	}
-	packetHexViewHolder.SetSubWidget(sw1, app)
-	packetStructureViewHolder.SetSubWidget(sw2, app)
+	if sw1 != nil {
+		packetHexViewHolder.SetSubWidget(sw1, app)
+		emptyHexViewTimer = nil
+	} else {
+		if emptyHexViewTimer == nil {
+			startEmptyHexViewTimer()
+		}
+	}
+	if sw2 != nil {
+		packetStructureViewHolder.SetSubWidget(sw2, app)
+		emptyStructViewTimer = nil
+	} else {
+		if emptyStructViewTimer == nil {
+			startEmptyStructViewTimer()
+		}
+	}
+
 }
 
 func makePacketListModel(packetPsmlHeaders []string, packetPsmlData [][]string, app gowid.IApp) *psmltable.Model {
@@ -1607,7 +1629,21 @@ func makePacketListModel(packetPsmlHeaders []string, packetPsmlData [][]string, 
 
 func updatePacketListWithData(packetPsmlHeaders []string, packetPsmlData [][]string, app gowid.IApp) {
 	model := makePacketListModel(packetPsmlHeaders, packetPsmlData, app)
+	newPacketsArrived = true
 	packetListTable.SetModel(model, app)
+	newPacketsArrived = false
+	if autoScroll {
+		coords, err := packetListView.FocusXY()
+		if err == nil {
+			coords.Row = packetListTable.Length() - 1
+			newPacketsArrived = true
+			// Set focus on the last item in the view, then...
+			packetListView.SetFocusXY(app, coords)
+			newPacketsArrived = false
+		}
+		// ... adjust the widget so it is rendering with the last item at the bottom.
+		packetListTable.GoToBottom(app)
+	}
 }
 
 func setPacketListWidgets(packetPsmlHeaders []string, packetPsmlData [][]string, app gowid.IApp) {
@@ -1622,6 +1658,13 @@ func setPacketListWidgets(packetPsmlHeaders []string, packetPsmlData [][]string,
 		if err != nil {
 			return
 		}
+
+		if !newPacketsArrived {
+			// this focus change must've been user-initiated, so stop auto-scrolling with new packets.
+			// This mimics Wireshark's behavior.
+			autoScroll = false
+		}
+
 		row2 := fxy.Row
 		row3, gotrow := packetListView.Model().RowIdentifier(row2)
 		row := int(row3)
@@ -1801,8 +1844,9 @@ func getStructWidgetKey(row int) []byte {
 }
 
 // Note - hex can be nil
+// Note - returns nil if one can't be found
 func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
-	var res gowid.IWidget = missingMsgw
+	var res gowid.IWidget
 
 	row2 := (row / 1000) * 1000
 	if ws, ok := loader.PacketCache.Get(row2); ok {
@@ -2155,10 +2199,6 @@ func (s setStructWidgets) OnClear(closeMe chan<- struct{}) {
 func (s setStructWidgets) BeforeBegin(ch chan<- struct{}) {
 	s2ch := loader.Stage2FinishedChan
 
-	s.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		structmsgHolder.SetSubWidget(loadingw, s.app)
-	}))
-
 	termshark.TrackedGo(func() {
 		fn2 := func() {
 			s.app.Run(gowid.RunFunction(func(app gowid.IApp) {
@@ -2182,7 +2222,7 @@ func (s setStructWidgets) AfterEnd(ch chan<- struct{}) {
 	close(ch)
 	s.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		setLowerWidgets(app)
-		structmsgHolder.SetSubWidget(nullw, app)
+		singlePacketViewMsgHolder.SetSubWidget(nullw, app)
 	}))
 }
 
@@ -2192,6 +2232,16 @@ func (s setStructWidgets) OnError(err error, closeMe chan<- struct{}) {
 	s.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		openError(fmt.Sprintf("%v", err), app)
 	}))
+}
+
+//======================================================================
+
+func startEmptyStructViewTimer() {
+	emptyStructViewTimer = time.NewTicker(time.Duration(500) * time.Millisecond)
+}
+
+func startEmptyHexViewTimer() {
+	emptyHexViewTimer = time.NewTicker(time.Duration(500) * time.Millisecond)
 }
 
 //======================================================================
@@ -2587,6 +2637,13 @@ func cmain() int {
 		darkMode = viper.GetBool("main.dark-mode")
 	}
 
+	// Initialize application state for auto-scroll
+	if autoScrollSwitchSet {
+		autoScroll = autoScrollSwitch
+	} else {
+		autoScroll = viper.GetBool("main.auto-scroll")
+	}
+
 	//======================================================================
 	//
 	// Build the UI
@@ -2606,7 +2663,7 @@ func cmain() int {
 	nullw = null.New()
 
 	loadingw = text.New("Loading, please wait...")
-	structmsgHolder = holder.New(loadingw)
+	singlePacketViewMsgHolder = holder.New(nullw)
 	fillSpace = fill.New(' ')
 	if runtime.GOOS == "windows" {
 		fillVBar = fill.New('|')
@@ -2620,7 +2677,7 @@ func cmain() int {
 	}
 
 	missingMsgw = vpadding.New( // centred
-		hpadding.New(structmsgHolder, hmiddle, fixed),
+		hpadding.New(singlePacketViewMsgHolder, hmiddle, fixed),
 		vmiddle,
 		flow,
 	)
@@ -3157,9 +3214,27 @@ Loop:
 	for {
 		var opsChan <-chan pcap.RunFn
 		var tickChan <-chan time.Time
+		var emptyStructViewChan <-chan time.Time
+		var emptyHexViewChan <-chan time.Time
 		var psmlFinChan <-chan struct{}
 		var ifaceFinChan <-chan struct{}
 		var pdmlFinChan <-chan struct{}
+
+		// For setting struct views empty. This isn't done as soon as a load is initiated because
+		// in the case we are loading from an interface and following new packets, we get an ugly
+		// blinking effect where the loading message is displayed, shortly followed by the struct or
+		// hex view which comes back from the pdml process (because the pdml process can only read
+		// up to the end of the currently seen packets, each time it has to start afresh from the
+		// beginning to get new packets). Waiting 500ms to display loading gives enough time, in
+		// practice,
+
+		if emptyStructViewTimer != nil {
+			emptyStructViewChan = emptyStructViewTimer.C
+		}
+		// For setting hex views empty
+		if emptyHexViewTimer != nil {
+			emptyHexViewChan = emptyHexViewTimer.C
+		}
 
 		if loader.State() == 0 {
 			if loader.State() != prevstate {
@@ -3267,6 +3342,20 @@ Loop:
 			} else {
 				updateProgressBarForInterface(loader, app)
 			}
+
+		case <-emptyStructViewChan:
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				singlePacketViewMsgHolder.SetSubWidget(loadingw, app)
+				packetStructureViewHolder.SetSubWidget(missingMsgw, app)
+				emptyStructViewTimer = nil
+			}))
+
+		case <-emptyHexViewChan:
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				singlePacketViewMsgHolder.SetSubWidget(loadingw, app)
+				packetHexViewHolder.SetSubWidget(missingMsgw, app)
+				emptyHexViewTimer = nil
+			}))
 
 		case ev := <-app.TCellEvents:
 			app.HandleTCellEvent(ev, gowid.IgnoreUnhandledInput)
