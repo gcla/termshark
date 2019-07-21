@@ -88,6 +88,22 @@ func TestInterfaces1(t *testing.T) {
 	assert.Equal(t, `\Device\NPF_{78032B7E-4968-42D3-9F37-287EA86C0AAA}`, interfaces[1])
 }
 
+func TestConv1(t *testing.T) {
+	var tests = []struct {
+		arg string
+		res string
+	}{
+		{"hello\x41world\x42", "helloAworldB"},
+		{"80 \xe2\x86\x92 53347", "80 → 53347"},
+		{"hello\x41world\x42 foo \\000 bar", "helloAworldB foo \\000 bar"},
+	}
+
+	for _, test := range tests {
+		outs := TranslateHexCodes([]byte(test.arg))
+		assert.Equal(t, string(outs), test.res)
+	}
+}
+
 //======================================================================
 // Local Variables:
 // mode: Go

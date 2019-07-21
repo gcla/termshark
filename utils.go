@@ -10,6 +10,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"encoding/gob"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -26,8 +27,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gcla/gowid"
 	"github.com/blang/semver"
+	"github.com/gcla/gowid"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
@@ -439,6 +440,23 @@ func fixNewlines(unix []byte) []byte {
 	}
 
 	return bytes.Replace(unix, []byte{'\n'}, []byte{'\r', '\n'}, -1)
+}
+
+//======================================================================
+
+var hexRe = regexp.MustCompile(`\\x[0-9a-fA-F][0-9a-fA-F]`)
+
+// TranslateHexCodes will change instances of "\x41" in the input to the
+// byte 'A' in the output, passing through other characters. This is a small
+// subset of strconv.Unquote() for wireshark PSML data.
+func TranslateHexCodes(s []byte) []byte {
+	return hexRe.ReplaceAllFunc(s, func(m []byte) []byte {
+		r, err := hex.DecodeString(string(m[2:]))
+		if err != nil {
+			panic(err)
+		}
+		return []byte{r[0]}
+	})
 }
 
 //======================================================================

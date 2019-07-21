@@ -1509,11 +1509,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 					c.PacketPsmlHeaders = append(c.PacketPsmlHeaders, string(tok))
 					c.Unlock()
 				} else {
-					if line, err := strconv.Unquote("\"" + string(tok) + "\""); err == nil {
-						curPsml = append(curPsml, line)
-					} else {
-						curPsml = append(curPsml, string(tok))
-					}
+					curPsml = append(curPsml, string(termshark.TranslateHexCodes(tok)))
 					empty = false
 				}
 			}
