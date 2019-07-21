@@ -3151,16 +3151,18 @@ func cmain() int {
 		if pcapf, err = filepath.Abs(pcapf); err != nil {
 			fmt.Printf("Could not determine working directory: %v\n", err)
 			return 1
-		} else {
-			doit := func(app gowid.IApp) {
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					filterWidget.SetValue(displayFilter, app)
-				}))
-				requestLoadPcapWithCheck(pcapf, displayFilter, app)
-			}
-			validator.Valid = &filter.ValidateCB{Fn: doit, App: app}
-			validator.Validate(displayFilter)
 		}
+
+		doit := func(app gowid.IApp) {
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				filterWidget.SetValue(displayFilter, app)
+			}))
+			requestLoadPcapWithCheck(pcapf, displayFilter, app)
+		}
+		validator.Valid = &filter.ValidateCB{Fn: doit, App: app}
+		validator.Validate(displayFilter)
+		// no auto-scroll when reading a file
+		autoScroll = false
 	} else if useIface != "" {
 
 		// Verifies whether or not we will be able to read from the interface (hopefully)
