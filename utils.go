@@ -29,6 +29,7 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
+	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/pkg/term/termios"
 	"github.com/shibukawa/configdir"
@@ -412,6 +413,12 @@ func interfacesFrom(reader io.Reader) ([]string, error) {
 	}
 
 	return res, nil
+}
+
+//======================================================================
+
+func IsTerminal(fd uintptr) bool {
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 //======================================================================
