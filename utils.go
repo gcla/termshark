@@ -168,6 +168,13 @@ func CacheDir() string {
 	return dirs[0].Path
 }
 
+// A separate dir from CacheDir because I need to use inotify under some
+// circumstances for a non-existent file, meaning I need to track a directory,
+// and I don't want to be constantly triggered by log file updates.
+func PcapDir() string {
+	return path.Join(CacheDir(), "pcaps")
+}
+
 func RemoveFromStringSlice(pcap string, comps []string) []string {
 	var newcomps []string
 	for _, v := range comps {
