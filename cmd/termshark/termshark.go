@@ -861,6 +861,7 @@ func openMessage(msgt string, app gowid.IApp) {
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
@@ -874,6 +875,7 @@ func openHelp(tmplName string, app gowid.IApp) {
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
@@ -1036,6 +1038,7 @@ func openCopyChoices(app gowid.IApp) {
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
@@ -1066,6 +1069,7 @@ func reallyQuit(app gowid.IApp) {
 			},
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
@@ -1180,6 +1184,7 @@ func reallyClear(app gowid.IApp) {
 			},
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
@@ -2699,6 +2704,7 @@ func cmain() int {
 			Buttons:         dialog.NoButtons,
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
