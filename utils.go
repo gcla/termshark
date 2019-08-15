@@ -51,6 +51,18 @@ var BadState = BadStateError{}
 
 //======================================================================
 
+type BadCommandError struct{}
+
+var _ error = BadCommandError{}
+
+func (e BadCommandError) Error() string {
+	return "Error running command"
+}
+
+var BadCommand = BadCommandError{}
+
+//======================================================================
+
 func IsCommandInPath(bin string) bool {
 	_, err := exec.LookPath(bin)
 	return err == nil
