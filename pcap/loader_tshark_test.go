@@ -173,10 +173,11 @@ var pkt []byte = []byte{
 type portfn func() int
 
 type hackedPacket struct {
-	idx     int
-	port    portfn
-	actual  io.Reader
-	stopper iStopLoop
+	idx      int
+	port     portfn
+	actual   io.Reader
+	stopper  iStopLoop
+	foocount int
 }
 
 var _ io.Reader = (*hackedPacket)(nil)
@@ -197,13 +198,14 @@ func (r *hackedPacket) Read(p []byte) (int, error) {
 		//r.actual = strings.NewReader(string(data))
 		r.actual = bytes.NewReader(data)
 	}
-	return r.actual.Read(p)
+	resi, rese := r.actual.Read(p)
+	return resi, rese
 }
 
 func newPortLooper(pfn portfn, stopper iStopLoop) io.Reader {
 	readers := make([]io.Reader, 65536)
 	for i := 0; i < len(readers); i++ {
-		readers[i] = &hackedPacket{idx: 34 + 16, port: pfn, stopper: stopper}
+		readers[i] = &hackedPacket{idx: 34 + 16, port: pfn, stopper: stopper, foocount: i}
 	}
 	readers = append([]io.Reader{strings.NewReader(string(hdr))}, readers...)
 	return io.MultiReader(readers...)
@@ -213,24 +215,20 @@ func newPortLooper(pfn portfn, stopper iStopLoop) io.Reader {
 
 type fakeIfaceCmd struct {
 	*simpleCmd
-	tmpfile string
-	input   io.Reader
+	output io.Writer
+	input  io.Reader
 }
 
-var _ IBasicCommand = (*fakeIfaceCmd)(nil)
-
-func newLoopingIfaceCmd(prefix string, tmpfile string, stopper iStopLoop) *fakeIfaceCmd {
+func newLoopingIfaceCmd(prefix string, stopper iStopLoop) *fakeIfaceCmd {
 	return &fakeIfaceCmd{
 		simpleCmd: newSimpleCmd(strings.NewReader("")),
-		tmpfile:   tmpfile,
 		input:     newPcapLooper(prefix, "pcap", stopper), // loop forever until stopper signals to end
 	}
 }
 
-func newHackedIfaceCmd(pfn portfn, tmpfile string, stopper iStopLoop) *fakeIfaceCmd {
+func newHackedIfaceCmd(pfn portfn, stopper iStopLoop) *fakeIfaceCmd {
 	return &fakeIfaceCmd{
 		simpleCmd: newSimpleCmd(strings.NewReader("")),
-		tmpfile:   tmpfile,
 		input:     newPortLooper(pfn, stopper), // loop forever until stopper signals to end
 	}
 }
@@ -241,16 +239,33 @@ func (f *fakeIfaceCmd) Start() error {
 		return err
 	}
 	termshark.TrackedGo(func() {
-		file, err := os.Create(f.tmpfile)
+		n, err := io.Copy(f.output, f.input)
 		if err != nil {
-			panic(err)
-		}
-		_, err = io.Copy(file, f.input)
-		if err != nil {
-			panic(err)
+			//panic(err)
+			//log.Infof("GCLA: err is %T", err)
 		}
 	}, Goroutinewg)
 	return nil
+}
+
+func (f *fakeIfaceCmd) Kill() error {
+	return f.simpleCmd.Kill()
+}
+
+func (f *fakeIfaceCmd) Signal(s os.Signal) error {
+	return f.Kill()
+}
+
+func (f *fakeIfaceCmd) StdoutPipe() (io.ReadCloser, error) {
+	panic(nil)
+}
+
+func (f *fakeIfaceCmd) Stdout() io.Writer {
+	return f.output
+}
+
+func (f *fakeIfaceCmd) SetStdout(w io.WriteCloser) {
+	f.output = w
 }
 
 //======================================================================
@@ -260,8 +275,8 @@ type fakeIface struct {
 	stopper iStopLoop
 }
 
-func (f *fakeIface) Iface(iface string, tmpfile string) IBasicCommand {
-	return newLoopingIfaceCmd(f.prefix, tmpfile, f.stopper)
+func (f *fakeIface) Iface(iface string, filter string, tmpfile string) IBasicCommand {
+	return newLoopingIfaceCmd(f.prefix, f.stopper)
 }
 
 //======================================================================
@@ -271,14 +286,14 @@ type hackedIface struct {
 	pfn     portfn
 }
 
-func (f *hackedIface) Iface(iface string, tmpfile string) IBasicCommand {
-	return newHackedIfaceCmd(f.pfn, tmpfile, f.stopper)
+func (f *hackedIface) Iface(iface string, filter string, tmpfile string) IBasicCommand {
+	return newHackedIfaceCmd(f.pfn, f.stopper)
 }
 
 //======================================================================
 
 type IIface interface {
-	Iface(iface string, tmpfile string) IBasicCommand
+	Iface(iface string, filter string, tmpfile string) IBasicCommand
 }
 
 type fakeIfaceCommands struct {
@@ -289,12 +304,23 @@ type fakeIfaceCommands struct {
 var _ ILoaderCmds = fakeIfaceCommands{}
 
 func (c fakeIfaceCommands) Iface(iface string, captureFilter string, tmpfile string) IBasicCommand {
-	return c.fake.Iface(iface, tmpfile)
+	return c.fake.Iface(iface, captureFilter, tmpfile)
 }
 
 //======================================================================
 
-type chanfn func() <-chan error
+type inputStoppedError struct{}
+
+func (e inputStoppedError) Error() string {
+	return "Test stopped input"
+}
+
+type chanerr struct {
+	err   error
+	valid bool
+}
+
+type chanfn func() <-chan chanerr
 
 type waitForAnswer struct {
 	ch chanfn
@@ -303,15 +329,19 @@ type waitForAnswer struct {
 var _ iStopLoop = (*waitForAnswer)(nil)
 
 func (s *waitForAnswer) shouldStop() error {
-	err := <-s.ch()
-	return err
+	errv := <-s.ch()
+	if errv.valid {
+		return errv.err
+	} else {
+		return inputStoppedError{}
+	}
 }
 
 //======================================================================
 
 func TestIface1(t *testing.T) {
-	answerChan := make(chan error)
-	getChan := func() <-chan error {
+	answerChan := make(chan chanerr)
+	getChan := func() <-chan chanerr {
 		return answerChan
 	}
 
@@ -330,8 +360,9 @@ func TestIface1(t *testing.T) {
 	//ifaceFinChan := loader.IfaceFinishedChan
 
 	updater := newWaitForEnd()
-	fmt.Printf("doing load interface op\n")
 	ch := make(chan struct{})
+
+	// Start the packet generation and reading process
 	loader.doLoadInterfaceOperation("dummy", "", "", updater, func() { close(ch) })
 	<-ch
 
@@ -341,7 +372,7 @@ func TestIface1(t *testing.T) {
 	read := 10000
 	fmt.Printf("reading %d packets from looper\n", read)
 	for i := 0; i < read-1; i++ { // otherwise it reads one too many
-		answerChan <- nil
+		answerChan <- chanerr{err: nil, valid: true}
 	}
 
 	fmt.Printf("giving processes time to catch up\n")
@@ -350,6 +381,8 @@ func TestIface1(t *testing.T) {
 	fmt.Printf("stopping iface read\n")
 	ch = make(chan struct{})
 	updater = newWaitForEnd()
+
+	// Stop the packet generation and reading process
 	loader.doStopLoadOperation(updater, func() {
 		close(ch)
 	})
@@ -401,8 +434,8 @@ func TestIfaceNewFilter(t *testing.T) {
 		return res
 	}
 
-	answerChan := make(chan error)
-	getChan := func() <-chan error {
+	answerChan := make(chan chanerr)
+	getChan := func() <-chan chanerr {
 		return answerChan
 	}
 
@@ -422,7 +455,7 @@ func TestIfaceNewFilter(t *testing.T) {
 
 	filtcount := 1000
 	updater := newWaitForEnd()
-	fmt.Printf("doing load interface op\n")
+	fmt.Printf("buggy foo doing load interface op\n")
 	ch := make(chan struct{})
 	loader.doLoadInterfaceOperation("dummy", "", fmt.Sprintf("frame.number <= %d", filtcount), updater, func() { close(ch) })
 	<-ch
@@ -431,27 +464,27 @@ func TestIfaceNewFilter(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	read := 30000
-	fmt.Printf("reading %d packets from looper\n", read)
+	fmt.Printf("fake reading %d packets from looper\n", read)
 	for i := 0; i < read; i++ {
 		//fmt.Printf("loop 1: sending answerchan for %d\n", i)
-		answerChan <- nil
+		answerChan <- chanerr{err: nil, valid: true}
 		//fmt.Printf("loop 1: sending answerchan for %d\n", i)
 	}
 
-	fmt.Printf("giving processes time to catch up\n")
+	fmt.Printf("fake giving processes time to catch up\n")
 	time.Sleep(2 * time.Second)
 
-	fmt.Printf("stopping iface read\n")
+	fmt.Printf("fake stopping iface read\n")
 	ch = make(chan struct{})
 	loader.doStopLoadToIfaceOperation(func() { close(ch) })
 	close(answerChan)
 
-	fmt.Printf("waiting for loader to signal end\n")
+	fmt.Printf("fake waiting for loader to signal end\n")
 	<-psmlFinChan
 
-	fmt.Printf("done loading interface pcap\n")
+	fmt.Printf("fake done loading interface pcap\n")
 
-	fmt.Printf("num packets was %d\n", len(loader.PacketPsmlData))
+	fmt.Printf("fake num packets was %d\n", len(loader.PacketPsmlData))
 	assert.NotEqual(t, 0, len(loader.PacketPsmlData))
 	assert.Equal(t, filtcount, len(loader.PacketPsmlData))
 	assert.Equal(t, "192.168.86.246", loader.PacketPsmlData[0][2])
@@ -472,7 +505,7 @@ func TestIfaceNewFilter(t *testing.T) {
 	loader.SetState(loader.State() & ^LoadingPsml)
 
 	// Now SetState called, can get these channel results
-	fmt.Printf("waiting for updater end to signal end\n")
+	fmt.Printf("fake waiting for updater end to signal end\n")
 	<-updater.end
 	<-ch
 
@@ -481,12 +514,12 @@ func TestIfaceNewFilter(t *testing.T) {
 	// Save now because when psml load finishes, a new one is created
 	psmlFinChan = loader.PsmlFinishedChan
 
-	answerChan = make(chan error)
+	answerChan = make(chan chanerr)
 	filtcount = 1000
 	port = 0
 	updater = newWaitForEnd()
 
-	fmt.Printf("doing load interface op\n")
+	fmt.Printf("buggy foo fake doing load interface op\n")
 	ch = make(chan struct{})
 	loader.doLoadInterfaceOperation("dummy", "", fmt.Sprintf("frame.number > 500 && frame.number <= %d", filtcount+500), updater, func() { close(ch) })
 	<-ch
@@ -497,10 +530,10 @@ func TestIfaceNewFilter(t *testing.T) {
 
 	// The iface reader doesn't need to read more packets - we are only applying a new filter
 
-	fmt.Printf("loop 2: giving processes time to catch up\n")
+	fmt.Printf("loop 2: fake giving processes time to catch up\n")
 	time.Sleep(2 * time.Second)
 
-	fmt.Printf("loop 2: stopping iface read\n")
+	fmt.Printf("loop 2: fake stopping iface read\n")
 	ich := loader.IfaceFinishedChan // save the channel here, because it is reassigned before closing
 	updater = newWaitForEnd()
 	ch = make(chan struct{})
@@ -508,10 +541,10 @@ func TestIfaceNewFilter(t *testing.T) {
 	// in case the read is blocked here
 	close(answerChan)
 
-	fmt.Printf("loop 2: waiting for loader to signal end\n")
+	fmt.Printf("loop 2: fake waiting for loader to signal end\n")
 	<-psmlFinChan
 
-	fmt.Printf("num packets was %d\n", len(loader.PacketPsmlData))
+	fmt.Printf("fake num packets was %d\n", len(loader.PacketPsmlData))
 	assert.NotEqual(t, 0, len(loader.PacketPsmlData))
 	assert.Equal(t, filtcount, len(loader.PacketPsmlData))
 	// assert.Equal(t, "192.168.86.246", loader.PacketPsmlData[0][2])
@@ -527,10 +560,10 @@ func TestIfaceNewFilter(t *testing.T) {
 	}
 
 	// stop iface
-	fmt.Printf("waiting for iface to stop\n")
+	fmt.Printf("fake waiting for iface to stop\n")
 	//loader.stopLoadIface()
 	<-ich
-	fmt.Printf("iface stopped\n")
+	fmt.Printf("fake iface stopped\n")
 
 	assert.Equal(t, LoaderState(LoadingPsml|LoadingIface), loader.State())
 	loader.SetState(0)

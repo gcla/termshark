@@ -11,12 +11,12 @@ require (
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/mattn/go-isatty v0.0.7
 	github.com/pkg/errors v0.8.1
+	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/sys v0.0.0-20190804053845-51ab0e2deafa // indirect
+	gopkg.in/fsnotify.v1 v1.4.7
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 )
-
-replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.3-0.20190613063818-ca8fb5bcc94b

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/gcla/termshark"
@@ -26,7 +27,7 @@ type ProcessNotStarted struct {
 var _ error = ProcessNotStarted{}
 
 func (e ProcessNotStarted) Error() string {
-	return fmt.Sprintf("Process %v not started yet", e.Command)
+	return fmt.Sprintf("Process %v [%v] not started yet", e.Command.Path, strings.Join(e.Command.Args, " "))
 }
 
 //======================================================================
@@ -54,7 +55,7 @@ func (c *command) Wait() error {
 	return c.Cmd.Wait()
 }
 
-func (c *command) StdoutPipe() (io.ReadCloser, error) {
+func (c *command) StdoutReader() (io.ReadCloser, error) {
 	c.Lock()
 	defer c.Unlock()
 	return c.Cmd.StdoutPipe()
@@ -64,6 +65,17 @@ func (c *command) SetStdout(w io.Writer) {
 	c.Lock()
 	defer c.Unlock()
 	c.Cmd.Stdout = w
+}
+
+// If stdout supports Close(), call it. If stdout is a pipe, for example,
+// this can be used to have EOF appear on the reading side (e.g. tshark -T psml)
+func (c *command) Close() error {
+	c.Lock()
+	defer c.Unlock()
+	if cl, ok := c.Cmd.Stdout.(io.Closer); ok {
+		return cl.Close()
+	}
+	return nil
 }
 
 func (c *command) Kill() error {

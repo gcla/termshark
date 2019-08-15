@@ -137,7 +137,6 @@ func (r *loopReader) Read(p []byte) (int, error) {
 // Implements io.Reader - combines header, looping body and footer from disk
 type pcapLoopReader struct {
 	io.Reader
-	loops int
 }
 
 var _ io.Reader = (*pcapLoopReader)(nil)
@@ -162,7 +161,6 @@ func newPcapLoopReader(prefix string, suffix string, loops int, stopper iStopLoo
 
 	res := &pcapLoopReader{
 		Reader: io.MultiReader(fileh, looper, filef),
-		loops:  loops,
 	}
 
 	return res
@@ -263,8 +261,6 @@ type simpleCmd struct {
 	cancel  context.CancelFunc
 }
 
-var _ ICommand = (*simpleCmd)(nil)
-
 func newSimpleCmd(rd io.Reader) *simpleCmd {
 	res := &simpleCmd{}
 
@@ -318,11 +314,11 @@ func (f *simpleCmd) Wait() error {
 	return nil
 }
 
-func (f *simpleCmd) StdoutPipe() (io.ReadCloser, error) {
+func (f *simpleCmd) StdoutReader() (io.ReadCloser, error) {
 	return f.pipe, nil
 }
 
-func (f *simpleCmd) SetStdout(w io.Writer) {
+func (f *simpleCmd) SetStdout(w io.WriteCloser) {
 	f.out = w
 }
 
@@ -338,6 +334,10 @@ func (f *simpleCmd) Signal(s os.Signal) error {
 
 func (f *simpleCmd) Pid() int {
 	return 1001
+}
+
+func (f *simpleCmd) String() string {
+	return fmt.Sprintf("SimpleCmd: pcap=%s filter=%s", f.pcap, f.filter)
 }
 
 //======================================================================
@@ -423,7 +423,7 @@ func TestSimpleCmd(t *testing.T) {
 	err := p.Start()
 	assert.NoError(t, err)
 
-	so, err := p.StdoutPipe()
+	so, err := p.StdoutReader()
 	assert.NoError(t, err)
 
 	read, err := ioutil.ReadAll(so)

@@ -66,11 +66,16 @@ import (
 	"github.com/gdamore/tcell"
 	lru "github.com/hashicorp/golang-lru"
 	flags "github.com/jessevdk/go-flags"
-	isatty "github.com/mattn/go-isatty"
+	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"gopkg.in/fsnotify.v1"
+
+	"net/http"
+	_ "net/http"
+	_ "net/http/pprof"
 )
 
 // TODO - just for debugging
@@ -146,6 +151,7 @@ var autoScrollSwitchSet bool // whether switch was passed at command line
 var autoScrollSwitch bool    // set via command line
 var autoScroll bool          // true if the packet list should auto-scroll when listening on an interface.
 var newPacketsArrived bool   // true if current updates are due to new packets when listening on an interface.
+var uiRunning bool           // true if gowid/tcell is controlling the terminal
 
 var fixed gowid.RenderFixed
 var flow gowid.RenderFlow
@@ -1078,20 +1084,13 @@ func reallyQuit(app gowid.IApp) {
 
 //======================================================================
 
-type stateHandler struct {
-	sc *pcap.Scheduler
-}
-
-func (s stateHandler) EnableOperations() {
-	s.sc.Enable()
-}
+type noHandlers struct{}
 
 //======================================================================
 
 type updatePacketViews struct {
-	ld           *pcap.Scheduler
-	app          gowid.IApp
-	stateHandler // send idle and iface state changes to global channels
+	ld  *pcap.Scheduler
+	app gowid.IApp
 }
 
 var _ pcap.IOnError = updatePacketViews{}
@@ -1159,9 +1158,27 @@ func (t updatePacketViews) AfterEnd(ch chan<- struct{}) {
 func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
 	close(closeMe)
 	log.Error(err)
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		openError(fmt.Sprintf("%v", err), app)
-	}))
+	if !uiRunning {
+		fmt.Printf("%v\n", err)
+		quitRequestedChan <- struct{}{}
+	} else {
+
+		var errstr string
+		if kverr, ok := err.(gowid.KeyValueError); ok {
+			errstr = fmt.Sprintf("%v\n\n", kverr.Cause())
+			kvs := make([]string, 0, len(kverr.KeyVals))
+			for k, v := range kverr.KeyVals {
+				kvs = append(kvs, fmt.Sprintf("%v: %v", k, v))
+			}
+			errstr = errstr + strings.Join(kvs, "\n")
+		} else {
+			errstr = fmt.Sprintf("%v", err)
+		}
+
+		t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			openError(errstr, app)
+		}))
+	}
 }
 
 //======================================================================
@@ -1399,7 +1416,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	if evk.Key() == tcell.KeyCtrlC {
 		if loader.State()&pcap.LoadingPsml != 0 {
-			scheduler.RequestStopLoad(stateHandler{}) // iface and psml
+			scheduler.RequestStopLoad(noHandlers{}) // iface and psml
 		} else {
 			reallyQuit(app)
 		}
@@ -1527,7 +1544,7 @@ func setProgressWidget(app gowid.IApp) {
 	stop2 := styled.NewExt(stop, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
 
 	stop.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		scheduler.RequestStopLoad(stateHandler{})
+		scheduler.RequestStopLoad(noHandlers{})
 	}))
 
 	prog := vpadding.New(progressHolder, gowid.VAlignTop{}, flow)
@@ -2286,17 +2303,44 @@ func main() {
 	termshark.Goroutinewg = &ensureGoroutinesStopWG
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
 
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	res := cmain()
 	ensureGoroutinesStopWG.Wait()
 	os.Exit(res)
 }
 
 func cmain() int {
+	startedSuccessfully := false // true if we reached the point where packets were received and the UI started.
+	uiSuspended := false         // true if the UI was suspended due to SIGTSTP
+
 	sigChan := make(chan os.Signal, 100)
 	if runtime.GOOS == "windows" {
 		signal.Notify(sigChan, os.Interrupt)
 	} else {
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+		// SIGINT and SIGQUIT will arrive only via an external kill command,
+		// not the keyboard, because our line discipline is set up to pass
+		// ctrl-c and ctrl-\ to termshark as keypress events. But we slightly
+		// modify tcell's default and set up ctrl-z to invoke signal SIGTSTP
+		// on the foreground process group. An alternative would just be to
+		// recognize ctrl-z in termshark and issue a SIGSTOP to getpid() from
+		// termshark but this wouldn't stop other processes in a termshark
+		// pipeline e.g.
+		//
+		// tcpdump -i eth0 -w - | termshark -i -
+		//
+		// sending SIGSTOP to getpid() would not stop tcpdump. The expectation
+		// with bash job control is that all processes in the foreground
+		// process group will be suspended. I could send SIGSTOP to 0, to try
+		// to get all processes in the group, but if e.g. tcpdump is running
+		// as root and termshark is not, tcpdump will not be suspended. If
+		// instead I set the line discipline such that ctrl-z is not passed
+		// through but maps to SIGTSTP, then tcpdump will be stopped by ctrl-z
+		// via the shell by virtue of the fact that when all pipeline
+		// processes start running, they use the same tty line discipline.
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGTSTP, syscall.SIGCONT)
 	}
 
 	viper.SetConfigName("termshark") // no need to include file extension - looks for file called termshark.ini for example
@@ -2454,6 +2498,7 @@ func cmain() int {
 
 	displayFilter := opts.DisplayFilter
 
+	// Validate supplied filters e.g. no capture filter when reading from file
 	if pcapf != "" {
 		if captureFilter != "" {
 			fmt.Fprintf(os.Stderr, "Cannot use a capture filter when reading from a pcap file - '%s' and '%s'.\n", captureFilter, pcapf)
@@ -2468,17 +2513,73 @@ func cmain() int {
 		}
 	}
 
-	// Better to do a command-line error if file supplied at command-line is not found.
+	// Always switch over to iface reading if input is a file descriptor. The interface flow has support for reading
+	// from a fifo, just like tshark does. Don't log here because logging might be altered by --log-tty switch.
+	if pcapf == "-" {
+		pcapf = ""
+		opts.Iface = "-"
+	}
+
+	// - means read from stdin. But termshark uses stdin for interacting with the UI. So if the
+	// iface is -, then dup stdin to a free descriptor, adjust iface to read from that descriptor,
+	// then open /dev/tty on stdin.
+	newinputfd := -1
+
+	sourceIsStdin := false
+
+	if opts.Iface == "-" {
+		if termshark.IsTerminal(os.Stdin.Fd()) {
+			fmt.Fprintf(os.Stderr, "Requested pcap source is %v (\"stdin\") but stdin is a tty.\n", opts.Iface)
+			fmt.Fprintf(os.Stderr, "Perhaps you intended to pipe packet input to termshark?\n")
+			return 1
+		}
+		if runtime.GOOS != "windows" {
+			newinputfd, err = termshark.MoveStdin()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				return 1
+			}
+			defer func() {
+				syscall.Close(newinputfd)
+			}()
+			opts.Iface = fmt.Sprintf("/dev/fd/%d", newinputfd)
+			sourceIsStdin = true
+		} else {
+			fmt.Fprintf(os.Stderr, "Sorry, termshark does not yet support piped input on Windows.\n")
+			return 1
+		}
+	}
+
+	// Set to true if invoked as e.g. termshark -r myfifo or termshark -i myfifo, and myfifo is
+	// a named pipe. Then we don't treat it as e.g. the index of an interface as in
+	// termshark -i 1 means the 1st interface listed with tshark -D
+	sourceIsFifo := false
+
+	// Better to do a command-line error if file supplied at command-line is not found. File
+	// won't be "-" at this point because above we switch to -i if input is "-"
 	if pcapf != "" {
-		if _, err := os.Stat(pcapf); err != nil {
+		stat, err := os.Stat(pcapf)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", pcapf, err)
 			return 1
 		}
-		if pcapffile, err := os.Open(pcapf); err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", pcapf, err)
-			return 1
+		if stat.Mode()&os.ModeNamedPipe != 0 {
+			// If termshark was invoked with -r myfifo, switch to -i myfifo, which tshark uses. This
+			// also puts termshark in "interface" mode where it assumes the source is unbounded
+			// (e.g. a different spinner)
+			opts.Iface = pcapf
+			pcapf = ""
+			sourceIsFifo = true
 		} else {
-			pcapffile.Close()
+			if pcapffile, err := os.Open(pcapf); err != nil {
+				// Do this up front before the UI starts to catch simple errors quickly - like
+				// the file not being readable. It's possible that tshark would be able to read
+				// it and the termshark user not, but unlikely.
+				fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", pcapf, err)
+				return 1
+			} else {
+				pcapffile.Close()
+			}
 		}
 	}
 
@@ -2550,12 +2651,13 @@ func cmain() int {
 		viper.WriteConfig()
 	}
 
-	cacheDir := termshark.CacheDir()
-	if _, err = os.Stat(cacheDir); os.IsNotExist(err) {
-		err = os.Mkdir(cacheDir, 0777)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unexpected error making cache dir %s: %v", cacheDir, err)
-			return 1
+	for _, dir := range []string{termshark.CacheDir(), termshark.PcapDir()} {
+		if _, err = os.Stat(dir); os.IsNotExist(err) {
+			err = os.Mkdir(dir, 0777)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unexpected error making dir %s: %v", dir, err)
+				return 1
+			}
 		}
 	}
 
@@ -2573,30 +2675,26 @@ func cmain() int {
 	useIface := opts.Iface
 
 	if opts.Iface != "" {
-		//ifaces, err := net.Interfaces()
-		ifaces, err := termshark.Interfaces()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not enumerate network interfaces: %v\n", err)
-			return 1
-		}
-		gotit := false
+		if ifaceIdx, err := strconv.Atoi(opts.Iface); err == nil && !sourceIsFifo {
 
-		// Check if opts.Iface was provided as a number
-		ifaceIdx, err := strconv.Atoi(opts.Iface)
-		if err != nil {
-			ifaceIdx = -1
-		}
-
-		for n, i := range ifaces {
-			if i == opts.Iface || n+1 == ifaceIdx {
-				gotit = true
-				useIface = i
-				break
+			ifaces, err := termshark.Interfaces()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Could not enumerate network interfaces: %v\n", err)
+				return 1
 			}
-		}
-		if !gotit {
-			fmt.Fprintf(os.Stderr, "Could not find network interface %s\n", opts.Iface)
-			return 1
+
+			gotit := false
+			for n, i := range ifaces {
+				if i == opts.Iface || n+1 == ifaceIdx {
+					gotit = true
+					useIface = i
+					break
+				}
+			}
+			if !gotit {
+				fmt.Fprintf(os.Stderr, "Could not find network interface %s\n", opts.Iface)
+				return 1
+			}
 		}
 	}
 
@@ -2609,11 +2707,19 @@ func cmain() int {
 
 	//======================================================================
 
-	startedWithIface := false
+	// If != "", then the name of the file to which packets are saved when read from an
+	// interface source. We can't just use the loader because the user might clear then load
+	// a recent pcap on top of the originally loaded packets.
+	ifacePcapFilename := ""
 
 	defer func() {
-		if startedWithIface && loader != nil {
-			fmt.Printf("Packets read from interface %s have been saved in %s\n", loader.Interface(), loader.InterfaceFile())
+		// if useIface != "" then we run dumpcap with the -i option - which
+		// means the packet source is either an interface, a pipe, or a
+		// fifo. In all cases, we save the packets to a file so that if a
+		// filter is applied, we can restart - and so that we preserve the
+		// capture at the end of running termshark.
+		if useIface != "" && startedSuccessfully {
+			fmt.Printf("Packets read from %s have been saved in %s\n", useIface, ifacePcapFilename)
 		}
 	}()
 
@@ -2852,7 +2958,11 @@ func cmain() int {
 	defer filterWidget.Close()
 
 	applyw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		scheduler.RequestNewFilter(filterWidget.Value(), saveRecents{makePacketViewUpdater(app), "", filterWidget.Value()})
+		scheduler.RequestNewFilter(filterWidget.Value(), saveRecents{
+			updatePacketViews: makePacketViewUpdater(app),
+			pcap:              "",
+			filter:            filterWidget.Value(),
+		})
 	}))
 
 	filterWidget.OnValid(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
@@ -3095,16 +3205,82 @@ func cmain() int {
 		ChooseOne: &darkMode,
 	}
 
+	// Set them up here so they have access to any command-line flags that
+	// need to be passed to the tshark commands used
+	pdmlArgs := termshark.ConfStringSlice("main.pdml-args", []string{})
+	psmlArgs := termshark.ConfStringSlice("main.psml-args", []string{})
+	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
+	cacheSize := termshark.ConfInt("main.pcap-cache-size", 64)
+	scheduler = pcap.NewScheduler(
+		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs),
+		pcap.Options{
+			CacheSize: cacheSize,
+		},
+	)
+	loader = scheduler.Loader
+
+	// Buffered because I might send something in this goroutine
+	startUIChan := make(chan struct{}, 1)
+	// Used to cancel the display of a message telling the user why there is no UI yet.
+	detectMsgChan := make(chan struct{}, 1)
+
+	var iwatcher *fsnotify.Watcher
+	var ifaceTmpFile string
+
+	if useIface != "" {
+		ifaceTmpFile = pcap.TempPcapFile(useIface)
+
+		iwatcher, err = fsnotify.NewWatcher()
+		if err != nil {
+			fmt.Printf("Could not start filesystem watcher: %v\n", err)
+			return 1
+		}
+		defer func() {
+			if iwatcher != nil {
+				iwatcher.Close()
+			}
+		}()
+
+		// Don't start the UI until this file is created. When listening on a pipe,
+		// termshark will start a process similar to:
+		//
+		// dumpcap -i - -w ~/.cache/pcaps/tmp123.pcap
+		//
+		// dumpcap will not actually create that file until it has data to write to it.
+		// So we watch for the creation of that file, and until then, don't launch the UI.
+		// Then if the feeding process needs input first e.g. sudo tcpdump needs password,
+		// there won't be a conflict for reading /dev/tty.
+		//
+		if err := iwatcher.Add(termshark.PcapDir()); err != nil { //&& !os.IsNotExist(err) {
+			fmt.Printf("Could not set up watcher for %s: %v\n", termshark.PcapDir(), err)
+			return 1
+		}
+
+		fmt.Printf("(The termshark UI will start when packets are detected...)\n")
+
+	} else {
+		// Start UI right away, reading from a file
+		startUIChan <- struct{}{}
+	}
+
+	// Create app, etc, but don't init screen which sets ICANON, etc
 	app, err = gowid.NewApp(gowid.AppArgs{
-		View:    keylayer,
-		Palette: palette,
-		Log:     log.StandardLogger(),
+		View:         keylayer,
+		Palette:      palette,
+		DontActivate: true,
+		Log:          log.StandardLogger(),
 	})
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
+		if cerr, ok := termshark.RootCause(err).(*exec.Error); ok {
+			if cerr.Err.Error() == exec.ErrNotFound.Error() {
+				fmt.Printf("Termshark could not recognize your terminal. Try changing $TERM.\n")
+			}
+		}
 		return 1
 	}
-	defer app.Close()
+
+	appRunner := app.Runner()
 
 	for _, m := range filterWidget.Menus() {
 		app.RegisterMenu(m)
@@ -3128,27 +3304,20 @@ func cmain() int {
 		altviewcols.SetOffsets(offs, app)
 	}
 
-	// Set them up here so they have access to any command-line flags that
-	// need to be passed to the tshark commands used
-	pdmlArgs := termshark.ConfStringSlice("main.pdml-args", []string{})
-	psmlArgs := termshark.ConfStringSlice("main.psml-args", []string{})
-	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
-	cacheSize := termshark.ConfInt("main.pcap-cache-size", 64)
-	scheduler = pcap.NewScheduler(
-		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs),
-		pcap.Options{
-			CacheSize: cacheSize,
-		},
-	)
-	loader = scheduler.Loader
+	uiRunning = false
 
 	validator := filter.Validator{
 		Invalid: &filter.ValidateCB{
 			App: app,
 			Fn: func(app gowid.IApp) {
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					openError(fmt.Sprintf("Invalid filter: %s", displayFilter), app)
-				}))
+				if !uiRunning {
+					fmt.Printf("Invalid filter: %s\n", displayFilter)
+					quitRequestedChan <- struct{}{}
+				} else {
+					app.Run(gowid.RunFunction(func(app gowid.IApp) {
+						openError(fmt.Sprintf("Invalid filter: %s", displayFilter), app)
+					}))
+				}
 			},
 		},
 	}
@@ -3172,36 +3341,27 @@ func cmain() int {
 	} else if useIface != "" {
 
 		// Verifies whether or not we will be able to read from the interface (hopefully)
-		ifaceExitCode = -1
-		if ifaceExitCode, ifaceErr = termshark.RunForExitCode("dumpcap", "-i", useIface, "-a", "duration:1", "-w", os.DevNull); ifaceExitCode != 0 {
-			return 1
-		}
+		ifaceExitCode = 0
+		//if ifaceExitCode, ifaceErr = termshark.RunForExitCode("dumpcap", "-i", useIface, "-a", "duration:1", "-w", os.DevNull); ifaceExitCode != 0 {
+		//return 1
+		//}
 
-		doit := func(app gowid.IApp) {
+		ifValid := func(app gowid.IApp) {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				filterWidget.SetValue(displayFilter, app)
 			}))
-			scheduler.RequestLoadInterface(useIface, captureFilter, displayFilter, saveRecents{makePacketViewUpdater(app), "", displayFilter})
-			startedWithIface = true
+			cantRestart := sourceIsStdin || sourceIsFifo
+			ifacePcapFilename = ifaceTmpFile
+			scheduler.RequestLoadInterface(useIface, cantRestart, captureFilter, displayFilter, ifaceTmpFile,
+				saveRecents{
+					updatePacketViews: makePacketViewUpdater(app),
+					pcap:              "",
+					filter:            displayFilter,
+				})
 		}
-		validator.Valid = &filter.ValidateCB{Fn: doit, App: app}
+		validator.Valid = &filter.ValidateCB{Fn: ifValid, App: app}
 		validator.Validate(displayFilter)
 	}
-
-	// Do this to make sure the program quits quickly if quit is invoked
-	// mid-load. It's safe to call this if a pcap isn't being loaded.
-	//
-	// The regular stopLoadPcap will send a signal to pcapChan. But if qpp.quit
-	// is called, the main select{} loop will be broken, and nothing will listen
-	// to that channel. As a result, nothing stops a pcap load. This calls the
-	// context cancellation function right away
-	defer func() {
-		loader.Close()
-	}()
-
-	st := app.Runner()
-	st.Start()
-	defer st.Stop()
 
 	configChangedFn := func(app gowid.IApp) {
 		savedListBox = makeRecentMenuWidget()
@@ -3218,6 +3378,8 @@ func cmain() int {
 	loaderIfaceFinChan := loader.IfaceFinishedChan
 	loaderPdmlFinChan := loader.Stage2FinishedChan
 
+	ctrlzLineDisc := termshark.TerminalSignals{}
+
 Loop:
 	for {
 		var opsChan <-chan pcap.RunFn
@@ -3227,7 +3389,10 @@ Loop:
 		var psmlFinChan <-chan struct{}
 		var ifaceFinChan <-chan struct{}
 		var pdmlFinChan <-chan struct{}
-
+		var tmpPcapWatcherChan <-chan fsnotify.Event
+		var tmpPcapWatcherErrorsChan <-chan error
+		var tcellEvents <-chan tcell.Event
+		var afterRenderEvents <-chan gowid.IAfterRenderEvent
 		// For setting struct views empty. This isn't done as soon as a load is initiated because
 		// in the case we are loading from an interface and following new packets, we get an ugly
 		// blinking effect where the loading message is displayed, shortly followed by the struct or
@@ -3244,6 +3409,7 @@ Loop:
 			emptyHexViewChan = emptyHexViewTimer.C
 		}
 
+		// This should really be moved to a handler...
 		if loader.State() == 0 {
 			if loader.State() != prevstate {
 				if quitRequested {
@@ -3282,20 +3448,144 @@ Loop:
 			opsChan = scheduler.OperationsChan
 		}
 
+		// This tracks a temporary pcap file which is populated by dumpcap when termshark is
+		// reading from a fifo. If iwatcher is nil, it means we've got data and don't need to
+		// monitor any more.
+		if iwatcher != nil {
+			tmpPcapWatcherChan = iwatcher.Events
+			tmpPcapWatcherErrorsChan = iwatcher.Errors
+		}
+
+		// Only process tcell and gowid events if the UI is running.
+		if uiRunning {
+			tcellEvents = app.TCellEvents
+		}
+
+		afterRenderEvents = app.AfterRenderEvents
+
 		prevstate = loader.State()
 
 		select {
-		case <-quitRequestedChan:
-			if loader.State() == 0 {
-				app.Quit()
-			} else {
-				quitRequested = true
-				// We know we're not idle, so stop any load so the quit op happens quickly for the user.
-				scheduler.RequestStopLoad(stateHandler{})
+
+		case we := <-tmpPcapWatcherChan:
+			if strings.Contains(we.Name, ifaceTmpFile) {
+				log.Infof("Pcap file %v has appeared - launching UI", we.Name)
+				iwatcher.Close()
+				iwatcher = nil
+				startUIChan <- struct{}{}
 			}
 
-		case <-sigChan:
-			quitRequestedChan <- struct{}{}
+		case err := <-tmpPcapWatcherErrorsChan:
+			fmt.Printf("Unexpected watcher error for %s: %v", ifaceTmpFile, err)
+			return 1
+
+		case <-startUIChan:
+			log.Infof("Launching termshark UI")
+
+			// Go to termshark UI view
+			if err = app.ActivateScreen(); err != nil {
+				fmt.Printf("Error starting UI: %v\n", err)
+				return 1
+			}
+
+			// Start tcell/gowid events for keys, etc
+			appRunner.Start()
+
+			// Reinstate  our terminal overrides that allow ctrl-z
+			if err := ctrlzLineDisc.Set(); err != nil {
+				openError(fmt.Sprintf("Unexpected error setting Ctrl-z handler: %v\n", err), app)
+			}
+
+			uiRunning = true
+			startedSuccessfully = true
+
+			close(startUIChan)
+			startUIChan = nil // make sure it's not triggered again
+
+			close(detectMsgChan) // don't display the message about waiting for the UI
+
+			defer func() {
+				// Do this to make sure the program quits quickly if quit is invoked
+				// mid-load. It's safe to call this if a pcap isn't being loaded.
+				//
+				// The regular stopLoadPcap will send a signal to pcapChan. But if app.quit
+				// is called, the main select{} loop will be broken, and nothing will listen
+				// to that channel. As a result, nothing stops a pcap load. This calls the
+				// context cancellation function right away
+				loader.Close()
+
+				appRunner.Stop()
+				app.Close()
+				uiRunning = false
+			}()
+
+		case <-quitRequestedChan:
+			if loader.State() == 0 {
+
+				// Only explicitly quit if this flag isn't set because if it is set, then the quit
+				// will happen before the select{} statement above
+				if !quitRequested {
+					app.Quit()
+				}
+
+				// If the UI isn't running, then there aren't app events, and that channel is used
+				// to break the select loop. So break it manually.
+				if !uiRunning {
+					break Loop
+				}
+			} else {
+				quitRequested = true
+				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
+				// will happen next time round because the quitRequested flag is checked.
+				scheduler.RequestStopLoad(noHandlers{})
+			}
+
+		case sig := <-sigChan:
+			if ssig, ok := sig.(syscall.Signal); ok && ssig == syscall.SIGTSTP {
+				if uiRunning {
+					// Remove our terminal overrides that allow ctrl-z
+					ctrlzLineDisc.Restore()
+					// Stop tcell/gowid events for keys, etc
+					appRunner.Stop()
+					// Go back to terminal view
+					app.DeactivateScreen()
+
+					uiRunning = false
+					uiSuspended = true
+
+				} else {
+					log.Infof("UI not active - no terminal changes required.")
+				}
+
+				// This is not synchronous, but some time after calling this, we'll be suspended.
+				if err := syscall.Kill(syscall.Getpid(), syscall.SIGSTOP); err != nil {
+					fmt.Printf("Unexpected error issuing SIGSTOP: %v\n", err)
+					return 1
+				}
+
+			} else if ssig, ok := sig.(syscall.Signal); ok && ssig == syscall.SIGCONT {
+				if uiSuspended {
+					// Go to termshark UI view
+					if err = app.ActivateScreen(); err != nil {
+						fmt.Printf("Error starting UI: %v\n", err)
+						return 1
+					}
+
+					// Start tcell/gowid events for keys, etc
+					appRunner.Start()
+
+					// Reinstate  our terminal overrides that allow ctrl-z
+					if err := ctrlzLineDisc.Set(); err != nil {
+						openError(fmt.Sprintf("Unexpected error setting Ctrl-z handler: %v\n", err), app)
+					}
+
+					uiRunning = true
+					uiSuspended = false
+				}
+			} else {
+				log.Infof("Starting termination via signal %v", sig)
+				quitRequestedChan <- struct{}{}
+			}
 
 		case fn := <-opsChan:
 			// We run the requested operation - because operations are now enabled, since this channel
@@ -3368,10 +3658,10 @@ Loop:
 				emptyHexViewTimer = nil
 			}))
 
-		case ev := <-app.TCellEvents:
+		case ev := <-tcellEvents:
 			app.HandleTCellEvent(ev, gowid.IgnoreUnhandledInput)
 
-		case ev, ok := <-app.AfterRenderEvents:
+		case ev, ok := <-afterRenderEvents:
 			// This means app.Quit() has been called, which closes the AfterRenderEvents
 			// channel - and then will accept no more events. select will then return
 			// nil on this channel - which we then use to break the loop

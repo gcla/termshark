@@ -6,11 +6,14 @@ package pcap
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,6 +21,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/termshark"
 	lru "github.com/hashicorp/golang-lru"
 	log "github.com/sirupsen/logrus"
@@ -34,16 +39,6 @@ type whenFn func() bool
 type runFnInState struct {
 	when whenFn
 	doit RunFn
-}
-
-//======================================================================
-
-type ICommand interface {
-	Start() error
-	Wait() error
-	Kill() error
-	StdoutPipe() (io.ReadCloser, error)
-	SetStdout(io.Writer)
 }
 
 //======================================================================
@@ -98,6 +93,7 @@ func (t LoaderState) String() string {
 //======================================================================
 
 type IBasicCommand interface {
+	fmt.Stringer
 	Start() error
 	Wait() error
 	Pid() int
@@ -106,12 +102,13 @@ type IBasicCommand interface {
 
 type ITailCommand interface {
 	IBasicCommand
-	SetStdout(io.Writer)
+	SetStdout(io.Writer) // set to the write side of a fifo, for example - the command will .Write() here
+	Close() error        // closes stdout, which signals tshark -T psml
 }
 
 type IPcapCommand interface {
 	IBasicCommand
-	StdoutPipe() (io.ReadCloser, error)
+	StdoutReader() (io.ReadCloser, error) // termshark will .Read() from result
 }
 
 type ILoaderCmds interface {
@@ -127,11 +124,14 @@ type Loader struct {
 
 	state LoaderState // which pieces are currently loading
 
-	pcap          string // The pcap source for this loader, "" if the loader is based on an interface
-	iface         string // The interface being read from, "" if the loader is based on a pcap file
-	ifaceFile     string // The temp pcap file that is created by reading from the interface
-	displayFilter string
-	captureFilter string
+	userInitiatedOp bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
+
+	pcap             string // The pcap source for this loader, "" if the loader is based on an interface
+	iface            string // The interface being read from, "" if the loader is based on a pcap file
+	ifaceFile        string // The temp pcap file that is created by reading from the interface
+	ifaceCantRestart bool   // True if reading from the interface cannot be restarted (true for a fifo, for example)
+	displayFilter    string
+	captureFilter    string
 
 	PcapPsml interface{} // Pcap file source for the psml reader - fifo if iface+!stopped; tmpfile if iface+stopped; pcap otherwise
 	PcapPdml string      // Pcap file source for the pdml reader - tmpfile if iface; pcap otherwise
@@ -182,6 +182,13 @@ type Loader struct {
 	RowCurrentlyLoading      int  // set by the pdml loading stage
 	highestCachedRow         int
 	KillAfterReadingThisMany int // A shortcut - tell pcap/pdml to read one
+
+	// set by the iface procedure when it has finished e.g. the pipe to the fifo has finished, the
+	// iface process has been killed, etc. This tells the psml-reading procedure when it should stop i.e.
+	// when this many bytes have passed through.
+	totalFifoBytesWritten gwutil.Int64Option
+	totalFifoBytesRead    gwutil.Int64Option
+	fifoError             error
 
 	opt Options
 }
@@ -278,10 +285,12 @@ func (c *Scheduler) IsEnabled() bool {
 
 func (c *Scheduler) Enable() {
 	c.disabled = false
+	c.userInitiatedOp = false
 }
 
 func (c *Scheduler) Disable() {
 	c.disabled = true
+	c.userInitiatedOp = true
 }
 
 func (c *Scheduler) RequestClearPcap(cb interface{}) {
@@ -310,10 +319,10 @@ func (c *Scheduler) RequestNewFilter(newfilt string, cb interface{}) {
 	}
 }
 
-func (c *Scheduler) RequestLoadInterface(iface string, captureFilter string, displayFilter string, cb interface{}) {
+func (c *Scheduler) RequestLoadInterface(iface string, cantRestart bool, captureFilter string, displayFilter string, tmpfile string, cb interface{}) {
 	c.OperationsChan <- func() {
 		c.Disable()
-		c.doLoadInterfaceOperation(iface, captureFilter, displayFilter, cb, func() {
+		c.doLoadInterfaceOperation(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb, func() {
 			c.Enable()
 		})
 	}
@@ -358,7 +367,7 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 		startIfaceAgain := false
 
 		if c.State()&LoadingIface != 0 {
-			startIfaceAgain = true
+			startIfaceAgain = !c.ifaceCantRestart // Only try to restart if the packet source allows
 			c.stopLoadIface()
 		}
 
@@ -371,7 +380,10 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 			// will run in app goroutine
 			c.doClearPcapOperation(cb, func() {
 				if startIfaceAgain {
-					c.doLoadInterfaceOperation(c.Interface(), c.CaptureFilter(), c.DisplayFilter(), cb, fn)
+					c.doLoadInterfaceOperation(
+						c.Interface(), c.ifaceCantRestart, c.CaptureFilter(),
+						c.DisplayFilter(), c.InterfaceFile(), cb, fn,
+					)
 				} else {
 					fn()
 				}
@@ -477,7 +489,7 @@ type IAfterEnd interface {
 	AfterEnd(closeMe chan<- struct{})
 }
 
-func (c *Loader) doLoadInterfaceOperation(iface string, captureFilter string, displayFilter string, cb interface{}, fn RunFn) {
+func (c *Loader) doLoadInterfaceOperation(iface string, cantRestart bool, captureFilter string, displayFilter string, tmpfile string, cb interface{}, fn RunFn) {
 	// The channel is unbuffered, and monitored from the same goroutine, so this would block
 	// unless we start a new goroutine
 
@@ -494,7 +506,7 @@ func (c *Loader) doLoadInterfaceOperation(iface string, captureFilter string, di
 			oc.OnClear(ch)
 		}
 
-		if err := c.startLoadInterfaceNew(iface, captureFilter, displayFilter, cb); err == nil {
+		if err := c.startLoadInterfaceNew(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb); err == nil {
 			c.When(func() bool {
 				return c.State()&(LoadingIface|LoadingPsml) == LoadingIface|LoadingPsml
 			}, fn)
@@ -518,11 +530,11 @@ func (c *Loader) doLoadInterfaceOperation(iface string, captureFilter string, di
 		// Loadingiface but the interface requested is different.
 		if c.State()&LoadingIface != 0 && iface != c.Interface() {
 			c.doStopLoadOperation(cb, func() {
-				c.doLoadInterfaceOperation(iface, captureFilter, displayFilter, cb, fn)
+				c.doLoadInterfaceOperation(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb, fn)
 			}) // returns an enable function when idle
 		} else {
 			c.doStopLoadToIfaceOperation(func() {
-				c.doLoadInterfaceOperation(iface, captureFilter, displayFilter, cb, fn)
+				c.doLoadInterfaceOperation(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb, fn)
 			})
 		}
 	}
@@ -556,7 +568,10 @@ func (c *Loader) doLoadPcapOperation(pcap string, displayFilter string, cb inter
 }
 
 func (c *Loader) ReadingFromFifo() bool {
-	return c.PcapPdml != c.PcapPsml
+	// If it's a string it means that it's a filename, so it's not a fifo. Other values
+	// in practise are the empty interface, or the read end of a fifo
+	_, ok := c.PcapPsml.(string)
+	return !ok
 }
 
 func handleBegin(cb interface{}) {
@@ -591,33 +606,40 @@ func handleClear(cb interface{}) {
 	}
 }
 
+// https://stackoverflow.com/a/28005931/784226
+func TempPcapFile(token string) string {
+	re := regexp.MustCompile(`[^a-zA-Z0-9.-]`)
+	tokenClean := re.ReplaceAllString(token, "_")
+
+	randBytes := make([]byte, 2)
+	rand.Read(randBytes)
+	return filepath.Join(termshark.PcapDir(), fmt.Sprintf("%s-%s-%s.pcap", tokenClean, time.Now().Format("20060102150405"), hex.EncodeToString(randBytes)))
+}
+
 // Save the file first
 // Always called from app goroutine context - so don't need to protect for race on cancelfn
 // Assumes gstate is ready
-func (c *Loader) startLoadInterfaceNew(iface string, captureFilter string, displayFilter string, cb interface{}) error {
-	re := regexp.MustCompile(`[^a-zA-Z0-9.-]`)
-	ifaceClean := re.ReplaceAllString(iface, "_")
-
-	tmpfile, err := ioutil.TempFile(termshark.CacheDir(), fmt.Sprintf("%s-*.pcap", ifaceClean))
-	if err != nil {
-		handleError(err, cb)
-		return err
-	}
-	err = tmpfile.Close()
-	if err != nil {
-		handleError(err, cb)
-		return err
-	}
-
+func (c *Loader) startLoadInterfaceNew(iface string, cantRestart bool, captureFilter string, displayFilter string, tmpfile string, cb interface{}) error {
 	c.PcapPsml = nil
-	c.PcapPdml = tmpfile.Name()
-	c.PcapPcap = tmpfile.Name()
+	c.PcapPdml = tmpfile
+	c.PcapPcap = tmpfile
 
 	c.pcap = ""
 	c.iface = iface
-	c.ifaceFile = tmpfile.Name()
+	c.ifaceFile = tmpfile
+	c.ifaceCantRestart = cantRestart
 	c.displayFilter = displayFilter
 	c.captureFilter = captureFilter
+
+	// It's a temporary unique file, and no processes are started yet, so either
+	// (a) it doesn't exist, OR
+	// (b) it does exist in which case this load is a result of a restart.
+	// In ths second case, we need to discard existing packets before starting
+	// tail in case it catches this file with existing data.
+	err := os.Remove(tmpfile)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 
 	c.startLoadPsml(cb)
 	termshark.TrackedGo(func() {
@@ -665,6 +687,7 @@ func (c *Loader) startLoadPdml(row int, cb interface{}) {
 	}, Goroutinewg)
 }
 
+// if done==true, then this cache entry is complete
 func (c *Loader) updateCacheEntryWithPdml(row int, pdml []*PdmlPacket, done bool) {
 	var ce CacheEntry
 	c.Lock()
@@ -717,6 +740,7 @@ var _ ISimpleCache = CacheEntry{}
 
 type iPcapLoader interface {
 	Interface() string
+	InterfaceFile() string
 	DisplayFilter() string
 	CaptureFilter() string
 	NumLoaded() int
@@ -985,7 +1009,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
 
-		pdmlOut, err := c.PdmlCmd.StdoutPipe()
+		pdmlOut, err := c.PdmlCmd.StdoutReader()
 		if err != nil {
 			handleError(err, cb)
 			return
@@ -1058,6 +1082,10 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 				c.PacketCache.Get(c.highestCachedRow)
 			}
 
+			// the cache entry is marked complete if we are not reading from a fifo, which implies
+			// the source of packets will not grow larger. If it could grow larger, we want to ensure
+			// that termshark doesn't think that there are only 900 packets, because that's what's
+			// in the cache from a previous request - now there might be 950 packets.
 			c.updateCacheEntryWithPdml(row, packets, !c.ReadingFromFifo())
 			if row > c.highestCachedRow {
 				c.highestCachedRow = row
@@ -1088,7 +1116,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
 
-		pcapOut, err := c.PcapCmd.StdoutPipe()
+		pcapOut, err := c.PcapCmd.StdoutReader()
 		if err != nil {
 			handleError(err, cb)
 			return
@@ -1219,6 +1247,80 @@ func (c *Loader) signalPsmlDone(cb interface{}) {
 	}
 }
 
+// Holds a reference to the loader, and wraps Read() around the tail process's
+// Read(). Count the bytes, and when they are equal to the final total of bytes
+// written by the tshark -i process (spooling to a tmp file), a function is called
+// which stops the PSML process.
+type tailReadTracker struct {
+	tailReader io.Reader
+	loader     *Loader
+	callback   interface{}
+}
+
+func (r *tailReadTracker) Read(p []byte) (int, error) {
+	n, err := r.tailReader.Read(p)
+	if r.loader.totalFifoBytesRead.IsNone() {
+		r.loader.totalFifoBytesRead = gwutil.SomeInt64(int64(n))
+	} else {
+		r.loader.totalFifoBytesRead = gwutil.SomeInt64(int64(n) + r.loader.totalFifoBytesRead.Val())
+	}
+	if err != nil && r.loader.fifoError == nil && err != io.EOF {
+		r.loader.fifoError = err
+	}
+
+	r.loader.checkAllBytesRead(r.callback)
+
+	return n, err
+}
+
+// checkReadAllBytes is called (a) when the tshark -i process is finished
+// writing to the tmp file and (b) every time the tmpfile tail process reads
+// bytes. totalFifoBytesWrite is set to non-nil only when the tail process
+// completes. totalFifoBytesRead is updated every read. If they are every
+// found to be equal, it means that (1) the tail process has finished, meaning
+// killed or has reached EOF with its packet source (e.g. stdin, fifo) and (2)
+// the tail process has read all those bytes - so no packets will be
+// missed. In that case, the tail process is killed and its stdout closed,
+// which will trigger the psml reading process to shut down, and termshark
+// will turn off its loading UI.
+func (c *Loader) checkAllBytesRead(cb interface{}) {
+	cancel := false
+	if !c.totalFifoBytesWritten.IsNone() && !c.totalFifoBytesRead.IsNone() {
+		if c.totalFifoBytesRead.Val() == c.totalFifoBytesWritten.Val() {
+			cancel = true
+		}
+	}
+	if c.fifoError != nil {
+		cancel = true
+	}
+
+	// if there was a fifo error, OR we have read all the bytes that were written, then
+	// we need to stop the tail command
+	if cancel {
+		if c.fifoError != nil {
+			err := fmt.Errorf("Fifo error: %v", c.fifoError)
+			handleError(err, cb)
+		}
+		if c.tailCmd != nil {
+			c.totalFifoBytesWritten = gwutil.NoneInt64()
+			c.totalFifoBytesRead = gwutil.NoneInt64()
+
+			err := termshark.KillIfPossible(c.tailCmd)
+			if err != nil {
+				log.Infof("Did not kill tail process: %v", err)
+			} else {
+				c.tailCmd.Wait() // this will block the exit of this function until the command is killed
+
+				// We need to explicitly close the write side of the pipe. Without this,
+				// the PSML process Wait() function won't complete, because golang won't
+				// complete termination until IO has finished, and io.Copy() will be stuck
+				// in a loop.
+				c.tailCmd.Close()
+			}
+		}
+	}
+}
+
 func (c *Loader) loadPsmlAsync(cb interface{}) {
 	// Used to cancel the tickers below which update list widgets with the latest data and
 	// update the progress meter. Note that if ctx is cancelled, then this context is cancelled
@@ -1307,8 +1409,24 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	//======================================================================
 
+	closePipe := func() {
+		if pw != nil {
+			pw.Close()
+			pw = nil
+		}
+		if pr != nil {
+			pr.Close()
+			pr = nil
+		}
+	}
+
 	if c.ReadingFromFifo() {
 		// PcapPsml will be nil if here
+
+		// Build a pipe - the side to be read from will be given to the PSML process
+		// and the side to be written to is given to the tail process, which feeds in
+		// data from the pcap source.
+		//
 		pr, pw, err = os.Pipe()
 		if err != nil {
 			err = fmt.Errorf("Could not create pipe: %v", err)
@@ -1320,18 +1438,24 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// goroutine - so we can close at this point in the unwinding. pr
 		// is used as stdin for the psml command, which also runs in this
 		// goroutine.
-		defer func() {
-			pw.Close()
-			pr.Close()
-		}()
-		c.PcapPsml = pr
+		defer closePipe()
+
+		// wrap the read end of the pipe with a Read() function that counts
+		// bytes. If they are equal to the total bytes written to the tmpfile by
+		// the tshark -i process, then that means the source is exhausted, and
+		// the tail + psml processes are stopped.
+		c.PcapPsml = &tailReadTracker{
+			tailReader: pr,
+			loader:     c,
+			callback:   cb,
+		}
 	}
 
 	c.Lock()
 	c.PsmlCmd = c.cmds.Psml(c.PcapPsml, c.displayFilter)
 	c.Unlock()
 
-	psmlOut, err = c.PsmlCmd.StdoutPipe()
+	psmlOut, err = c.PsmlCmd.StdoutReader()
 	if err != nil {
 		err = fmt.Errorf("Could not access pipe output: %v", err)
 		handleError(err, cb)
@@ -1350,7 +1474,26 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	}
 
 	defer func() {
-		c.PsmlCmd.Wait()
+		// These need to close so the tailreader Read() terminates so that the
+		// PsmlCmd.Wait() below completes.
+		closePipe()
+		err := c.PsmlCmd.Wait()
+		if !c.userInitiatedOp {
+			if err != nil {
+				if _, ok := err.(*exec.ExitError); ok {
+					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+						"command": c.ifaceCmd.String(),
+						"error":   err,
+					})
+					handleError(cerr, cb)
+				}
+			}
+			// If the psml command generates an error, then we should stop any feed
+			// from the interface too.
+			if c.ifaceCancelFn != nil {
+				c.ifaceCancelFn()
+			}
+		}
 	}()
 
 	//======================================================================
@@ -1365,6 +1508,9 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		c.tailCmd = c.cmds.Tail(c.ifaceFile)
 		c.tailCmd.SetStdout(pw)
 
+		// this set up is so that I can detect when there are actually packets to read (e.g
+		// maybe there's no traffic on the interface). When there's something to read, the
+		// rest of the procedure can spring into action.
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
 			err = fmt.Errorf("Could not create FS watch: %v", err)
@@ -1374,7 +1520,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		}
 		defer watcher.Close()
 
-		if err := watcher.Add(c.ifaceFile); err != nil { //&& !os.IsNotExist(err) {
+		if err := watcher.Add(filepath.Dir(c.ifaceFile)); err != nil {
 			err = fmt.Errorf("Could not set up watcher for %s: %v", c.ifaceFile, err)
 			handleError(err, cb)
 			intPsmlCancelFn()
@@ -1392,26 +1538,22 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		}
 
 		defer func() {
-			watcher.Remove(c.ifaceFile)
+			watcher.Remove(filepath.Dir(c.ifaceFile))
 		}()
 
 	Loop:
 		for {
-			timer := time.NewTimer(10 * time.Second)
-			defer timer.Stop()
-
 			select {
-			case <-watcher.Events:
-				break Loop
+			case fe := <-watcher.Events:
+				if fe.Name == c.ifaceFile {
+					break Loop
+				}
 			case err := <-watcher.Errors:
 				err = fmt.Errorf("Unexpected watcher error for %s: %v", c.ifaceFile, err)
 				handleError(err, cb)
 				intPsmlCancelFn()
 				return
-			case <-timer.C:
-				err = fmt.Errorf("Giving up waiting for %s: %v", c.ifaceFile, err)
-				handleError(err, cb)
-				intPsmlCancelFn()
+			case <-intPsmlCtx.Done():
 				return
 			}
 		}
@@ -1427,6 +1569,12 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// Do this in a goroutine - in a defer, it would block here before the code executes
 		defer func() {
 			c.tailCmd.Wait() // this will block the exit of this function until the command is killed
+
+			// We need to explicitly close the write side of the pipe. Without this,
+			// the PSML process Wait() function won't complete, because golang won't
+			// complete termination until IO has finished, and io.Copy() will be stuck
+			// in a loop.
+			pw.Close()
 		}()
 	}
 
@@ -1518,12 +1666,15 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 }
 
 func (c *Loader) loadIfaceAsync(cb interface{}) {
+	c.totalFifoBytesWritten = gwutil.NoneInt64()
 	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.mainCtx)
 
 	defer func() {
 		ch := c.IfaceFinishedChan
 		c.IfaceFinishedChan = make(chan struct{})
 		close(ch)
+		c.ifaceCtx = nil
+		c.ifaceCancelFn = nil
 	}()
 
 	c.ifaceCmd = c.cmds.Iface(c.iface, c.captureFilter, c.ifaceFile)
@@ -1542,12 +1693,49 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 		if err != nil {
 			log.Infof("Did not kill iface reader process: %v", err)
 		}
-
 	}, Goroutinewg)
 
-	c.ifaceCmd.Wait() // it definitely started, so we must wait
+	err = c.ifaceCmd.Wait() // it definitely started, so we must wait
+	if !c.userInitiatedOp && err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+				"command": c.ifaceCmd.String(),
+				"error":   err,
+			})
+			handleError(cerr, cb)
+		}
+	}
+
 	// If something killed it, then start the internal shutdown procedure anyway to clean up
-	// goroutines waiting on the context.
+	// goroutines waiting on the context. This could also happen if tshark -i is reading from
+	// a fifo and the write has stopped e.g.
+	//
+	// cat foo.pcap > myfifo
+	// termshark -i myfifo
+	//
+	// termshark will get EOF when the cat terminates (if there are no more writers).
+	//
+
+	// Calculate the final size of the tmp file we wrote it with packets read from the
+	// interface/pipe.
+	fi, err := os.Stat(c.ifaceFile)
+	if err != nil {
+		log.Warn(err)
+		// Deliberately not a fatal error - it can happen if the source of packets to tshark -i
+		// is corrupt, resulting in a tshark error. Setting zero here will line up with the
+		// reading end which will read zero, and so terminate the tshark -T psml procedure.
+
+		if c.fifoError == nil && !os.IsNotExist(err) {
+			// Ignore ENOENT because it means there was an error before dumpcap even wrote
+			// anything to disk
+			c.fifoError = err
+		}
+	} else {
+		c.totalFifoBytesWritten = gwutil.SomeInt64(fi.Size())
+	}
+
+	c.checkAllBytesRead(cb)
+
 	c.ifaceCancelFn()
 }
 
