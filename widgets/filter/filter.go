@@ -225,7 +225,12 @@ func New(opt Options) *Widget {
 			// Tell other goroutine we are ready for more - each time round the loop. This makes sure
 			// we don't run more than one tshark process - it will get killed if a new filter should take
 			// priority.
-			res.readytorunchan <- struct{}{}
+			select {
+			case res.readytorunchan <- struct{}{}:
+			case <-res.quitchan:
+				break CL
+			}
+
 			select {
 			case <-res.quitchan:
 				break CL
