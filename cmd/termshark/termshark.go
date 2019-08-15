@@ -1159,7 +1159,7 @@ func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
 	close(closeMe)
 	log.Error(err)
 	if !uiRunning {
-		fmt.Printf("%v\n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		quitRequestedChan <- struct{}{}
 	} else {
 
@@ -2444,7 +2444,7 @@ func cmain() int {
 	filterArgs, err = tmFlags.Parse()
 
 	if err != nil {
-		fmt.Printf("Command-line error: %v\n\n", err)
+		fmt.Fprintf(os.Stderr, "Command-line error: %v\n\n", err)
 		writeHelp(tmFlags, os.Stderr)
 		return 1
 	}
@@ -2732,12 +2732,12 @@ func cmain() int {
 	// swallowed by tcell.
 	defer func() {
 		if ifaceExitCode != 0 {
-			fmt.Printf("Cannot capture on interface %s", useIface)
+			fmt.Fprintf(os.Stderr, "Cannot capture on interface %s", useIface)
 			if ifaceErr != nil {
-				fmt.Printf(": %v", ifaceErr)
+				fmt.Fprintf(os.Stderr, ": %v", ifaceErr)
 			}
-			fmt.Printf(" (exit code %d)\n", ifaceExitCode)
-			fmt.Printf("See https://wiki.wireshark.org/CaptureSetup/CapturePrivileges for more info.\n")
+			fmt.Fprintf(os.Stderr, " (exit code %d)\n", ifaceExitCode)
+			fmt.Fprintf(os.Stderr, "See https://wiki.wireshark.org/CaptureSetup/CapturePrivileges for more info.\n")
 		}
 	}()
 
@@ -2767,7 +2767,7 @@ func cmain() int {
 	}
 	packetHexWidgets, err = lru.New(widgetCacheSize)
 	if err != nil {
-		fmt.Printf("Internal error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Internal error: %v\n", err)
 		return 1
 	}
 
@@ -3232,7 +3232,7 @@ func cmain() int {
 
 		iwatcher, err = fsnotify.NewWatcher()
 		if err != nil {
-			fmt.Printf("Could not start filesystem watcher: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Could not start filesystem watcher: %v\n", err)
 			return 1
 		}
 		defer func() {
@@ -3252,7 +3252,7 @@ func cmain() int {
 		// there won't be a conflict for reading /dev/tty.
 		//
 		if err := iwatcher.Add(termshark.PcapDir()); err != nil { //&& !os.IsNotExist(err) {
-			fmt.Printf("Could not set up watcher for %s: %v\n", termshark.PcapDir(), err)
+			fmt.Fprintf(os.Stderr, "Could not set up watcher for %s: %v\n", termshark.PcapDir(), err)
 			return 1
 		}
 
@@ -3271,10 +3271,10 @@ func cmain() int {
 		Log:          log.StandardLogger(),
 	})
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		if cerr, ok := termshark.RootCause(err).(*exec.Error); ok {
 			if cerr.Err.Error() == exec.ErrNotFound.Error() {
-				fmt.Printf("Termshark could not recognize your terminal. Try changing $TERM.\n")
+				fmt.Fprintf(os.Stderr, "Termshark could not recognize your terminal. Try changing $TERM.\n")
 			}
 		}
 		return 1
@@ -3311,7 +3311,7 @@ func cmain() int {
 			App: app,
 			Fn: func(app gowid.IApp) {
 				if !uiRunning {
-					fmt.Printf("Invalid filter: %s\n", displayFilter)
+					fmt.Fprintf(os.Stderr, "Invalid filter: %s\n", displayFilter)
 					quitRequestedChan <- struct{}{}
 				} else {
 					app.Run(gowid.RunFunction(func(app gowid.IApp) {
@@ -3324,7 +3324,7 @@ func cmain() int {
 
 	if pcapf != "" {
 		if pcapf, err = filepath.Abs(pcapf); err != nil {
-			fmt.Printf("Could not determine working directory: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Could not determine working directory: %v\n", err)
 			return 1
 		}
 
@@ -3476,7 +3476,7 @@ Loop:
 			}
 
 		case err := <-tmpPcapWatcherErrorsChan:
-			fmt.Printf("Unexpected watcher error for %s: %v", ifaceTmpFile, err)
+			fmt.Fprintf(os.Stderr, "Unexpected watcher error for %s: %v", ifaceTmpFile, err)
 			return 1
 
 		case <-startUIChan:
@@ -3484,7 +3484,7 @@ Loop:
 
 			// Go to termshark UI view
 			if err = app.ActivateScreen(); err != nil {
-				fmt.Printf("Error starting UI: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error starting UI: %v\n", err)
 				return 1
 			}
 
