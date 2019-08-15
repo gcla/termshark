@@ -558,6 +558,24 @@ failed:
 }
 
 //======================================================================
+
+type iWrappedError interface {
+	Cause() error
+}
+
+func RootCause(err error) error {
+	res := err
+	for {
+		if cerr, ok := res.(iWrappedError); ok {
+			res = cerr.Cause()
+		} else {
+			break
+		}
+	}
+	return res
+}
+
+//======================================================================
 // Local Variables:
 // mode: Go
 // fill-column: 78
