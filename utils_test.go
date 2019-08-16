@@ -75,17 +75,16 @@ func TestInterfaces1(t *testing.T) {
 	out1 := `
 1. \Device\NPF_{BAC1CFBD-DE27-4023-B478-0C490B99DC5E} (Local Area Connection 2)
 2. \Device\NPF_{78032B7E-4968-42D3-9F37-287EA86C0AAA} (Local Area Connection* 10)
-3. \Device\NPF_NdisWanIp (NdisWan Adapter)
-4. \Device\NPF_NdisWanBh (NdisWan Adapter)
-5. \Device\NPF_{84E7CAE6-E96F-4F31-96FD-170B0F514AB2} (Npcap Loopback Adapter)
-6. \Device\NPF_NdisWanIpv6 (NdisWan Adapter)
-7. \Device\NPF_{503E1F71-C57C-438D-B004-EA5563723C16} (Local Area Connection 5)
-8. \Device\NPF_{15DDE443-C208-4328-8919-9666682EE804} (Local Area Connection* 11)
+3. \Device\NPF_{84E7CAE6-E96F-4F31-96FD-170B0F514AB2} (Npcap Loopback Adapter)
+4. \Device\NPF_NdisWanIpv6 (NdisWan Adapter)
+5. \Device\NPF_{503E1F71-C57C-438D-B004-EA5563723C16} (Local Area Connection 5)
+6. \Device\NPF_{15DDE443-C208-4328-8919-9666682EE804} (Local Area Connection* 11)
 `[1:]
 	interfaces, err := interfacesFrom(bytes.NewReader([]byte(out1)))
 	assert.NoError(t, err)
-	assert.Equal(t, 8, len(interfaces))
-	assert.Equal(t, `\Device\NPF_{78032B7E-4968-42D3-9F37-287EA86C0AAA}`, interfaces[1])
+	assert.Equal(t, 12, len(interfaces))
+	assert.Equal(t, interfaces[`\Device\NPF_{78032B7E-4968-42D3-9F37-287EA86C0AAA}`], 2)
+	assert.Equal(t, interfaces[`Local Area Connection* 10`], 2)
 }
 
 func TestConv1(t *testing.T) {
