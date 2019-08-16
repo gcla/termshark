@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -414,7 +415,7 @@ var UnexpectedOutput = fmt.Errorf("Unexpected output")
 // Use tshark's output, becauses the indices can then be used to select
 // an interface to sniff on, and net.Interfaces returns the interfaces in
 // a different order.
-func Interfaces() ([]string, error) {
+func Interfaces() (map[string]int, error) {
 	cmd := exec.Command(TSharkBin(), "-D")
 	out, err := cmd.Output()
 	if err != nil {
@@ -423,16 +424,35 @@ func Interfaces() ([]string, error) {
 	return interfacesFrom(bytes.NewReader(out))
 }
 
-func interfacesFrom(reader io.Reader) ([]string, error) {
-	res := make([]string, 0, 20)
+func interfacesFrom(reader io.Reader) (map[string]int, error) {
+	re := regexp.MustCompile("^(?P<index>[0-9]+)\\.\\s+(?P<name1>[^\\s]+)(\\s*\\((?P<name2>[^)]+)\\))?")
+
+	res := make(map[string]int)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
-		pieces := strings.Fields(line)
-		if len(pieces) < 2 {
+
+		match := re.FindStringSubmatch(line)
+		if len(match) < 2 {
 			return nil, gowid.WithKVs(UnexpectedOutput, map[string]interface{}{"Output": line})
 		}
-		res = append(res, pieces[1])
+		result := make(map[string]string)
+		for i, name := range re.SubexpNames() {
+			if i != 0 && name != "" {
+				result[name] = match[i]
+			}
+		}
+
+		i, err := strconv.ParseInt(result["index"], 10, 32)
+		if err != nil {
+			return nil, gowid.WithKVs(UnexpectedOutput, map[string]interface{}{"Output": line})
+		}
+
+		res[result["name1"]] = int(i)
+
+		if name2, ok := result["name2"]; ok {
+			res[name2] = int(i)
+		}
 	}
 
 	return res, nil

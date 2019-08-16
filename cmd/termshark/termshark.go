@@ -2669,27 +2669,42 @@ func cmain() int {
 	// per the order returned by the OS. useIface will always be the name of the interface.
 	useIface := opts.Iface
 
-	if opts.Iface != "" {
-		if ifaceIdx, err := strconv.Atoi(opts.Iface); err == nil && !sourceIsFifo {
+	// See if the interface argument is an integer
+	ifaceIdx := -1
+	if i, err := strconv.Atoi(opts.Iface); err == nil {
+		ifaceIdx = i
+	}
 
-			ifaces, err := termshark.Interfaces()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Could not enumerate network interfaces: %v\n", err)
-				return 1
-			}
+	checkInterfaceName := false
+	// If it's a fifo, then always treat is as a fifo and not a reference to something in tshark -D
+	if !sourceIsFifo {
+		if ifaceIdx != -1 {
+			// if the argument is an integer, then confirm it in the output of tshark -D
+			checkInterfaceName = true
+		} else if runtime.GOOS == "windows" {
+			// If we're on windows, then all interfaces - indices and names -
+			// will be in tshark -D, so confirm it there
+			checkInterfaceName = true
+		}
+	}
 
-			gotit := false
-			for n, i := range ifaces {
-				if i == opts.Iface || n+1 == ifaceIdx {
-					gotit = true
-					useIface = i
-					break
-				}
+	if checkInterfaceName {
+		ifaces, err := termshark.Interfaces()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not enumerate network interfaces: %v\n", err)
+			return 1
+		}
+
+		gotit := false
+		for i, n := range ifaces {
+			if i == opts.Iface || n == ifaceIdx {
+				gotit = true
+				break
 			}
-			if !gotit {
-				fmt.Fprintf(os.Stderr, "Could not find network interface %s\n", opts.Iface)
-				return 1
-			}
+		}
+		if !gotit {
+			fmt.Fprintf(os.Stderr, "Could not find network interface %s\n", opts.Iface)
+			return 1
 		}
 	}
 
