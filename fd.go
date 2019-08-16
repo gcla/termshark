@@ -79,6 +79,10 @@ func MoveStdin() (int, error) {
 	return newinputfd, nil
 }
 
+func CloseDescriptor(fd int) {
+	syscall.Close(fd)
+}
+
 //======================================================================
 // Local Variables:
 // mode: Go

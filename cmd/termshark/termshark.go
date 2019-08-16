@@ -12,7 +12,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -2317,31 +2316,27 @@ func cmain() int {
 	uiSuspended := false         // true if the UI was suspended due to SIGTSTP
 
 	sigChan := make(chan os.Signal, 100)
-	if runtime.GOOS == "windows" {
-		signal.Notify(sigChan, os.Interrupt)
-	} else {
-		// SIGINT and SIGQUIT will arrive only via an external kill command,
-		// not the keyboard, because our line discipline is set up to pass
-		// ctrl-c and ctrl-\ to termshark as keypress events. But we slightly
-		// modify tcell's default and set up ctrl-z to invoke signal SIGTSTP
-		// on the foreground process group. An alternative would just be to
-		// recognize ctrl-z in termshark and issue a SIGSTOP to getpid() from
-		// termshark but this wouldn't stop other processes in a termshark
-		// pipeline e.g.
-		//
-		// tcpdump -i eth0 -w - | termshark -i -
-		//
-		// sending SIGSTOP to getpid() would not stop tcpdump. The expectation
-		// with bash job control is that all processes in the foreground
-		// process group will be suspended. I could send SIGSTOP to 0, to try
-		// to get all processes in the group, but if e.g. tcpdump is running
-		// as root and termshark is not, tcpdump will not be suspended. If
-		// instead I set the line discipline such that ctrl-z is not passed
-		// through but maps to SIGTSTP, then tcpdump will be stopped by ctrl-z
-		// via the shell by virtue of the fact that when all pipeline
-		// processes start running, they use the same tty line discipline.
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGTSTP, syscall.SIGCONT)
-	}
+	// SIGINT and SIGQUIT will arrive only via an external kill command,
+	// not the keyboard, because our line discipline is set up to pass
+	// ctrl-c and ctrl-\ to termshark as keypress events. But we slightly
+	// modify tcell's default and set up ctrl-z to invoke signal SIGTSTP
+	// on the foreground process group. An alternative would just be to
+	// recognize ctrl-z in termshark and issue a SIGSTOP to getpid() from
+	// termshark but this wouldn't stop other processes in a termshark
+	// pipeline e.g.
+	//
+	// tcpdump -i eth0 -w - | termshark -i -
+	//
+	// sending SIGSTOP to getpid() would not stop tcpdump. The expectation
+	// with bash job control is that all processes in the foreground
+	// process group will be suspended. I could send SIGSTOP to 0, to try
+	// to get all processes in the group, but if e.g. tcpdump is running
+	// as root and termshark is not, tcpdump will not be suspended. If
+	// instead I set the line discipline such that ctrl-z is not passed
+	// through but maps to SIGTSTP, then tcpdump will be stopped by ctrl-z
+	// via the shell by virtue of the fact that when all pipeline
+	// processes start running, they use the same tty line discipline.
+	termshark.RegisterForSignals(sigChan)
 
 	viper.SetConfigName("termshark") // no need to include file extension - looks for file called termshark.ini for example
 
@@ -2540,7 +2535,7 @@ func cmain() int {
 				return 1
 			}
 			defer func() {
-				syscall.Close(newinputfd)
+				termshark.CloseDescriptor(newinputfd)
 			}()
 			opts.Iface = fmt.Sprintf("/dev/fd/%d", newinputfd)
 			sourceIsStdin = true
@@ -3541,7 +3536,7 @@ Loop:
 			}
 
 		case sig := <-sigChan:
-			if ssig, ok := sig.(syscall.Signal); ok && ssig == syscall.SIGTSTP {
+			if termshark.IsSigTSTP(sig) {
 				if uiRunning {
 					// Remove our terminal overrides that allow ctrl-z
 					ctrlzLineDisc.Restore()
@@ -3558,16 +3553,16 @@ Loop:
 				}
 
 				// This is not synchronous, but some time after calling this, we'll be suspended.
-				if err := syscall.Kill(syscall.Getpid(), syscall.SIGSTOP); err != nil {
-					fmt.Printf("Unexpected error issuing SIGSTOP: %v\n", err)
+				if err := termshark.StopMyself(); err != nil {
+					fmt.Fprintf(os.Stderr, "Unexpected error issuing SIGSTOP: %v\n", err)
 					return 1
 				}
 
-			} else if ssig, ok := sig.(syscall.Signal); ok && ssig == syscall.SIGCONT {
+			} else if termshark.IsSigCont(sig) {
 				if uiSuspended {
 					// Go to termshark UI view
 					if err = app.ActivateScreen(); err != nil {
-						fmt.Printf("Error starting UI: %v\n", err)
+						fmt.Fprintf(os.Stderr, "Error starting UI: %v\n", err)
 						return 1
 					}
 

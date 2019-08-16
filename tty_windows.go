@@ -2,19 +2,25 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-// +build windows
-
 package termshark
 
-import (
-	"fmt"
-)
+//======================================================================
 
-func MoveStdin() (int, error) {
-	return -1, fmt.Errorf("MoveStdin not implemented on Windows")
+type TerminalSignals struct {
+	set bool
 }
 
-func CloseDescriptor(fd int) {
+func (t *TerminalSignals) IsSet() bool {
+	return t.set
+}
+
+func (t *TerminalSignals) Restore() {
+	t.set = false
+}
+
+func (t *TerminalSignals) Set() error {
+	t.set = true
+	return nil
 }
 
 //======================================================================
