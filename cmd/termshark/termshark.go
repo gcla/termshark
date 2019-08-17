@@ -71,10 +71,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/fsnotify.v1"
-
-	"net/http"
-	_ "net/http"
-	_ "net/http/pprof"
 )
 
 // TODO - just for debugging
@@ -2353,10 +2349,6 @@ func main() {
 	filter.Goroutinewg = &ensureGoroutinesStopWG
 	termshark.Goroutinewg = &ensureGoroutinesStopWG
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
-
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
 
 	res := cmain()
 	ensureGoroutinesStopWG.Wait()
