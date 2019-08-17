@@ -86,19 +86,24 @@ var topview *holder.Widget
 var yesno *dialog.Widget
 var pleaseWait *dialog.Widget
 var pleaseWaitSpinner *spinner.Widget
-var mainviewRs *resizable.PileWidget
+var mainviewRows *resizable.PileWidget
 var mainview gowid.IWidget
-var altviewRs *resizable.PileWidget
-var altview gowid.IWidget
-var altviewpile *resizable.PileWidget
-var altviewcols *resizable.ColumnsWidget
+var altview1 gowid.IWidget
+var altview1OuterRows *resizable.PileWidget
+var altview1Pile *resizable.PileWidget
+var altview1Cols *resizable.ColumnsWidget
+var altview2 gowid.IWidget
+var altview2OuterRows *resizable.PileWidget
+var altview2Pile *resizable.PileWidget
+var altview2Cols *resizable.ColumnsWidget
 var viewOnlyPacketList *pile.Widget
 var viewOnlyPacketStructure *pile.Widget
 var viewOnlyPacketHex *pile.Widget
 var filterCols *columns.Widget
 var progWidgetIdx int
-var mainViewPaths [][]interface{}
-var altViewPaths [][]interface{}
+var mainviewPaths [][]interface{}
+var altview1Paths [][]interface{}
+var altview2Paths [][]interface{}
 var maxViewPath []interface{}
 var filterPathMain []interface{}
 var filterPathAlt []interface{}
@@ -1325,9 +1330,9 @@ func makeRecentMenu(items []simpleMenuItem) gowid.IWidget {
 func appKeysResize1(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	if evk.Rune() == '+' {
-		mainviewRs.AdjustOffset(2, 6, resizable.Add1, app)
+		mainviewRows.AdjustOffset(2, 6, resizable.Add1, app)
 	} else if evk.Rune() == '-' {
-		mainviewRs.AdjustOffset(2, 6, resizable.Subtract1, app)
+		mainviewRows.AdjustOffset(2, 6, resizable.Subtract1, app)
 	} else {
 		handled = false
 	}
@@ -1337,33 +1342,57 @@ func appKeysResize1(evk *tcell.EventKey, app gowid.IApp) bool {
 func appKeysResize2(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	if evk.Rune() == '+' {
-		mainviewRs.AdjustOffset(4, 6, resizable.Add1, app)
+		mainviewRows.AdjustOffset(4, 6, resizable.Add1, app)
 	} else if evk.Rune() == '-' {
-		mainviewRs.AdjustOffset(4, 6, resizable.Subtract1, app)
+		mainviewRows.AdjustOffset(4, 6, resizable.Subtract1, app)
 	} else {
 		handled = false
 	}
 	return handled
 }
 
-func viewcolsaKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+func altview1ColsKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	if evk.Rune() == '>' {
-		altviewcols.AdjustOffset(0, 2, resizable.Add1, app)
+		altview1Cols.AdjustOffset(0, 2, resizable.Add1, app)
 	} else if evk.Rune() == '<' {
-		altviewcols.AdjustOffset(0, 2, resizable.Subtract1, app)
+		altview1Cols.AdjustOffset(0, 2, resizable.Subtract1, app)
 	} else {
 		handled = false
 	}
 	return handled
 }
 
-func viewpilebKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+func altview1PileKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	if evk.Rune() == '+' {
-		altviewpile.AdjustOffset(0, 2, resizable.Add1, app)
+		altview1Pile.AdjustOffset(0, 2, resizable.Add1, app)
 	} else if evk.Rune() == '-' {
-		altviewpile.AdjustOffset(0, 2, resizable.Subtract1, app)
+		altview1Pile.AdjustOffset(0, 2, resizable.Subtract1, app)
+	} else {
+		handled = false
+	}
+	return handled
+}
+
+func altview2ColsKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+	handled := true
+	if evk.Rune() == '>' {
+		altview2Cols.AdjustOffset(0, 2, resizable.Add1, app)
+	} else if evk.Rune() == '<' {
+		altview2Cols.AdjustOffset(0, 2, resizable.Subtract1, app)
+	} else {
+		handled = false
+	}
+	return handled
+}
+
+func altview2PileKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+	handled := true
+	if evk.Rune() == '+' {
+		altview2Pile.AdjustOffset(0, 2, resizable.Add1, app)
+	} else if evk.Rune() == '-' {
+		altview2Pile.AdjustOffset(0, 2, resizable.Subtract1, app)
 	} else {
 		handled = false
 	}
@@ -1437,24 +1466,34 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		gowid.SetFocusPath(viewOnlyPacketHex, maxViewPath, app)
 
 		if packetStructureViewHolder.SubWidget() == missingMsgw {
-			gowid.SetFocusPath(mainview, mainViewPaths[0], app)
-			gowid.SetFocusPath(altview, altViewPaths[0], app)
+			gowid.SetFocusPath(mainview, mainviewPaths[0], app)
+			gowid.SetFocusPath(altview1, altview1Paths[0], app)
+			gowid.SetFocusPath(altview2, altview2Paths[0], app)
 		} else {
 			newidx := -1
 			if topview.SubWidget() == mainview {
 				v1p := gowid.FocusPath(mainview)
-				if deep.Equal(v1p, mainViewPaths[0]) == nil {
+				if deep.Equal(v1p, mainviewPaths[0]) == nil {
 					newidx = 1
-				} else if deep.Equal(v1p, mainViewPaths[1]) == nil {
+				} else if deep.Equal(v1p, mainviewPaths[1]) == nil {
 					newidx = 2
 				} else {
 					newidx = 0
 				}
-			} else if topview.SubWidget() == altview {
-				v2p := gowid.FocusPath(altview)
-				if deep.Equal(v2p, altViewPaths[0]) == nil {
+			} else if topview.SubWidget() == altview1 {
+				v2p := gowid.FocusPath(altview1)
+				if deep.Equal(v2p, altview1Paths[0]) == nil {
 					newidx = 1
-				} else if deep.Equal(v2p, altViewPaths[1]) == nil {
+				} else if deep.Equal(v2p, altview1Paths[1]) == nil {
+					newidx = 2
+				} else {
+					newidx = 0
+				}
+			} else if topview.SubWidget() == altview2 {
+				v3p := gowid.FocusPath(altview2)
+				if deep.Equal(v3p, altview2Paths[0]) == nil {
+					newidx = 1
+				} else if deep.Equal(v3p, altview2Paths[1]) == nil {
 					newidx = 2
 				} else {
 					newidx = 0
@@ -1463,8 +1502,9 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 			if newidx != -1 {
 				// Keep the views in sync
-				gowid.SetFocusPath(mainview, mainViewPaths[newidx], app)
-				gowid.SetFocusPath(altview, altViewPaths[newidx], app)
+				gowid.SetFocusPath(mainview, mainviewPaths[newidx], app)
+				gowid.SetFocusPath(altview1, altview1Paths[newidx], app)
+				gowid.SetFocusPath(altview2, altview2Paths[newidx], app)
 			}
 		}
 
@@ -1472,7 +1512,9 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		menu1.Open(btnSite, app)
 	} else if evk.Rune() == '|' {
 		if topview.SubWidget() == mainview {
-			topview.SetSubWidget(altview, app)
+			topview.SetSubWidget(altview1, app)
+		} else if topview.SubWidget() == altview1 {
+			topview.SetSubWidget(altview2, app)
 		} else {
 			topview.SetSubWidget(mainview, app)
 		}
@@ -1484,11 +1526,11 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			if deep.Equal(fp, maxViewPath) == nil {
 				switch w {
 				case viewOnlyPacketList:
-					gowid.SetFocusPath(mainview, mainViewPaths[0], app)
+					gowid.SetFocusPath(mainview, mainviewPaths[0], app)
 				case viewOnlyPacketStructure:
-					gowid.SetFocusPath(mainview, mainViewPaths[1], app)
+					gowid.SetFocusPath(mainview, mainviewPaths[1], app)
 				case viewOnlyPacketHex:
-					gowid.SetFocusPath(mainview, mainViewPaths[2], app)
+					gowid.SetFocusPath(mainview, mainviewPaths[2], app)
 				}
 			}
 		} else {
@@ -1499,7 +1541,8 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		}
 	} else if evk.Rune() == '/' {
 		gowid.SetFocusPath(mainview, filterPathMain, app)
-		gowid.SetFocusPath(altview, filterPathAlt, app)
+		gowid.SetFocusPath(altview1, filterPathAlt, app)
+		gowid.SetFocusPath(altview2, filterPathAlt, app)
 		gowid.SetFocusPath(viewOnlyPacketList, filterPathMax, app)
 		gowid.SetFocusPath(viewOnlyPacketStructure, filterPathMax, app)
 		gowid.SetFocusPath(viewOnlyPacketHex, filterPathMax, app)
@@ -1838,12 +1881,17 @@ func getHexWidgetToDisplay(row int) *hexdumper.Widget {
 					// struct selected but in the other view have hex selected.
 					if topview.SubWidget() == mainview {
 						v1p := gowid.FocusPath(mainview)
-						if deep.Equal(v1p, mainViewPaths[2]) != nil { // it's not hex
+						if deep.Equal(v1p, mainviewPaths[2]) != nil { // it's not hex
 							return
 						}
-					} else {
-						v2p := gowid.FocusPath(altview)
-						if deep.Equal(v2p, altViewPaths[2]) != nil { // it's not hex
+					} else if topview.SubWidget() == altview1 {
+						v2p := gowid.FocusPath(altview1)
+						if deep.Equal(v2p, altview1Paths[2]) != nil { // it's not hex
+							return
+						}
+					} else { // altview2
+						v3p := gowid.FocusPath(altview2)
+						if deep.Equal(v3p, altview2Paths[2]) != nil { // it's not hex
 							return
 						}
 					}
@@ -3047,7 +3095,7 @@ func cmain() int {
 		},
 	)
 
-	mainviewRs = resizable.NewPile([]gowid.IContainerWidget{
+	mainviewRows = resizable.NewPile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
 			IWidget: titleView,
 			D:       units(1),
@@ -3078,8 +3126,8 @@ func cmain() int {
 		},
 	})
 
-	mainviewRs.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("mainview", mainviewRs.GetOffsets())
+	mainviewRows.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+		saveOffsetToConfig("mainview", mainviewRows.GetOffsets())
 	}))
 
 	viewOnlyPacketList = pile.New([]gowid.IContainerWidget{
@@ -3127,7 +3175,9 @@ func cmain() int {
 		},
 	})
 
-	altviewpile = resizable.NewPile([]gowid.IContainerWidget{
+	//======================================================================
+
+	altview1Pile = resizable.NewPile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
 			IWidget: packetListViewHolder,
 			D:       weight(1),
@@ -3142,15 +3192,15 @@ func cmain() int {
 		},
 	})
 
-	altviewpile.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("altviewleft", altviewpile.GetOffsets())
+	altview1Pile.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+		saveOffsetToConfig("altviewleft", altview1Pile.GetOffsets())
 	}))
 
-	viewpilebkeys := appkeys.New(altviewpile, viewpilebKeyPress)
+	altview1PileAndKeys := appkeys.New(altview1Pile, altview1PileKeyPress)
 
-	altviewcols = resizable.NewColumns([]gowid.IContainerWidget{
+	altview1Cols = resizable.NewColumns([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
-			IWidget: viewpilebkeys,
+			IWidget: altview1PileAndKeys,
 			D:       weight(1),
 		},
 		&gowid.ContainerWidget{
@@ -3163,13 +3213,13 @@ func cmain() int {
 		},
 	})
 
-	altviewcols.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("altviewright", altviewcols.GetOffsets())
+	altview1Cols.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+		saveOffsetToConfig("altviewright", altview1Cols.GetOffsets())
 	}))
 
-	viewcolsakeys := appkeys.New(altviewcols, viewcolsaKeyPress)
+	altview1ColsAndKeys := appkeys.New(altview1Cols, altview1ColsKeyPress)
 
-	altviewRs = resizable.NewPile([]gowid.IContainerWidget{
+	altview1OuterRows = resizable.NewPile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
 			IWidget: titleView,
 			D:       units(1),
@@ -3179,31 +3229,99 @@ func cmain() int {
 			D:       units(3),
 		},
 		&gowid.ContainerWidget{
-			IWidget: viewcolsakeys,
+			IWidget: altview1ColsAndKeys,
 			D:       weight(1),
 		},
 	})
 
+	//======================================================================
+
+	altview2Cols = resizable.NewColumns([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{
+			IWidget: packetStructureViewHolder,
+			D:       weight(1),
+		},
+		&gowid.ContainerWidget{
+			IWidget: fillVBar,
+			D:       units(1),
+		},
+		&gowid.ContainerWidget{
+			IWidget: packetHexViewHolder,
+			D:       weight(1),
+		},
+	})
+
+	altview2Cols.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+		saveOffsetToConfig("altview2vertical", altview2Cols.GetOffsets())
+	}))
+
+	altview2ColsAndKeys := appkeys.New(altview2Cols, altview2ColsKeyPress)
+
+	altview2Pile = resizable.NewPile([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{
+			IWidget: packetListViewHolder,
+			D:       weight(1),
+		},
+		&gowid.ContainerWidget{
+			IWidget: divider.NewUnicode(),
+			D:       flow,
+		},
+		&gowid.ContainerWidget{
+			IWidget: altview2ColsAndKeys,
+			D:       weight(1),
+		},
+	})
+
+	altview2Pile.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+		saveOffsetToConfig("altview2horizontal", altview2Pile.GetOffsets())
+	}))
+
+	altview2PileAndKeys := appkeys.New(altview2Pile, altview2PileKeyPress)
+
+	altview2OuterRows = resizable.NewPile([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{
+			IWidget: titleView,
+			D:       units(1),
+		},
+		&gowid.ContainerWidget{
+			IWidget: filterView,
+			D:       units(3),
+		},
+		&gowid.ContainerWidget{
+			IWidget: altview2PileAndKeys,
+			D:       weight(1),
+		},
+	})
+
+	//======================================================================
+
 	maxViewPath = []interface{}{2, 0} // list, structure or hex - whichever one is selected
 
-	mainViewPaths = [][]interface{}{
+	mainviewPaths = [][]interface{}{
 		{2, 0}, // packet list
 		{4},    // packet structure
 		{6},    // packet hex
 	}
 
-	altViewPaths = [][]interface{}{
+	altview1Paths = [][]interface{}{
 		{2, 0, 0, 0}, // packet list
 		{2, 0, 2},    // packet structure
 		{2, 2},       // packet hex
+	}
+
+	altview2Paths = [][]interface{}{
+		{2, 0, 0}, // packet list
+		{2, 2, 0}, // packet structure
+		{2, 2, 2}, // packet hex
 	}
 
 	filterPathMain = []interface{}{1, 1}
 	filterPathAlt = []interface{}{1, 1}
 	filterPathMax = []interface{}{1, 1}
 
-	mainview = mainviewRs
-	altview = altviewRs
+	mainview = mainviewRows
+	altview1 = altview1OuterRows
+	altview2 = altview2OuterRows
 
 	topview = holder.New(mainview)
 
@@ -3301,17 +3419,24 @@ func cmain() int {
 	// Populate the filter widget initially - runs asynchronously
 	go filterWidget.UpdateCompletions(app)
 
-	gowid.SetFocusPath(mainview, mainViewPaths[0], app)
-	gowid.SetFocusPath(altview, altViewPaths[0], app)
+	gowid.SetFocusPath(mainview, mainviewPaths[0], app)
+	gowid.SetFocusPath(altview1, altview1Paths[0], app)
+	gowid.SetFocusPath(altview2, altview2Paths[0], app)
 
 	if offs, err := loadOffsetFromConfig("mainview"); err == nil {
-		mainviewRs.SetOffsets(offs, app)
+		mainviewRows.SetOffsets(offs, app)
 	}
 	if offs, err := loadOffsetFromConfig("altviewleft"); err == nil {
-		altviewpile.SetOffsets(offs, app)
+		altview1Pile.SetOffsets(offs, app)
 	}
 	if offs, err := loadOffsetFromConfig("altviewright"); err == nil {
-		altviewcols.SetOffsets(offs, app)
+		altview1Cols.SetOffsets(offs, app)
+	}
+	if offs, err := loadOffsetFromConfig("altview2horizontal"); err == nil {
+		altview2Pile.SetOffsets(offs, app)
+	}
+	if offs, err := loadOffsetFromConfig("altview2vertical"); err == nil {
+		altview2Cols.SetOffsets(offs, app)
 	}
 
 	uiRunning = false
