@@ -1513,11 +1513,15 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	} else if evk.Rune() == '|' {
 		if topview.SubWidget() == mainview {
 			topview.SetSubWidget(altview1, app)
+			viper.Set("main.layout", "altview1")
 		} else if topview.SubWidget() == altview1 {
 			topview.SetSubWidget(altview2, app)
+			viper.Set("main.layout", "altview2")
 		} else {
 			topview.SetSubWidget(mainview, app)
+			viper.Set("main.layout", "mainview")
 		}
+		viper.WriteConfig()
 	} else if evk.Rune() == '\\' {
 		w := topview.SubWidget()
 		fp := gowid.FocusPath(w)
@@ -3324,6 +3328,13 @@ func cmain() int {
 	altview2 = altview2OuterRows
 
 	topview = holder.New(mainview)
+	defaultLayout := viper.GetString("main.layout")
+	switch defaultLayout {
+	case "altview1":
+		topview = holder.New(altview1)
+	case "altview2":
+		topview = holder.New(altview2)
+	}
 
 	keylayer := appkeys.New(topview, appKeyPress)
 
