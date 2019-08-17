@@ -46,12 +46,12 @@ apt install termshark
 
 ## NixOS
 
-Thanks to [@winpat](https://github.com/winpat)
+Thanks to [Patrick Winter](https://github.com/winpat)
 
 ```bash
 nix-channel --add https://nixos.org/channels/nixpkgs-unstable
 nix-channel --update
-nix-env -i termshark
+nix-env -iA nixpkgs.termshark
 ```
 
 ## SnapCraft
