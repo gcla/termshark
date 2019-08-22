@@ -3550,6 +3550,10 @@ Loop:
 		// This should really be moved to a handler...
 		if loader.State() == 0 {
 			if loader.State() != prevstate {
+				// If the state is now 0, it means no interface-reading process is running. That means
+				// we will no longer be reading from an interface or a fifo, so we point the loader at
+				// the file we wrote to the cache, and redirect all loads/filters to that now.
+				loader.TurnOffPipe()
 				if quitRequested {
 					app.Quit()
 				}

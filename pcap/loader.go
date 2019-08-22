@@ -294,6 +294,7 @@ func (c *Scheduler) Disable() {
 }
 
 func (c *Scheduler) RequestClearPcap(cb interface{}) {
+	log.Infof("Scheduler requested clear pcap")
 	c.OperationsChan <- func() {
 		c.Disable()
 		c.doClearPcapOperation(cb, func() {
@@ -304,6 +305,7 @@ func (c *Scheduler) RequestClearPcap(cb interface{}) {
 }
 
 func (c *Scheduler) RequestStopLoad(cb interface{}) {
+	log.Infof("Scheduler requested stop pcap load")
 	c.OperationsChan <- func() {
 		c.Disable()
 		c.doStopLoadOperation(cb, func() {
@@ -313,6 +315,7 @@ func (c *Scheduler) RequestStopLoad(cb interface{}) {
 }
 
 func (c *Scheduler) RequestNewFilter(newfilt string, cb interface{}) {
+	log.Infof("Scheduler requested application of display filter '%v'", newfilt)
 	c.OperationsChan <- func() {
 		c.Disable()
 		c.doNewFilterOperation(newfilt, cb, c.Enable)
@@ -320,6 +323,7 @@ func (c *Scheduler) RequestNewFilter(newfilt string, cb interface{}) {
 }
 
 func (c *Scheduler) RequestLoadInterface(iface string, cantRestart bool, captureFilter string, displayFilter string, tmpfile string, cb interface{}) {
+	log.Infof("Scheduler requested interface/fifo load for '%v'", iface)
 	c.OperationsChan <- func() {
 		c.Disable()
 		c.doLoadInterfaceOperation(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb, func() {
@@ -329,6 +333,7 @@ func (c *Scheduler) RequestLoadInterface(iface string, cantRestart bool, capture
 }
 
 func (c *Scheduler) RequestLoadPcap(pcap string, displayFilter string, cb interface{}) {
+	log.Infof("Scheduler requested pcap file load for '%v'", pcap)
 	c.OperationsChan <- func() {
 		c.Disable()
 		c.doLoadPcapOperation(pcap, displayFilter, cb, func() {
@@ -418,7 +423,6 @@ func (c *Loader) doStopLoadOperation(cb interface{}, fn RunFn) {
 			c.doStopLoadOperation(cb, fn)
 		})
 	} else {
-		c.turnOffPipe()
 		fn()
 		if aa, ok := cb.(IAfterEnd); ok {
 			ch := make(chan struct{})
@@ -641,6 +645,7 @@ func (c *Loader) startLoadInterfaceNew(iface string, cantRestart bool, captureFi
 		return err
 	}
 
+	log.Infof("Starting new interface/fifo load '%v'", iface)
 	c.startLoadPsml(cb)
 	termshark.TrackedGo(func() {
 		c.loadIfaceAsync(cb)
@@ -652,6 +657,7 @@ func (c *Loader) startLoadInterfaceNew(iface string, cantRestart bool, captureFi
 func (c *Loader) startLoadNewFilter(displayFilter string, cb interface{}) {
 	c.displayFilter = displayFilter
 
+	log.Infof("Applying new display filter '%s'", displayFilter)
 	c.startLoadPsml(cb)
 }
 
@@ -665,6 +671,7 @@ func (c *Loader) startLoadNewFile(pcap string, displayFilter string, cb interfac
 	c.PcapPcap = pcap
 	c.displayFilter = displayFilter
 
+	log.Info("Starting new pcap file load '%s'", pcap)
 	c.startLoadPsml(cb)
 }
 
@@ -1227,11 +1234,14 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	}, Goroutinewg)
 }
 
-func (c *Loader) turnOffPipe() {
+func (c *Loader) TurnOffPipe() {
 	// Switch over to  the temp pcap file. If a new filter is applied
 	// after stopping, we should read from the temp file and not the fifo
 	// because nothing will be feeding the fifo.
-	c.PcapPsml = c.PcapPdml
+	if c.PcapPsml != c.PcapPdml {
+		log.Infof("Switching from interface/fifo mode to file mode")
+		c.PcapPsml = c.PcapPdml
+	}
 }
 
 func (c *Loader) signalPsmlStarting(cb interface{}) {
@@ -1558,6 +1568,8 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 			}
 		}
 
+		log.Infof("Starting Tail command: %v", c.tailCmd)
+
 		err = c.tailCmd.Start()
 		if err != nil {
 			err = fmt.Errorf("Could not start tail command %v: %v", c.tailCmd, err)
@@ -1665,6 +1677,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	}
 }
 
+// dumpcap -i eth0 -w /tmp/foo.pcap
 func (c *Loader) loadIfaceAsync(cb interface{}) {
 	c.totalFifoBytesWritten = gwutil.NoneInt64()
 	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.mainCtx)
@@ -1678,6 +1691,8 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 	}()
 
 	c.ifaceCmd = c.cmds.Iface(c.iface, c.captureFilter, c.ifaceFile)
+
+	log.Infof("Starting Iface command: %v", c.ifaceCmd)
 
 	err := c.ifaceCmd.Start()
 	if err != nil {
@@ -1717,7 +1732,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 	//
 
 	// Calculate the final size of the tmp file we wrote it with packets read from the
-	// interface/pipe.
+	// interface/pipe. This runs after the dumpcap command finishes.
 	fi, err := os.Stat(c.ifaceFile)
 	if err != nil {
 		log.Warn(err)
