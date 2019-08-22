@@ -671,7 +671,7 @@ func (c *Loader) startLoadNewFile(pcap string, displayFilter string, cb interfac
 	c.PcapPcap = pcap
 	c.displayFilter = displayFilter
 
-	log.Info("Starting new pcap file load '%s'", pcap)
+	log.Infof("Starting new pcap file load '%s'", pcap)
 	c.startLoadPsml(cb)
 }
 
