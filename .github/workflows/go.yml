@@ -26,6 +26,9 @@ jobs:
 
     - name: Build
       run: go build -v ./...
+
+    - name: Install tshark as prequisite for testing
+      run: apt -y install tshark
       
     - name: Test
       run: go test -v ./...
