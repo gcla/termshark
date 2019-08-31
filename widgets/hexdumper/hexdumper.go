@@ -56,6 +56,15 @@ func (h boxedText) RenderSize(size gowid.IRenderSize, focus gowid.Selector, app 
 
 //======================================================================
 
+type Options struct {
+	StyledLayers      []LayerStyler
+	CursorUnselected  string
+	CursorSelected    string
+	LineNumUnselected string
+	LineNumSelected   string
+	PaletteIfCopying  string
+}
+
 type Widget struct {
 	w                 gowid.IWidget
 	data              []byte
@@ -77,20 +86,22 @@ var _ gowid.IIdentityWidget = (*Widget)(nil)
 var _ gowid.IClipboard = (*Widget)(nil)
 var _ gowid.IClipboardSelected = (*Widget)(nil)
 
-func New(data []byte, layers []LayerStyler,
-	cursorUnselected string, cursorSelected string,
-	lineNumUnselected string, lineNumSelected string,
-	paletteIfCopying string) *Widget {
+func New(data []byte, opts ...Options) *Widget {
+
+	var opt Options
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 
 	res := &Widget{
 		data:                        data,
-		layers:                      layers,
-		cursorUnselected:            cursorUnselected,
-		cursorSelected:              cursorSelected,
-		lineNumUnselected:           lineNumUnselected,
-		lineNumSelected:             lineNumSelected,
-		paletteIfCopying:            paletteIfCopying,
-		UsePaletteIfSelectedForCopy: styled.UsePaletteIfSelectedForCopy{Entry: paletteIfCopying},
+		layers:                      opt.StyledLayers,
+		cursorUnselected:            opt.CursorUnselected,
+		cursorSelected:              opt.CursorSelected,
+		lineNumUnselected:           opt.LineNumUnselected,
+		lineNumSelected:             opt.LineNumSelected,
+		paletteIfCopying:            opt.PaletteIfCopying,
+		UsePaletteIfSelectedForCopy: styled.UsePaletteIfSelectedForCopy{Entry: opt.PaletteIfCopying},
 		Callbacks:                   gowid.NewCallbacks(),
 	}
 
@@ -101,7 +112,7 @@ func New(data []byte, layers []LayerStyler,
 			// widget (moving up the hierarchy) is the one claiming the copy
 			res.chrs[i] = boxedText{
 				width:   1,
-				IWidget: text.NewCopyable(string(rune(i)), hexChrsId{i}, styled.UsePaletteIfSelectedForCopy{Entry: paletteIfCopying}),
+				IWidget: text.NewCopyable(string(rune(i)), hexChrsId{i}, styled.UsePaletteIfSelectedForCopy{Entry: opt.PaletteIfCopying}),
 			}
 		}
 	}

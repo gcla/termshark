@@ -15,9 +15,7 @@ import (
 //======================================================================
 
 func TestDump1(t *testing.T) {
-	widget1 := New([]byte("abcdefghijklmnopqrstuvwxyz0123456789 abcdefghijklmnopqrstuvwxyz0123456789"),
-		[]LayerStyler{},
-		"default", "default", "default", "default", "default")
+	widget1 := New([]byte("abcdefghijklmnopqrstuvwxyz0123456789 abcdefghijklmnopqrstuvwxyz0123456789"))
 	//stylers: []LayerStyler{styler},
 	canvas1 := widget1.Render(gowid.RenderFlowWith{C: 80}, gowid.NotSelected, gwtest.D)
 	log.Infof("Canvas1 is %s", canvas1.String())
@@ -25,9 +23,7 @@ func TestDump1(t *testing.T) {
 }
 
 func TestDump2(t *testing.T) {
-	widget1 := New([]byte(""),
-		[]LayerStyler{},
-		"default", "default", "default", "default", "default")
+	widget1 := New([]byte(""))
 	canvas2 := widget1.Render(gowid.RenderFlowWith{C: 60}, gowid.NotSelected, gwtest.D)
 	log.Infof("Canvas2 is %s", canvas2.String())
 	assert.Equal(t, 1, canvas2.BoxRows())

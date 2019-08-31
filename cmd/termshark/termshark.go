@@ -1863,11 +1863,14 @@ func getHexWidgetToDisplay(row int) *hexdumper.Widget {
 				copy(b, src)
 
 				layers := getLayersFromStructWidget(row, 0)
-				res2 = hexdumper.New(b, layers,
-					"hex-cur-unselected", "hex-cur-selected",
-					"hexln-unselected", "hexln-selected",
-					"copy-mode",
-				)
+				res2 = hexdumper.New(b, hexdumper.Options{
+					StyledLayers:      layers,
+					CursorUnselected:  "hex-cur-unselected",
+					CursorSelected:    "hex-cur-selected",
+					LineNumUnselected: "hexln-unselected",
+					LineNumSelected:   "hexln-selected",
+					PaletteIfCopying:  "copy-mode",
+				})
 
 				// If the user moves the cursor in the hexdump, this callback will adjust the corresponding
 				// pdml tree/struct widget's currently selected layer. That in turn will result in a callback
