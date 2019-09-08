@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -126,12 +127,10 @@ type Loader struct {
 
 	userInitiatedOp bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
 
-	pcap             string // The pcap source for this loader, "" if the loader is based on an interface
-	iface            string // The interface being read from, "" if the loader is based on a pcap file
-	ifaceFile        string // The temp pcap file that is created by reading from the interface
-	ifaceCantRestart bool   // True if reading from the interface cannot be restarted (true for a fifo, for example)
-	displayFilter    string
-	captureFilter    string
+	psrc          IPacketSource // The canonical struct for the loader's current packet source.
+	ifaceFile     string        // The temp pcap file that is created by reading from the interface
+	displayFilter string
+	captureFilter string
 
 	PcapPsml interface{} // Pcap file source for the psml reader - fifo if iface+!stopped; tmpfile if iface+stopped; pcap otherwise
 	PcapPdml string      // Pcap file source for the pdml reader - tmpfile if iface; pcap otherwise
@@ -322,11 +321,11 @@ func (c *Scheduler) RequestNewFilter(newfilt string, cb interface{}) {
 	}
 }
 
-func (c *Scheduler) RequestLoadInterface(iface string, cantRestart bool, captureFilter string, displayFilter string, tmpfile string, cb interface{}) {
-	log.Infof("Scheduler requested interface/fifo load for '%v'", iface)
+func (c *Scheduler) RequestLoadInterface(psrc IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}) {
+	log.Infof("Scheduler requested interface/fifo load for '%v'", psrc.Name())
 	c.OperationsChan <- func() {
 		c.Disable()
-		c.doLoadInterfaceOperation(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb, func() {
+		c.doLoadInterfaceOperation(psrc, captureFilter, displayFilter, tmpfile, cb, func() {
 			c.Enable()
 		})
 	}
@@ -372,7 +371,7 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 		startIfaceAgain := false
 
 		if c.State()&LoadingIface != 0 {
-			startIfaceAgain = !c.ifaceCantRestart // Only try to restart if the packet source allows
+			startIfaceAgain = CanRestart(c.psrc) // Only try to restart if the packet source allows
 			c.stopLoadIface()
 		}
 
@@ -386,7 +385,7 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 			c.doClearPcapOperation(cb, func() {
 				if startIfaceAgain {
 					c.doLoadInterfaceOperation(
-						c.Interface(), c.ifaceCantRestart, c.CaptureFilter(),
+						c.psrc, c.CaptureFilter(),
 						c.DisplayFilter(), c.InterfaceFile(), cb, fn,
 					)
 				} else {
@@ -493,7 +492,7 @@ type IAfterEnd interface {
 	AfterEnd(closeMe chan<- struct{})
 }
 
-func (c *Loader) doLoadInterfaceOperation(iface string, cantRestart bool, captureFilter string, displayFilter string, tmpfile string, cb interface{}, fn RunFn) {
+func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}, fn RunFn) {
 	// The channel is unbuffered, and monitored from the same goroutine, so this would block
 	// unless we start a new goroutine
 
@@ -502,7 +501,7 @@ func (c *Loader) doLoadInterfaceOperation(iface string, cantRestart bool, captur
 	// If we're already loading, but the request is for the same, then ignore. If we were stopped, then
 	// process the request, because it implicitly means start reading from the interface again (and we
 	// are stopped)
-	if c.State()&LoadingPsml != 0 && c.Interface() == iface && c.DisplayFilter() == displayFilter && c.CaptureFilter() == captureFilter {
+	if c.State()&LoadingPsml != 0 && c.Interface() == psrc.Name() && c.DisplayFilter() == displayFilter && c.CaptureFilter() == captureFilter {
 		log.Infof("No operation - same interface and filters.")
 	} else if c.State() == 0 {
 		if oc, ok := cb.(IClear); ok {
@@ -510,7 +509,7 @@ func (c *Loader) doLoadInterfaceOperation(iface string, cantRestart bool, captur
 			oc.OnClear(ch)
 		}
 
-		if err := c.startLoadInterfaceNew(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb); err == nil {
+		if err := c.startLoadInterfaceNew(psrc, captureFilter, displayFilter, tmpfile, cb); err == nil {
 			c.When(func() bool {
 				return c.State()&(LoadingIface|LoadingPsml) == LoadingIface|LoadingPsml
 			}, fn)
@@ -519,7 +518,7 @@ func (c *Loader) doLoadInterfaceOperation(iface string, cantRestart bool, captur
 		} else {
 			handleError(err, cb)
 		}
-	} else if c.State() == LoadingIface && iface == c.Interface() {
+	} else if c.State() == LoadingIface && psrc.Name() == c.Interface() {
 		//if iface == c.Interface() { // same interface, so just start it back up - iface spooler still running
 		handleClear(cb)
 		c.startLoadNewFilter(displayFilter, cb)
@@ -532,13 +531,13 @@ func (c *Loader) doLoadInterfaceOperation(iface string, cantRestart bool, captur
 	} else {
 		// State contains Loadingpdml and/or Loadingpdml. Need to stop those first. OR state contains
 		// Loadingiface but the interface requested is different.
-		if c.State()&LoadingIface != 0 && iface != c.Interface() {
+		if c.State()&LoadingIface != 0 && psrc.Name() != c.Interface() {
 			c.doStopLoadOperation(cb, func() {
-				c.doLoadInterfaceOperation(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb, fn)
+				c.doLoadInterfaceOperation(psrc, captureFilter, displayFilter, tmpfile, cb, fn)
 			}) // returns an enable function when idle
 		} else {
 			c.doStopLoadToIfaceOperation(func() {
-				c.doLoadInterfaceOperation(iface, cantRestart, captureFilter, displayFilter, tmpfile, cb, fn)
+				c.doLoadInterfaceOperation(psrc, captureFilter, displayFilter, tmpfile, cb, fn)
 			})
 		}
 	}
@@ -623,15 +622,14 @@ func TempPcapFile(token string) string {
 // Save the file first
 // Always called from app goroutine context - so don't need to protect for race on cancelfn
 // Assumes gstate is ready
-func (c *Loader) startLoadInterfaceNew(iface string, cantRestart bool, captureFilter string, displayFilter string, tmpfile string, cb interface{}) error {
+// iface can be a number, or a fifo, or a pipe...
+func (c *Loader) startLoadInterfaceNew(psrc IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}) error {
 	c.PcapPsml = nil
 	c.PcapPdml = tmpfile
 	c.PcapPcap = tmpfile
 
-	c.pcap = ""
-	c.iface = iface
+	c.psrc = psrc // dpm't know if it's fifo (tfifo), pipe (/dev/fd/3) or iface (eth0). Treated same way
 	c.ifaceFile = tmpfile
-	c.ifaceCantRestart = cantRestart
 	c.displayFilter = displayFilter
 	c.captureFilter = captureFilter
 
@@ -645,7 +643,7 @@ func (c *Loader) startLoadInterfaceNew(iface string, cantRestart bool, captureFi
 		return err
 	}
 
-	log.Infof("Starting new interface/fifo load '%v'", iface)
+	log.Infof("Starting new interface/fifo load '%v'", psrc.Name())
 	c.startLoadPsml(cb)
 	termshark.TrackedGo(func() {
 		c.loadIfaceAsync(cb)
@@ -662,8 +660,7 @@ func (c *Loader) startLoadNewFilter(displayFilter string, cb interface{}) {
 }
 
 func (c *Loader) startLoadNewFile(pcap string, displayFilter string, cb interface{}) {
-	c.pcap = pcap
-	c.iface = ""
+	c.psrc = FileSource{Filename: pcap}
 	c.ifaceFile = ""
 
 	c.PcapPsml = pcap
@@ -756,13 +753,39 @@ type iPcapLoader interface {
 }
 
 var _ iPcapLoader = (*Loader)(nil)
+var _ fmt.Stringer = (*Loader)(nil)
+
+func (c *Loader) String() string {
+	switch {
+	case c.psrc.IsFile() || c.psrc.IsFifo():
+		return path.Base(c.psrc.Name())
+	case c.psrc.IsPipe():
+		return "<stdin>"
+	case c.psrc.IsInterface():
+		return c.psrc.Name()
+	default:
+		return "(no packet source)"
+	}
+}
 
 func (c *Loader) Pcap() string {
-	return c.pcap
+	if c.psrc == nil {
+		return ""
+	} else if c.psrc.IsFile() {
+		return c.psrc.Name()
+	} else {
+		return ""
+	}
 }
 
 func (c *Loader) Interface() string {
-	return c.iface
+	if c.psrc == nil {
+		return ""
+	} else if !c.psrc.IsFile() {
+		return c.psrc.Name()
+	} else {
+		return ""
+	}
 }
 
 func (c *Loader) InterfaceFile() string {
@@ -1492,7 +1515,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 			if err != nil {
 				if _, ok := err.(*exec.ExitError); ok {
 					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-						"command": c.ifaceCmd.String(),
+						"command": c.PsmlCmd.String(),
 						"error":   err,
 					})
 					handleError(cerr, cb)
@@ -1690,7 +1713,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 		c.ifaceCancelFn = nil
 	}()
 
-	c.ifaceCmd = c.cmds.Iface(c.iface, c.captureFilter, c.ifaceFile)
+	c.ifaceCmd = c.cmds.Iface(c.psrc.Name(), c.captureFilter, c.ifaceFile)
 
 	log.Infof("Starting Iface command: %v", c.ifaceCmd)
 

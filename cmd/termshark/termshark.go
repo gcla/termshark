@@ -2503,6 +2503,8 @@ func cmain() int {
 		return 0
 	}
 
+	var psrc pcap.IPacketSource
+
 	pcapf := string(opts.Pcap)
 
 	// If no interface specified, and no pcap specified via -r, then we assume the first
@@ -2511,7 +2513,7 @@ func cmain() int {
 		pcapf = string(opts.Args.FilterOrFile)
 		// `termshark` => `termshark -i 1` (livecapture on default interface if no args)
 		if pcapf == "" {
-			opts.Iface = "1"
+			psrc = pcap.InterfaceSource{Iface: "1"}
 		}
 	} else {
 		// Add it to filter args. Figure out later if they're capture or display.
@@ -2523,6 +2525,16 @@ func cmain() int {
 		return 1
 	}
 
+	// Invariant: pcap != "" XOR opts.Iface != ""
+	if psrc == nil {
+		switch {
+		case pcapf != "":
+			psrc = pcap.FileSource{Filename: pcapf}
+		case opts.Iface != "":
+			psrc = pcap.InterfaceSource{Iface: opts.Iface}
+		}
+	}
+
 	// go-flags returns [""] when no extra args are provided, so I can't just
 	// test the length of this slice
 	argsFilter := strings.Join(filterArgs, " ")
@@ -2532,7 +2544,7 @@ func cmain() int {
 	// a capture filter.
 	captureFilter = opts.CaptureFilter
 
-	if opts.Iface != "" && argsFilter != "" {
+	if psrc.IsInterface() && argsFilter != "" {
 		if opts.CaptureFilter != "" {
 			fmt.Fprintf(os.Stderr, "Two capture filters provided - '%s' and '%s' - please supply one only.\n", opts.CaptureFilter, argsFilter)
 			return 1
@@ -2543,7 +2555,7 @@ func cmain() int {
 	displayFilter := opts.DisplayFilter
 
 	// Validate supplied filters e.g. no capture filter when reading from file
-	if pcapf != "" {
+	if psrc.IsFile() {
 		if captureFilter != "" {
 			fmt.Fprintf(os.Stderr, "Cannot use a capture filter when reading from a pcap file - '%s' and '%s'.\n", captureFilter, pcapf)
 			return 1
@@ -2557,21 +2569,12 @@ func cmain() int {
 		}
 	}
 
-	// Always switch over to iface reading if input is a file descriptor. The interface flow has support for reading
-	// from a fifo, just like tshark does. Don't log here because logging might be altered by --log-tty switch.
-	if pcapf == "-" {
-		pcapf = ""
-		opts.Iface = "-"
-	}
-
 	// - means read from stdin. But termshark uses stdin for interacting with the UI. So if the
 	// iface is -, then dup stdin to a free descriptor, adjust iface to read from that descriptor,
 	// then open /dev/tty on stdin.
 	newinputfd := -1
 
-	sourceIsStdin := false
-
-	if opts.Iface == "-" {
+	if psrc.Name() == "-" {
 		if termshark.IsTerminal(os.Stdin.Fd()) {
 			fmt.Fprintf(os.Stderr, "Requested pcap source is %v (\"stdin\") but stdin is a tty.\n", opts.Iface)
 			fmt.Fprintf(os.Stderr, "Perhaps you intended to pipe packet input to termshark?\n")
@@ -2586,46 +2589,43 @@ func cmain() int {
 			defer func() {
 				termshark.CloseDescriptor(newinputfd)
 			}()
-			opts.Iface = fmt.Sprintf("/dev/fd/%d", newinputfd)
-			sourceIsStdin = true
+			psrc = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd)}
 		} else {
 			fmt.Fprintf(os.Stderr, "Sorry, termshark does not yet support piped input on Windows.\n")
 			return 1
 		}
 	}
 
-	// Set to true if invoked as e.g. termshark -r myfifo or termshark -i myfifo, and myfifo is
-	// a named pipe. Then we don't treat it as e.g. the index of an interface as in
-	// termshark -i 1 means the 1st interface listed with tshark -D
-	sourceIsFifo := false
-
 	// Better to do a command-line error if file supplied at command-line is not found. File
 	// won't be "-" at this point because above we switch to -i if input is "-"
-	if pcapf != "" {
-		stat, err := os.Stat(pcapf)
+
+	// We haven't distinguished between file sources and fifo sources yet. So IsFile() will be true
+	// even if argument is a fifo
+	if psrc.IsFile() {
+		stat, err := os.Stat(psrc.Name())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", pcapf, err)
+			fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", psrc.Name(), err)
 			return 1
 		}
 		if stat.Mode()&os.ModeNamedPipe != 0 {
 			// If termshark was invoked with -r myfifo, switch to -i myfifo, which tshark uses. This
 			// also puts termshark in "interface" mode where it assumes the source is unbounded
 			// (e.g. a different spinner)
-			opts.Iface = pcapf
-			pcapf = ""
-			sourceIsFifo = true
+			psrc = pcap.FifoSource{Filename: psrc.Name()}
 		} else {
-			if pcapffile, err := os.Open(pcapf); err != nil {
+			if pcapffile, err := os.Open(psrc.Name()); err != nil {
 				// Do this up front before the UI starts to catch simple errors quickly - like
 				// the file not being readable. It's possible that tshark would be able to read
 				// it and the termshark user not, but unlikely.
-				fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", pcapf, err)
+				fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", psrc.Name(), err)
 				return 1
 			} else {
 				pcapffile.Close()
 			}
 		}
 	}
+
+	// Here we now have an accurate view of psrc - either file, fifo, pipe or interface
 
 	// Helpful to use logging when enumerating interfaces below, so do it first
 	if !flagIsTrue(opts.LogTty) {
@@ -2716,17 +2716,16 @@ func cmain() int {
 
 	// If opts.Iface is provided as a number, it's meant as the index of the interfaces as
 	// per the order returned by the OS. useIface will always be the name of the interface.
-	useIface := opts.Iface
 
 	// See if the interface argument is an integer
-	ifaceIdx := -1
-	if i, err := strconv.Atoi(opts.Iface); err == nil {
-		ifaceIdx = i
-	}
-
 	checkInterfaceName := false
-	// If it's a fifo, then always treat is as a fifo and not a reference to something in tshark -D
-	if !sourceIsFifo {
+	ifaceIdx := -1
+	if psrc.IsInterface() {
+		if i, err := strconv.Atoi(psrc.Name()); err == nil {
+			ifaceIdx = i
+		}
+
+		// If it's a fifo, then always treat is as a fifo and not a reference to something in tshark -D
 		if ifaceIdx != -1 {
 			// if the argument is an integer, then confirm it in the output of tshark -D
 			checkInterfaceName = true
@@ -2746,13 +2745,13 @@ func cmain() int {
 
 		gotit := false
 		for i, n := range ifaces {
-			if i == opts.Iface || n == ifaceIdx {
+			if i == psrc.Name() || n == ifaceIdx {
 				gotit = true
 				break
 			}
 		}
 		if !gotit {
-			fmt.Fprintf(os.Stderr, "Could not find network interface %s\n", opts.Iface)
+			fmt.Fprintf(os.Stderr, "Could not find network interface %s\n", psrc.Name())
 			return 1
 		}
 	}
@@ -2777,8 +2776,8 @@ func cmain() int {
 		// fifo. In all cases, we save the packets to a file so that if a
 		// filter is applied, we can restart - and so that we preserve the
 		// capture at the end of running termshark.
-		if useIface != "" && startedSuccessfully {
-			fmt.Printf("Packets read from %s have been saved in %s\n", useIface, ifacePcapFilename)
+		if (psrc.IsInterface() || psrc.IsFifo() || psrc.IsPipe()) && startedSuccessfully {
+			fmt.Printf("Packets read from %s have been saved in %s\n", psrc.Name(), ifacePcapFilename)
 		}
 	}()
 
@@ -2791,7 +2790,7 @@ func cmain() int {
 	// swallowed by tcell.
 	defer func() {
 		if ifaceExitCode != 0 {
-			fmt.Fprintf(os.Stderr, "Cannot capture on interface %s", useIface)
+			fmt.Fprintf(os.Stderr, "Cannot capture on device %s", psrc.Name())
 			if ifaceErr != nil {
 				fmt.Fprintf(os.Stderr, ": %v", ifaceErr)
 			}
@@ -3368,8 +3367,8 @@ func cmain() int {
 	var iwatcher *fsnotify.Watcher
 	var ifaceTmpFile string
 
-	if useIface != "" {
-		ifaceTmpFile = pcap.TempPcapFile(useIface)
+	if psrc.IsInterface() || psrc.IsFifo() || psrc.IsPipe() {
+		ifaceTmpFile = pcap.TempPcapFile(psrc.Name())
 
 		iwatcher, err = fsnotify.NewWatcher()
 		if err != nil {
@@ -3470,8 +3469,9 @@ func cmain() int {
 		},
 	}
 
-	if pcapf != "" {
-		if pcapf, err = filepath.Abs(pcapf); err != nil {
+	if psrc.IsFile() {
+		absfile, err := filepath.Abs(psrc.Name())
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not determine working directory: %v\n", err)
 			return 1
 		}
@@ -3480,13 +3480,13 @@ func cmain() int {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				filterWidget.SetValue(displayFilter, app)
 			}))
-			requestLoadPcapWithCheck(pcapf, displayFilter, app)
+			requestLoadPcapWithCheck(absfile, displayFilter, app)
 		}
 		validator.Valid = &filter.ValidateCB{Fn: doit, App: app}
 		validator.Validate(displayFilter)
 		// no auto-scroll when reading a file
 		autoScroll = false
-	} else if useIface != "" {
+	} else if psrc.IsInterface() || psrc.IsFifo() || psrc.IsPipe() {
 
 		// Verifies whether or not we will be able to read from the interface (hopefully)
 		ifaceExitCode = 0
@@ -3498,9 +3498,8 @@ func cmain() int {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				filterWidget.SetValue(displayFilter, app)
 			}))
-			cantRestart := sourceIsStdin || sourceIsFifo
 			ifacePcapFilename = ifaceTmpFile
-			scheduler.RequestLoadInterface(useIface, cantRestart, captureFilter, displayFilter, ifaceTmpFile,
+			scheduler.RequestLoadInterface(psrc, captureFilter, displayFilter, ifaceTmpFile,
 				saveRecents{
 					updatePacketViews: makePacketViewUpdater(app),
 					pcap:              "",
