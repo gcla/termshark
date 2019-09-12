@@ -59,16 +59,34 @@ since it must be aligned with the content */
 	text-align: center;
 }
 
-.logo {
-	width: 420px;
-	height: 350px;
-	display: inline-block;
-	background-size: cover;
-	// border-radius: 50%;
-	//-moz-border-radius: 50%;
-	//border: 2px solid $background-color;
-	//box-shadow: 0 0 0 3px $text-color;
-}
+// @media (min-width: 480px) {
+//     .logo {
+// 	width: 420px;
+// 	height: 360px;
+// 	//width: 360px;
+// 	//height: 300px;
+// 	display: inline-block;
+// 	background-size: cover;
+// 	// border-radius: 50%;
+// 	//-moz-border-radius: 50%;
+// 	//border: 2px solid $background-color;
+// 	//box-shadow: 0 0 0 3px $text-color;
+//     }
+// }
+
+// /* All other devices (768px and up) */
+// @media (min-width: 880px) {
+//     .logo {
+// 	width: 420px;
+// 	height: 360px;
+// 	display: inline-block;
+// 	background-size: cover;
+// 	// border-radius: 50%;
+// 	//-moz-border-radius: 50%;
+// 	//border: 2px solid $background-color;
+// 	//box-shadow: 0 0 0 3px $text-color;
+//     }
+// }
 
 /*** author ***/
 .author-container h1 {
@@ -110,22 +128,51 @@ footer {
 	padding: 0 5px;
 }
 
+@media (min-width: 300px) {
+	.logo {
+	    width: 360px;
+	    height: 300px;
+	    //width: 360px;
+	    //height: 300px;
+	    display: inline-block;
+	    background-size: cover;
+	    // border-radius: 50%;
+	    //-moz-border-radius: 50%;
+	    //border: 2px solid $background-color;
+	    //box-shadow: 0 0 0 3px $text-color;
+	}
+
+}
+
 /*** media queries ***/
 /* X-Small devices (phones, 480px and up) */
 @media (min-width: 480px) {
 	/* wrapper stays 480px wide past 480px wide and is kept centered */
 	.wrapper {
 		width: 480px;
-		margin: 10% auto 0 auto;
+		margin: 3% auto 0 auto;
+	}
+
+	.logo {
+	    width: 420px;
+	    height: 360px;
+	    //width: 360px;
+	    //height: 300px;
+	    display: inline-block;
+	    background-size: cover;
+	    // border-radius: 50%;
+	    //-moz-border-radius: 50%;
+	    //border: 2px solid $background-color;
+	    //box-shadow: 0 0 0 3px $text-color;
 	}
 }
 
 /* All other devices (768px and up) */
-@media (min-width: 860px) {
+@media (min-width: 880px) {
 	/* past 768px the layout is changed and the wrapper has a fixed width of 680px
 	to accomodate both the header column and the content column */
 	.wrapper {
-		width: 840px;
+		width: 860px;
 	}
 
 	/* the header column stays left and has a dynamic width with all contents
@@ -140,6 +187,17 @@ footer {
 	.logo-container,
 	.tagline-container p {
 		text-align: right;
+	}
+
+	.logo {
+	    width: 420px;
+	    height: 360px;
+	    display: inline-block;
+	    background-size: cover;
+	    // border-radius: 50%;
+	    //-moz-border-radius: 50%;
+	    //border: 2px solid $background-color;
+	    //box-shadow: 0 0 0 3px $text-color;
 	}
 
 	main {

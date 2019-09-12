@@ -27,7 +27,7 @@ GEM
     execjs (2.6.0)
     faraday (0.15.4)
       multipart-post (>= 1.2, < 3)
-    ffi (1.10.0)
+    ffi (1.11.1)
     forwardable-extended (2.6.0)
     gemoji (3.0.0)
     github-pages (192)
@@ -194,7 +194,9 @@ GEM
     kramdown (1.17.0)
     liquid (4.0.0)
     listen (3.1.5)
+      rb-fsevent (~> 0.9, >= 0.9.4)
       rb-inotify (~> 0.9, >= 0.9.7)
+      ruby_dep (~> 1.2)
     mercenary (0.3.6)
     mini_portile2 (2.4.0)
     minima (2.5.0)
@@ -216,6 +218,7 @@ GEM
     rouge (2.2.1)
     ruby-enum (0.7.2)
       i18n
+    ruby_dep (1.5.0)
     rubyzip (1.2.2)
     safe_yaml (1.0.5)
     sass (3.7.4)
@@ -242,4 +245,4 @@ DEPENDENCIES
   github-pages
 
 BUNDLED WITH
-   1.16.1
+   1.17.2
