@@ -1,3 +1,4 @@
 dist/
 *~
 
+/cmd/termshark/termshark
