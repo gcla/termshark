@@ -1254,7 +1254,9 @@ func makeRecentMenu(items []simpleMenuItem) gowid.IWidget {
 					IWidget: hpadding.New(
 						// size is translated from flowwith{20} to fixed; fixed gives size 6, flowwith aligns right to 12
 						hpadding.New(
-							menu1HotKeys[i],
+							selectable.NewUnselectable( // don't want to be able to navigate to the hotkey itself
+								menu1HotKeys[i],
+							),
 							gowid.HAlignRight{},
 							fixed,
 						),
