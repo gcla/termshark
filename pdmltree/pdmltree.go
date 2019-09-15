@@ -54,9 +54,10 @@ func (p *Iterator) Value() tree.IModel {
 	return p.tree.Children_[p.pos-1]
 }
 
+// Model is a struct model of the PDML proto or field element.
 type Model struct {
 	UiName         string            `xml:"-"`
-	Name           string            `xml:"-"` // needed for stripping geninfp from UI
+	Name           string            `xml:"-"` // needed for stripping geninfo from UI
 	Expanded       bool              `xml:"-"`
 	Pos            int               `xml:"-"`
 	Size           int               `xml:"-"`
@@ -103,7 +104,8 @@ func (n *Model) HexLayers(pos int, includeFirst bool) []hexdumper.LayerStyler {
 	return res
 }
 
-// Implement xml.Unmarshaler
+// Implement xml.Unmarshaler. Create a Model struct by unmarshaling the
+// provided XML. Takes special action before deferring to DecodeElement.
 func (n *Model) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	var err error
 	n.Attrs = map[string]string{}
