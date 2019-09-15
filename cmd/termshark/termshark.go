@@ -106,10 +106,10 @@ var filterPathAlt []interface{}
 var filterPathMax []interface{}
 var view1idx int
 var view2idx int
-var menu1 *menu.Widget
+var generalMenu *menu.Widget
 var savedMenu *menu.Widget
 var filterWidget *filter.Widget
-var btnSite *menu.SiteWidget
+var openMenuSite *menu.SiteWidget
 var packetListViewHolder *holder.Widget
 var packetListTable *table.BoundedWidget
 var packetStructureViewHolder *holder.Widget
@@ -1507,7 +1507,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		}
 
 	} else if evk.Key() == tcell.KeyEscape {
-		menu1.Open(btnSite, app)
+		generalMenu.Open(openMenuSite, app)
 	} else if evk.Rune() == '|' {
 		if topview.SubWidget() == mainview {
 			topview.SetSubWidget(altview1, app)
@@ -2871,14 +2871,6 @@ func cmain() int {
 		},
 	)
 
-	openMenu := button.New(text.New("Menu"))
-	openMenu2 := styled.NewExt(openMenu, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
-
-	btnSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
-	openMenu.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
-		menu1.Open(btnSite, app)
-	}))
-
 	title := styled.New(text.New(termshark.TemplateToString(helpTmpl, "NameVer", tmplData)), gowid.MakePaletteRef("title"))
 
 	copyMode := styled.New(
@@ -2892,12 +2884,24 @@ func cmain() int {
 		gowid.MakePaletteRef("copy-mode-indicator"),
 	)
 
-	menu1items := []simpleMenuItem{
+	//======================================================================
+
+	openMenu := button.New(text.New("Misc"))
+	openMenu2 := styled.NewExt(openMenu, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
+
+	openMenuSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
+	openMenu.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
+		generalMenu.Open(openMenuSite, app)
+	}))
+
+	//======================================================================
+
+	generalMenuItems := []simpleMenuItem{
 		simpleMenuItem{
 			Txt: "Help",
 			Key: gowid.MakeKey('?'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				menu1.Close(app)
+				generalMenu.Close(app)
 				openHelp("UIHelp", app)
 			},
 		},
@@ -2905,7 +2909,7 @@ func cmain() int {
 			Txt: "Clear Packets",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlW, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				menu1.Close(app)
+				generalMenu.Close(app)
 				reallyClear(app)
 			},
 		},
@@ -2913,7 +2917,7 @@ func cmain() int {
 			Txt: "Refresh Screen",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlL, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				menu1.Close(app)
+				generalMenu.Close(app)
 				app.Sync()
 			},
 		},
@@ -2921,7 +2925,7 @@ func cmain() int {
 			Txt: "Toggle Dark Mode",
 			Key: gowid.MakeKey('d'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				menu1.Close(app)
+				generalMenu.Close(app)
 				darkMode = !darkMode
 				viper.Set("main.dark-mode", darkMode)
 				viper.WriteConfig()
@@ -2931,14 +2935,15 @@ func cmain() int {
 			Txt: "Quit",
 			Key: gowid.MakeKey('q'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				menu1.Close(app)
+				generalMenu.Close(app)
 				reallyQuit(app)
 			},
 		},
 	}
 
-	menuListBox1 := makeRecentMenu(menu1items)
-	menu1 = menu.New("main", menuListBox1, fixed, menu.Options{
+	generalMenuListBox := makeRecentMenu(generalMenuItems)
+
+	generalMenu = menu.New("main", generalMenuListBox, fixed, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
 		CloseKeys: []gowid.IKey{
@@ -2988,7 +2993,7 @@ func cmain() int {
 			D:       weight(1),
 		},
 		&gowid.ContainerWidget{
-			IWidget: btnSite,
+			IWidget: openMenuSite,
 			D:       fixed,
 		},
 		&gowid.ContainerWidget{
@@ -3419,7 +3424,7 @@ func cmain() int {
 		app.RegisterMenu(m)
 	}
 	app.RegisterMenu(savedMenu)
-	app.RegisterMenu(menu1)
+	app.RegisterMenu(generalMenu)
 
 	// Populate the filter widget initially - runs asynchronously
 	go filterWidget.UpdateCompletions(app)
