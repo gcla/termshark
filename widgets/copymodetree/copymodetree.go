@@ -33,6 +33,8 @@ type ITreeAndListWalker interface {
 	Tree() tree.IModel
 }
 
+// Note that tree.New() returns a *list.Widget - that's how it's implemented. So this
+// uses a list widget too.
 func New(l *list.Widget, clip gowid.IClipboardSelected) *Widget {
 	return &Widget{
 		Widget: l,
