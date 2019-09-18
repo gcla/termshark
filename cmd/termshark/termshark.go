@@ -281,7 +281,7 @@ var (
 		"copy-mode":              gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
 	}
 
-	helpTmpl = template.Must(template.New("Help").Parse(`
+	termsharkTemplates = template.Must(template.New("Help").Parse(`
 {{define "NameVer"}}termshark {{.Version}}{{end}}
 
 {{define "OneLine"}}A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.{{end}}
@@ -390,7 +390,7 @@ func init() {
 //======================================================================
 
 func writeHelp(p *flags.Parser, w io.Writer) {
-	if err := helpTmpl.ExecuteTemplate(w, "Header", tmplData); err != nil {
+	if err := termsharkTemplates.ExecuteTemplate(w, "Header", tmplData); err != nil {
 		log.Fatal(err)
 	}
 
@@ -398,7 +398,7 @@ func writeHelp(p *flags.Parser, w io.Writer) {
 	fmt.Fprintln(w)
 	p.WriteHelp(w)
 
-	if err := helpTmpl.ExecuteTemplate(w, "Footer", tmplData); err != nil {
+	if err := termsharkTemplates.ExecuteTemplate(w, "Footer", tmplData); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Fprintln(w)
@@ -406,7 +406,7 @@ func writeHelp(p *flags.Parser, w io.Writer) {
 }
 
 func writeVersion(p *flags.Parser, w io.Writer) {
-	if err := helpTmpl.ExecuteTemplate(w, "NameVer", tmplData); err != nil {
+	if err := termsharkTemplates.ExecuteTemplate(w, "NameVer", tmplData); err != nil {
 		log.Fatal(err)
 	}
 
@@ -877,7 +877,7 @@ func openMessage(msgt string, app gowid.IApp) {
 }
 
 func openHelp(tmplName string, app gowid.IApp) {
-	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(helpTmpl, tmplName, tmplData))),
+	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(termsharkTemplates, tmplName, tmplData))),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
@@ -2801,7 +2801,7 @@ func cmain() int {
 		},
 	)
 
-	title := styled.New(text.New(termshark.TemplateToString(helpTmpl, "NameVer", tmplData)), gowid.MakePaletteRef("title"))
+	title := styled.New(text.New(termshark.TemplateToString(termsharkTemplates, "NameVer", tmplData)), gowid.MakePaletteRef("title"))
 
 	copyMode := styled.New(
 		ifwidget.New(
