@@ -7,3 +7,5 @@
 package termshark
 
 var CopyToClipboard = []string{"xsel", "-i", "-b"}
+
+var OpenURL = []string{"xdg-open"}

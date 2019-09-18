@@ -5,3 +5,5 @@
 package termshark
 
 var CopyToClipboard = []string{"termux-clipboard-set"}
+
+var OpenURL = []string{"am", "start", "-a", "android.intent.action.VIEW", "-d"}

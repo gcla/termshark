@@ -5,3 +5,5 @@
 package termshark
 
 var CopyToClipboard = []string{"pbcopy"}
+
+var OpenURL = []string{"open"}
