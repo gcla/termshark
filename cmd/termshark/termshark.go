@@ -79,7 +79,10 @@ var ensureGoroutinesStopWG sync.WaitGroup
 
 // Global so that we can change the displayed packet in the struct view, etc
 // test
-var topview *holder.Widget
+var appViewNoKeys *holder.Widget
+var appView *appkeys.KeyWidget
+var mainViewNoKeys *holder.Widget
+var mainView *appkeys.KeyWidget
 var yesno *dialog.Widget
 var pleaseWait *dialog.Widget
 var pleaseWaitSpinner *spinner.Widget
@@ -111,9 +114,11 @@ var menuPathMax []interface{}
 var view1idx int
 var view2idx int
 var generalMenu *menu.Widget
+var analysisMenu *menu.Widget
 var savedMenu *menu.Widget
 var filterWidget *filter.Widget
 var openMenuSite *menu.SiteWidget
+var openAnalysisSite *menu.SiteWidget
 var packetListViewHolder *holder.Widget
 var packetListTable *table.BoundedWidget
 var packetStructureViewHolder *holder.Widget
@@ -999,11 +1004,11 @@ func openTemplatedDialog(tmplName string, app gowid.IApp) {
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
-	yesno.Open(topview, ratio(0.5), app)
+	yesno.Open(appView, ratio(0.5), app)
 }
 
 func openPleaseWait(app gowid.IApp) {
-	pleaseWait.Open(topview, fixed, app)
+	pleaseWait.Open(appView, fixed, app)
 }
 
 func closePleaseWait(app gowid.IApp) {
@@ -1107,7 +1112,7 @@ func openCopyChoices(copyLen int, app gowid.IApp) {
 		}
 	})))
 
-	dialog.OpenExt(cc, topview, ratio(0.5), ratio(0.8), app)
+	dialog.OpenExt(cc, appView, ratio(0.5), ratio(0.8), app)
 }
 
 func reallyQuit(app gowid.IApp) {
@@ -1131,7 +1136,7 @@ func reallyQuit(app gowid.IApp) {
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
-	yesno.Open(topview, units(len(msgt)+20), app)
+	yesno.Open(appView, units(len(msgt)+20), app)
 }
 
 //======================================================================
@@ -1384,25 +1389,30 @@ func copyModeKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool 
 	return handled
 }
 
-func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+func streamKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+	log.Infof("GCLA: WOWOW: got a keypress %v", evk)
 	handled := true
-	if evk.Key() == tcell.KeyCtrlC {
-		if loader.State()&pcap.LoadingPsml != 0 {
-			scheduler.RequestStopLoad(noHandlers{}) // iface and psml
-		} else {
-			reallyQuit(app)
-		}
-	} else if evk.Key() == tcell.KeyCtrlL {
-		app.Sync()
-	} else if evk.Rune() == 'q' || evk.Rune() == 'Q' {
-		reallyQuit(app)
+	if evk.Rune() == 'q' || evk.Rune() == 'Q' || evk.Key() == tcell.KeyEscape {
+		appViewNoKeys.SetSubWidget(mainView, app)
+	} else {
+		handled = false
+	}
+	return handled
+}
+
+// Keys for the main view - packet list, structure, etc
+func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+	log.Infof("GCLA: WOWOW: mainkeypress called")
+	handled := true
+	if evk.Key() == tcell.KeyCtrlC && loader.State()&pcap.LoadingPsml != 0 {
+		scheduler.RequestStopLoad(noHandlers{}) // iface and psml
 	} else if evk.Key() == tcell.KeyTAB {
-		if topview.SubWidget() == viewOnlyPacketList {
-			topview.SetSubWidget(viewOnlyPacketStructure, app)
-		} else if topview.SubWidget() == viewOnlyPacketStructure {
-			topview.SetSubWidget(viewOnlyPacketHex, app)
-		} else if topview.SubWidget() == viewOnlyPacketHex {
-			topview.SetSubWidget(viewOnlyPacketList, app)
+		if mainViewNoKeys.SubWidget() == viewOnlyPacketList {
+			mainViewNoKeys.SetSubWidget(viewOnlyPacketStructure, app)
+		} else if mainViewNoKeys.SubWidget() == viewOnlyPacketStructure {
+			mainViewNoKeys.SetSubWidget(viewOnlyPacketHex, app)
+		} else if mainViewNoKeys.SubWidget() == viewOnlyPacketHex {
+			mainViewNoKeys.SetSubWidget(viewOnlyPacketList, app)
 		}
 
 		gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
@@ -1415,7 +1425,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			gowid.SetFocusPath(altview2, altview2Paths[0], app)
 		} else {
 			newidx := -1
-			if topview.SubWidget() == mainview {
+			if mainViewNoKeys.SubWidget() == mainview {
 				v1p := gowid.FocusPath(mainview)
 				if deep.Equal(v1p, mainviewPaths[0]) == nil {
 					newidx = 1
@@ -1424,7 +1434,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 				} else {
 					newidx = 0
 				}
-			} else if topview.SubWidget() == altview1 {
+			} else if mainViewNoKeys.SubWidget() == altview1 {
 				v2p := gowid.FocusPath(altview1)
 				if deep.Equal(v2p, altview1Paths[0]) == nil {
 					newidx = 1
@@ -1433,7 +1443,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 				} else {
 					newidx = 0
 				}
-			} else if topview.SubWidget() == altview2 {
+			} else if mainViewNoKeys.SubWidget() == altview2 {
 				v3p := gowid.FocusPath(altview2)
 				if deep.Equal(v3p, altview2Paths[0]) == nil {
 					newidx = 1
@@ -1452,24 +1462,22 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			}
 		}
 
-	} else if evk.Key() == tcell.KeyEscape {
-		generalMenu.Open(openMenuSite, app)
 	} else if evk.Rune() == '|' {
-		if topview.SubWidget() == mainview {
-			topview.SetSubWidget(altview1, app)
-		} else if topview.SubWidget() == altview1 {
-			topview.SetSubWidget(altview2, app)
+		if mainViewNoKeys.SubWidget() == mainview {
+			mainViewNoKeys.SetSubWidget(altview1, app)
 			termshark.SetConf("main.layout", "altview1")
+		} else if mainViewNoKeys.SubWidget() == altview1 {
+			mainViewNoKeys.SetSubWidget(altview2, app)
 			termshark.SetConf("main.layout", "altview2")
 		} else {
-			topview.SetSubWidget(mainview, app)
+			mainViewNoKeys.SetSubWidget(mainview, app)
 			termshark.SetConf("main.layout", "mainview")
 		}
 	} else if evk.Rune() == '\\' {
-		w := topview.SubWidget()
+		w := mainViewNoKeys.SubWidget()
 		fp := gowid.FocusPath(w)
 		if w == viewOnlyPacketList || w == viewOnlyPacketStructure || w == viewOnlyPacketHex {
-			topview.SetSubWidget(mainview, app)
+			mainViewNoKeys.SetSubWidget(mainview, app)
 			if deep.Equal(fp, maxViewPath) == nil {
 				switch w {
 				case viewOnlyPacketList:
@@ -1481,7 +1489,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 				}
 			}
 		} else {
-			topview.SetSubWidget(viewOnlyPacketList, app)
+			mainViewNoKeys.SetSubWidget(viewOnlyPacketList, app)
 			if deep.Equal(fp, maxViewPath) == nil {
 				gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
 			}
@@ -1493,6 +1501,31 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		gowid.SetFocusPath(viewOnlyPacketList, filterPathMax, app)
 		gowid.SetFocusPath(viewOnlyPacketStructure, filterPathMax, app)
 		gowid.SetFocusPath(viewOnlyPacketHex, filterPathMax, app)
+	} else {
+		handled = false
+	}
+	return handled
+}
+
+// Keys for the whole app, applicable whichever view is frontmost
+func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
+	log.Infof("GCLA: WOWOW: appkeypress called")
+	handled := true
+	if evk.Key() == tcell.KeyCtrlC {
+		reallyQuit(app)
+	} else if evk.Key() == tcell.KeyCtrlL {
+		app.Sync()
+	} else if evk.Rune() == 'q' || evk.Rune() == 'Q' {
+		reallyQuit(app)
+	} else if evk.Key() == tcell.KeyEscape {
+		gowid.SetFocusPath(mainview, menuPathMain, app)
+		gowid.SetFocusPath(altview1, menuPathAlt, app)
+		gowid.SetFocusPath(altview2, menuPathAlt, app)
+		gowid.SetFocusPath(viewOnlyPacketList, menuPathMax, app)
+		gowid.SetFocusPath(viewOnlyPacketStructure, menuPathMax, app)
+		gowid.SetFocusPath(viewOnlyPacketHex, menuPathMax, app)
+
+		generalMenu.Open(openMenuSite, app)
 	} else if evk.Rune() == '?' {
 		openTemplatedDialog("UIHelp", app)
 	} else {
@@ -1829,12 +1862,12 @@ func getHexWidgetToDisplay(row int) *hexdumper.Widget {
 					// which moves the struct and causes the struct to jump around. I need to check
 					// the alt view too because the user can click with the mouse and in one view have
 					// struct selected but in the other view have hex selected.
-					if topview.SubWidget() == mainview {
+					if mainViewNoKeys.SubWidget() == mainview {
 						v1p := gowid.FocusPath(mainview)
 						if deep.Equal(v1p, mainviewPaths[2]) != nil { // it's not hex
 							return
 						}
-					} else if topview.SubWidget() == altview1 {
+					} else if mainViewNoKeys.SubWidget() == altview1 {
 						v2p := gowid.FocusPath(altview1)
 						if deep.Equal(v2p, altview1Paths[2]) != nil { // it's not hex
 							return
@@ -2843,7 +2876,64 @@ func cmain() int {
 
 	generalMenuListBox := ui.MakeMenuWithHotKeys(generalMenuItems)
 
-	generalMenu = menu.New("main", generalMenuListBox, fixed, menu.Options{
+	var generalNext ui.NextMenu
+
+	generalMenuListBoxWithKeys := appkeys.New(
+		generalMenuListBox,
+		ui.MakeMenuNavigatingKeyPress(
+			&generalNext,
+			nil,
+		),
+		appkeys.Options{
+			ApplyBefore: false,
+		},
+	)
+
+	generalMenu = menu.New("main", generalMenuListBoxWithKeys, fixed, menu.Options{
+		Modal:             true,
+		CloseKeysProvided: true,
+		CloseKeys: []gowid.IKey{
+			gowid.MakeKeyExt(tcell.KeyEscape),
+			gowid.MakeKeyExt(tcell.KeyCtrlC),
+		},
+	})
+
+	//======================================================================
+
+	openAnalysis := button.NewBare(text.New("Analysis"))
+	openAnalysis2 := styled.NewExt(openAnalysis, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
+
+	openAnalysisSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
+	openAnalysis.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
+		analysisMenu.Open(openAnalysisSite, app)
+	}))
+
+	analysisMenuItems := []ui.SimpleMenuItem{
+		ui.SimpleMenuItem{
+			Txt: "Nothing here yet...",
+			Key: gowid.MakeKey('f'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				analysisMenu.Close(app)
+			},
+		},
+	}
+
+	analysisMenuListBox := ui.MakeMenuWithHotKeys(analysisMenuItems)
+
+	var analysisNext ui.NextMenu
+
+	analysisMenuListBoxWithKeys := appkeys.New(
+		analysisMenuListBox,
+		ui.MakeMenuNavigatingKeyPress(
+			nil,
+			&analysisNext,
+		),
+		appkeys.Options{
+			ApplyBefore: false,
+		},
+	)
+
+	analysisMenu = menu.New("analysis", analysisMenuListBoxWithKeys, fixed, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
 		CloseKeys: []gowid.IKey{
@@ -2852,6 +2942,8 @@ func cmain() int {
 			gowid.MakeKeyExt(tcell.KeyCtrlC),
 		},
 	})
+
+	//======================================================================
 
 	loadProgress = progress.New(progress.Options{
 		Normal:   gowid.MakePaletteRef("progress-default"),
@@ -2893,6 +2985,18 @@ func cmain() int {
 			D:       weight(1),
 		},
 		&gowid.ContainerWidget{
+			IWidget: openAnalysisSite,
+			D:       fixed,
+		},
+		&gowid.ContainerWidget{
+			IWidget: openAnalysis2,
+			D:       fixed,
+		},
+		&gowid.ContainerWidget{
+			IWidget: fillSpace,
+			D:       units(1),
+		},
+		&gowid.ContainerWidget{
 			IWidget: openMenuSite,
 			D:       fixed,
 		},
@@ -2901,6 +3005,19 @@ func cmain() int {
 			D:       fixed,
 		},
 	})
+
+	// Fill this in once generalMenu is defined and titleView is defined
+	generalNext.Cur = generalMenu
+	generalNext.Next = analysisMenu
+	generalNext.Site = openAnalysisSite
+	generalNext.Container = titleView
+	generalNext.Focus = 5 // gcla later todo - find by id!
+
+	analysisNext.Cur = analysisMenu
+	analysisNext.Next = generalMenu
+	analysisNext.Site = openMenuSite
+	analysisNext.Container = titleView
+	analysisNext.Focus = 8 // gcla later todo - find by id!
 
 	packetListViewHolder = holder.New(nullw)
 	packetStructureViewHolder = holder.New(nullw)
@@ -3226,19 +3343,23 @@ func cmain() int {
 	altview1 = altview1OuterRows
 	altview2 = altview2OuterRows
 
-	topview = holder.New(mainview)
+	mainViewNoKeys = holder.New(mainview)
 	defaultLayout := termshark.ConfString("main.layout", "")
 	switch defaultLayout {
 	case "altview1":
-		topview = holder.New(altview1)
+		mainViewNoKeys = holder.New(altview1)
 	case "altview2":
-		topview = holder.New(altview2)
+		mainViewNoKeys = holder.New(altview2)
 	}
 
-	keylayer := appkeys.New(topview, appKeyPress)
 	menuPathMain = []interface{}{0, 8}
 	menuPathAlt = []interface{}{0, 8}
 	menuPathMax = []interface{}{0, 8}
+
+	mainView = appkeys.New(mainViewNoKeys, mainKeyPress)
+	mainView = appkeys.New(mainViewNoKeys, mainKeyPress)
+
+	//======================================================================
 
 	palette := termshark.PaletteSwitcher{
 		P1:        &darkModePalette,
@@ -3304,9 +3425,13 @@ func cmain() int {
 		startUIChan <- struct{}{}
 	}
 
+	appViewNoKeys = holder.New(mainView)
+
+	appView = appkeys.New(appViewNoKeys, appKeyPress)
+
 	// Create app, etc, but don't init screen which sets ICANON, etc
 	app, err = gowid.NewApp(gowid.AppArgs{
-		View:         keylayer,
+		View:         appView,
 		Palette:      palette,
 		DontActivate: true,
 		Log:          log.StandardLogger(),
@@ -3327,6 +3452,7 @@ func cmain() int {
 		app.RegisterMenu(m)
 	}
 	app.RegisterMenu(savedMenu)
+	app.RegisterMenu(analysisMenu)
 	app.RegisterMenu(generalMenu)
 
 	// Populate the filter widget initially - runs asynchronously
