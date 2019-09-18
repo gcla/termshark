@@ -105,6 +105,9 @@ var maxViewPath []interface{}
 var filterPathMain []interface{}
 var filterPathAlt []interface{}
 var filterPathMax []interface{}
+var menuPathMain []interface{}
+var menuPathAlt []interface{}
+var menuPathMax []interface{}
 var view1idx int
 var view2idx int
 var generalMenu *menu.Widget
@@ -3275,6 +3278,9 @@ func cmain() int {
 	}
 
 	keylayer := appkeys.New(topview, appKeyPress)
+	menuPathMain = []interface{}{0, 8}
+	menuPathAlt = []interface{}{0, 8}
+	menuPathMax = []interface{}{0, 8}
 
 	palette := termshark.PaletteSwitcher{
 		P1:        &darkModePalette,
