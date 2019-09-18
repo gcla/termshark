@@ -327,8 +327,8 @@ termshark is in copy-mode. You can press:
 
 'q', 'c' - Exit copy-mode
 ctrl-c   - Copy from selected widget
-left     - Select next outer-most widget
-right    - Select next inner-most widget{{end}}
+left     - Widen selection
+right    - Narrow selection{{end}}
 '?'      - Display copy-mode help
 `))
 
