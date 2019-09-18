@@ -2,6 +2,9 @@
 url: https://termshark.io
 baseurl: ''
 
+plugins:
+  - jekyll-redirect-from
+  
 # configuration
 termshark:
   # an avatar or logo (optional)
