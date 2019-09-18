@@ -371,7 +371,9 @@ func flagIsTrue(val string) bool {
 
 func init() {
 	tmplData = map[string]interface{}{
-		"Version": termshark.Version,
+		"Version":      termshark.Version,
+		"FAQURL":       termshark.FAQURL,
+		"UserGuideURL": termshark.UserGuideURL,
 	}
 	quitRequestedChan = make(chan struct{}, 1) // buffered because send happens from ui goroutine, which runs global select
 	cacheRequestsChan = make(chan struct{}, 1000)
