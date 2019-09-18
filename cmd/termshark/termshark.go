@@ -2074,10 +2074,10 @@ var _ pcap.IAfterEnd = saveRecents{}
 func (t saveRecents) AfterEnd(closeMe chan<- struct{}) {
 	t.updatePacketViews.AfterEnd(closeMe)
 	if t.pcap != "" {
-		addToRecentFiles(t.pcap)
+		termshark.AddToRecentFiles(t.pcap)
 	}
 	if t.filter != "" {
-		addToRecentFilters(t.filter)
+		termshark.AddToRecentFilters(t.filter)
 	}
 }
 
@@ -2123,77 +2123,6 @@ func progMax(x, y Prog) Prog {
 }
 
 //======================================================================
-
-type configError struct {
-	Name string
-	Msg  string
-}
-
-var _ error = configError{}
-
-func (e configError) Error() string {
-	return fmt.Sprintf("Config error for key %s: %s", e.Name, e.Msg)
-}
-
-//======================================================================
-
-func loadOffsetFromConfig(name string) ([]resizable.Offset, error) {
-	offsStr := viper.GetString("main." + name)
-	if offsStr == "" {
-		return nil, errors.WithStack(configError{Name: name, Msg: "No offsets found"})
-	}
-	res := make([]resizable.Offset, 0)
-	err := json.Unmarshal([]byte(offsStr), &res)
-	if err != nil {
-		return nil, errors.WithStack(configError{Name: name, Msg: "Could not unmarshal offsets"})
-	}
-	return res, nil
-}
-
-func saveOffsetToConfig(name string, offsets2 []resizable.Offset) {
-	offsets := make([]resizable.Offset, 0)
-	for _, off := range offsets2 {
-		if off.Adjust != 0 {
-			offsets = append(offsets, off)
-		}
-	}
-	if len(offsets) == 0 {
-		delete(viper.Get("main").(map[string]interface{}), name)
-	} else {
-		offs, err := json.Marshal(offsets)
-		if err != nil {
-			log.Fatal(err)
-		}
-		viper.Set("main."+name, string(offs))
-	}
-	// Hack to make viper save if I only deleted from the map
-	viper.Set("main.lastupdate", time.Now().String())
-	viper.WriteConfig()
-}
-
-func addToRecentFiles(pcap string) {
-	comps := viper.GetStringSlice("main.recent-files")
-	if len(comps) == 0 || comps[0] != pcap {
-		comps = termshark.RemoveFromStringSlice(pcap, comps)
-		if len(comps) > 16 {
-			comps = comps[0 : 16-1]
-		}
-		viper.Set("main.recent-files", comps)
-		viper.WriteConfig()
-	}
-}
-
-func addToRecentFilters(val string) {
-	comps := viper.GetStringSlice("main.recent-filters")
-	if (len(comps) == 0 || comps[0] != val) && strings.TrimSpace(val) != "" {
-		comps = termshark.RemoveFromStringSlice(val, comps)
-		if len(comps) > 64 {
-			comps = comps[0 : 64-1]
-		}
-		viper.Set("main.recent-filters", comps)
-		viper.WriteConfig()
-	}
-}
 
 func makeRecentMenuWidget() gowid.IWidget {
 	savedItems := make([]simpleMenuItem, 0)
@@ -3130,7 +3059,7 @@ func cmain() int {
 	})
 
 	mainviewRows.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("mainview", mainviewRows.GetOffsets())
+		termshark.SaveOffsetToConfig("mainview", mainviewRows.GetOffsets())
 	}))
 
 	viewOnlyPacketList = pile.New([]gowid.IContainerWidget{
@@ -3196,7 +3125,7 @@ func cmain() int {
 	})
 
 	altview1Pile.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("altviewleft", altview1Pile.GetOffsets())
+		termshark.SaveOffsetToConfig("altviewleft", altview1Pile.GetOffsets())
 	}))
 
 	altview1PileAndKeys := appkeys.New(altview1Pile, altview1PileKeyPress)
@@ -3217,7 +3146,7 @@ func cmain() int {
 	})
 
 	altview1Cols.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("altviewright", altview1Cols.GetOffsets())
+		termshark.SaveOffsetToConfig("altviewright", altview1Cols.GetOffsets())
 	}))
 
 	altview1ColsAndKeys := appkeys.New(altview1Cols, altview1ColsKeyPress)
@@ -3255,7 +3184,7 @@ func cmain() int {
 	})
 
 	altview2Cols.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("altview2vertical", altview2Cols.GetOffsets())
+		termshark.SaveOffsetToConfig("altview2vertical", altview2Cols.GetOffsets())
 	}))
 
 	altview2ColsAndKeys := appkeys.New(altview2Cols, altview2ColsKeyPress)
@@ -3276,7 +3205,7 @@ func cmain() int {
 	})
 
 	altview2Pile.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		saveOffsetToConfig("altview2horizontal", altview2Pile.GetOffsets())
+		termshark.SaveOffsetToConfig("altview2horizontal", altview2Pile.GetOffsets())
 	}))
 
 	altview2PileAndKeys := appkeys.New(altview2Pile, altview2PileKeyPress)
@@ -3433,19 +3362,19 @@ func cmain() int {
 	gowid.SetFocusPath(altview1, altview1Paths[0], app)
 	gowid.SetFocusPath(altview2, altview2Paths[0], app)
 
-	if offs, err := loadOffsetFromConfig("mainview"); err == nil {
+	if offs, err := termshark.LoadOffsetFromConfig("mainview"); err == nil {
 		mainviewRows.SetOffsets(offs, app)
 	}
-	if offs, err := loadOffsetFromConfig("altviewleft"); err == nil {
+	if offs, err := termshark.LoadOffsetFromConfig("altviewleft"); err == nil {
 		altview1Pile.SetOffsets(offs, app)
 	}
-	if offs, err := loadOffsetFromConfig("altviewright"); err == nil {
+	if offs, err := termshark.LoadOffsetFromConfig("altviewright"); err == nil {
 		altview1Cols.SetOffsets(offs, app)
 	}
-	if offs, err := loadOffsetFromConfig("altview2horizontal"); err == nil {
+	if offs, err := termshark.LoadOffsetFromConfig("altview2horizontal"); err == nil {
 		altview2Pile.SetOffsets(offs, app)
 	}
-	if offs, err := loadOffsetFromConfig("altview2vertical"); err == nil {
+	if offs, err := termshark.LoadOffsetFromConfig("altview2vertical"); err == nil {
 		altview2Cols.SetOffsets(offs, app)
 	}
 

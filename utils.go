@@ -10,6 +10,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"encoding/gob"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
+	"github.com/gcla/termshark/widgets/resizable"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
@@ -71,6 +73,18 @@ func (e NotImplementedError) Error() string {
 }
 
 var NotImplemented = NotImplementedError{}
+
+//======================================================================
+
+type ConfigError struct{}
+
+var _ error = ConfigError{}
+
+func (e ConfigError) Error() string {
+	return "Configuration error"
+}
+
+var ConfigErr = ConfigError{}
 
 //======================================================================
 
@@ -394,6 +408,67 @@ func SafePid(p IProcess) int {
 		return -1
 	}
 	return p.Pid()
+}
+
+func AddToRecentFiles(pcap string) {
+	comps := ConfStrings("main.recent-files")
+	if len(comps) == 0 || comps[0] != pcap {
+		comps = RemoveFromStringSlice(pcap, comps)
+		if len(comps) > 16 {
+			comps = comps[0 : 16-1]
+		}
+		SetConf("main.recent-files", comps)
+	}
+}
+
+func AddToRecentFilters(val string) {
+	comps := ConfStrings("main.recent-filters")
+	if (len(comps) == 0 || comps[0] != val) && strings.TrimSpace(val) != "" {
+		comps = RemoveFromStringSlice(val, comps)
+		if len(comps) > 64 {
+			comps = comps[0 : 64-1]
+		}
+		SetConf("main.recent-filters", comps)
+	}
+}
+
+func LoadOffsetFromConfig(name string) ([]resizable.Offset, error) {
+	offsStr := ConfString("main."+name, "")
+	if offsStr == "" {
+		return nil, errors.WithStack(gowid.WithKVs(ConfigErr, map[string]interface{}{
+			"name": name,
+			"msg":  "No offsets found",
+		}))
+	}
+	res := make([]resizable.Offset, 0)
+	err := json.Unmarshal([]byte(offsStr), &res)
+	if err != nil {
+		return nil, errors.WithStack(gowid.WithKVs(ConfigErr, map[string]interface{}{
+			"name": name,
+			"msg":  "Could not unmarshal offsets",
+		}))
+	}
+	return res, nil
+}
+
+func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
+	offsets := make([]resizable.Offset, 0)
+	for _, off := range offsets2 {
+		if off.Adjust != 0 {
+			offsets = append(offsets, off)
+		}
+	}
+	if len(offsets) == 0 {
+		DeleteConf(name)
+	} else {
+		offs, err := json.Marshal(offsets)
+		if err != nil {
+			log.Fatal(err)
+		}
+		SetConf("main."+name, string(offs))
+	}
+	// Hack to make viper save if I only deleted from the map
+	SetConf("main.lastupdate", time.Now().String())
 }
 
 //======================================================================
