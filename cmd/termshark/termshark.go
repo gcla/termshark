@@ -299,6 +299,14 @@ etc). For example:
 
 $ termshark -r file.pcap -T psml -n | less{{end}}
 
+{{define "UIUserGuide"}}{{.UserGuideURL}}
+
+{{.CopyCommandMessage}}{{end}}
+
+{{define "UIFAQ"}}{{.FAQURL}}
+
+{{.CopyCommandMessage}}{{end}}
+
 {{define "UIHelp"}}{{template "NameVer" .}}
 
 A wireshark-inspired tui for tshark. Analyze network traffic interactively from your terminal.
