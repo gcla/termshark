@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/blang/semver"
+	"github.com/gcla/termshark/format"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -98,7 +99,7 @@ func TestConv1(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		outs := TranslateHexCodes([]byte(test.arg))
+		outs := format.TranslateHexCodes([]byte(test.arg))
 		assert.Equal(t, string(outs), test.res)
 	}
 }

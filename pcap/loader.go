@@ -25,6 +25,7 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/termshark"
+	"github.com/gcla/termshark/format"
 	lru "github.com/hashicorp/golang-lru"
 	log "github.com/sirupsen/logrus"
 	fsnotify "gopkg.in/fsnotify/fsnotify.v1"
@@ -1692,7 +1693,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 					c.PacketPsmlHeaders = append(c.PacketPsmlHeaders, string(tok))
 					c.Unlock()
 				} else {
-					curPsml = append(curPsml, string(termshark.TranslateHexCodes(tok)))
+					curPsml = append(curPsml, string(format.TranslateHexCodes(tok)))
 					empty = false
 				}
 			}

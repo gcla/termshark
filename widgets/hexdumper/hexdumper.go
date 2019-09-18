@@ -9,10 +9,8 @@
 package hexdumper
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"unicode"
 
 	"github.com/gcla/gowid"
@@ -23,6 +21,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark"
+	"github.com/gcla/termshark/format"
 	"github.com/gcla/termshark/widgets/renderfocused"
 	"github.com/gdamore/tcell"
 	"github.com/pkg/errors"
@@ -324,42 +323,11 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	}
 }
 
-func MakeEscapedString(data []byte) string {
-	res := make([]string, 0)
-	var buffer bytes.Buffer
-	for i := 0; i < len(data); i++ {
-		buffer.WriteString(fmt.Sprintf("\\x%02x", data[i]))
-		if i%16 == 16-1 || i+1 == len(data) {
-			res = append(res, fmt.Sprintf("\"%s\"", buffer.String()))
-			buffer.Reset()
-		}
-	}
-	return strings.Join(res, " \\\n")
-}
-
-func MakeHexStream(data []byte) string {
-	var buffer bytes.Buffer
-	for i := 0; i < len(data); i++ {
-		buffer.WriteString(fmt.Sprintf("%02x", data[i]))
-	}
-	return buffer.String()
-}
-
-func MakePrintableString(data []byte) string {
-	var buffer bytes.Buffer
-	for i := 0; i < len(data); i++ {
-		if unicode.IsPrint(rune(data[i])) {
-			buffer.WriteString(string(rune(data[i])))
-		}
-	}
-	return buffer.String()
-}
-
 func clipsForBytes(data []byte, start int, end int) []gowid.ICopyResult {
 	dump := hex.Dump(data[start:end])
-	dump2 := MakeEscapedString(data[start:end])
-	dump3 := MakePrintableString(data[start:end])
-	dump4 := MakeHexStream(data[start:end])
+	dump2 := format.MakeEscapedString(data[start:end])
+	dump3 := format.MakePrintableString(data[start:end])
+	dump4 := format.MakeHexStream(data[start:end])
 
 	return []gowid.ICopyResult{
 		gowid.CopyResult{
