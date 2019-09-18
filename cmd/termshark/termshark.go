@@ -1257,122 +1257,7 @@ func reallyClear(app gowid.IApp) {
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
-	yesno.Open(topview, units(len(msgt)+28), app)
-}
-
-//======================================================================
-
-type simpleMenuItem struct {
-	Txt string
-	Key gowid.Key
-	CB  gowid.WidgetChangedFunction
-}
-
-func makeRecentMenu(items []simpleMenuItem) gowid.IWidget {
-	menu1Widgets := make([]gowid.IWidget, 0)
-	menu1HotKeys := make([]gowid.IWidget, 0)
-
-	max := 0
-	for _, w := range items {
-		k := fmt.Sprintf("%v", w.Key)
-		if len(k) > max {
-			max = len(k)
-		}
-	}
-
-	for _, w := range items {
-		load1B := button.NewBare(text.New(w.Txt))
-		load1K := button.NewBare(text.New(fmt.Sprintf("%v", w.Key)))
-		load1CB := gowid.MakeWidgetCallback("cb", w.CB)
-		load1B.OnClick(load1CB)
-		if w.Key != gowid.MakeKey(' ') {
-			load1K.OnClick(load1CB)
-		}
-		menu1Widgets = append(menu1Widgets, load1B)
-		menu1HotKeys = append(menu1HotKeys, load1K)
-	}
-	for i, w := range menu1Widgets {
-		menu1Widgets[i] = styled.NewInvertedFocus(selectable.New(w), gowid.MakePaletteRef("default"))
-	}
-	for i, w := range menu1HotKeys {
-		menu1HotKeys[i] = styled.NewInvertedFocus(w, gowid.MakePaletteRef("default"))
-	}
-
-	menu1Widgets2 := make([]*columns.Widget, len(menu1Widgets))
-	for i, w := range menu1Widgets {
-		menu1Widgets2[i] = columns.New(
-			[]gowid.IContainerWidget{
-				&gowid.ContainerWidget{
-					IWidget: hpadding.New(
-						// size is translated from flowwith{20} to fixed; fixed gives size 6, flowwith aligns right to 12
-						hpadding.New(
-							selectable.NewUnselectable( // don't want to be able to navigate to the hotkey itself
-								menu1HotKeys[i],
-							),
-							gowid.HAlignRight{},
-							fixed,
-						),
-						gowid.HAlignLeft{},
-						gowid.RenderFlowWith{C: max},
-					),
-					D: fixed,
-				},
-				&gowid.ContainerWidget{
-					IWidget: text.New("| "),
-					D:       fixed,
-				},
-				&gowid.ContainerWidget{
-					IWidget: w,
-					D:       fixed,
-				},
-			},
-			columns.Options{
-				StartColumn: 2,
-			},
-		)
-	}
-
-	menu1cwidgets := make([]gowid.IContainerWidget, len(menu1Widgets2))
-	for i, w := range menu1Widgets2 {
-		menu1cwidgets[i] = &gowid.ContainerWidget{
-			IWidget: w,
-			D:       fixed,
-		}
-	}
-
-	keys := make([]gowid.IKey, 0)
-	for _, i := range items {
-		if i.Key != gowid.MakeKey(' ') {
-			keys = append(keys, i.Key)
-		}
-	}
-
-	menuListBox1 := keypress.New(
-		cellmod.Opaque(
-			styled.New(
-				framed.NewUnicode(
-					pile.New(menu1cwidgets, pile.Options{
-						Wrap: true,
-					}),
-				),
-				gowid.MakePaletteRef("default"),
-			),
-		),
-		keypress.Options{
-			Keys: keys,
-		},
-	)
-
-	menuListBox1.OnKeyPress(keypress.MakeCallback("key1", func(app gowid.IApp, w gowid.IWidget, k gowid.IKey) {
-		for _, r := range items {
-			if gowid.KeysEqual(k, r.Key) && r.Key != gowid.MakeKey(' ') {
-				r.CB(app, w)
-				break
-			}
-		}
-	}))
-
-	return menuListBox1
+	yesno.Open(mainViewNoKeys, units(len(msgt)+28), app)
 }
 
 //======================================================================
@@ -2176,13 +2061,13 @@ func progMax(x, y Prog) Prog {
 //======================================================================
 
 func makeRecentMenuWidget() gowid.IWidget {
-	savedItems := make([]simpleMenuItem, 0)
+	savedItems := make([]ui.SimpleMenuItem, 0)
 	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
 		for i, s := range cfiles {
 			scopy := s
 			savedItems = append(savedItems,
-				simpleMenuItem{
+				ui.SimpleMenuItem{
 					Txt: s,
 					Key: gowid.MakeKey('a' + rune(i)),
 					CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2194,7 +2079,7 @@ func makeRecentMenuWidget() gowid.IWidget {
 			)
 		}
 	}
-	savedListBox := makeRecentMenu(savedItems)
+	savedListBox := ui.MakeMenuWithHotKeys(savedItems)
 
 	return savedListBox
 }
