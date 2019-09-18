@@ -2761,7 +2761,7 @@ func cmain() int {
 
 	//======================================================================
 
-	openMenu := button.New(text.New("Misc"))
+	openMenu := button.NewBare(text.New("Misc"))
 	openMenu2 := styled.NewExt(openMenu, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
 
 	openMenuSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
