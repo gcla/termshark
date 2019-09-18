@@ -122,11 +122,37 @@ func ConfString(name string, def string) string {
 	}
 }
 
+func SetConf(name string, val interface{}) {
+	viper.Set(name, val)
+	viper.WriteConfig()
+}
+
+func ConfStrings(name string) []string {
+	return viper.GetStringSlice(name)
+}
+
+func DeleteConf(name string) {
+	delete(viper.Get("main").(map[string]interface{}), name)
+	viper.WriteConfig()
+}
+
 func ConfInt(name string, def int) int {
 	if viper.Get(name) != nil {
 		return viper.GetInt(name)
 	} else {
 		return def
+	}
+}
+
+func ConfBool(name string, def ...bool) bool {
+	if viper.Get(name) != nil {
+		return viper.GetBool(name)
+	} else {
+		if len(def) > 0 {
+			return def[0]
+		} else {
+			return false
+		}
 	}
 }
 

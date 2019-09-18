@@ -1512,15 +1512,14 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	} else if evk.Rune() == '|' {
 		if topview.SubWidget() == mainview {
 			topview.SetSubWidget(altview1, app)
-			viper.Set("main.layout", "altview1")
 		} else if topview.SubWidget() == altview1 {
 			topview.SetSubWidget(altview2, app)
-			viper.Set("main.layout", "altview2")
+			termshark.SetConf("main.layout", "altview1")
+			termshark.SetConf("main.layout", "altview2")
 		} else {
 			topview.SetSubWidget(mainview, app)
-			viper.Set("main.layout", "mainview")
+			termshark.SetConf("main.layout", "mainview")
 		}
-		viper.WriteConfig()
 	} else if evk.Rune() == '\\' {
 		w := topview.SubWidget()
 		fp := gowid.FocusPath(w)
@@ -2231,7 +2230,7 @@ var _ termshark.IPrefixCompleterCallback = (*savedCompleterCallback)(nil)
 
 func (s *savedCompleterCallback) Call(orig []string) {
 	if s.prefix == "" {
-		comps := viper.GetStringSlice("main.recent-filters")
+		comps := termshark.ConfStrings("main.recent-filters")
 		if len(comps) == 0 {
 			comps = orig
 		}
@@ -2644,7 +2643,7 @@ func cmain() int {
 	}
 
 	foundTshark := false
-	if viper.Get("tshark") != nil {
+	if termshark.ConfString("main.tshark", "") == "" {
 		if _, err = os.Stat(tsharkBin); err == nil {
 			foundTshark = true
 		} else if termshark.IsCommandInPath(tsharkBin) {
@@ -2675,7 +2674,7 @@ func cmain() int {
 		tsharkBin = termshark.DirOfPathCommandUnsafe(tsharkBin)
 	}
 
-	valids := viper.GetStringSlice("main.validated-tsharks")
+	valids := termshark.ConfStrings("main.validated-tsharks")
 
 	if !termshark.StringInSlice(tsharkBin, valids) {
 		tver, err := termshark.TSharkVersion(tsharkBin)
@@ -2692,8 +2691,7 @@ func cmain() int {
 		}
 
 		valids = append(valids, tsharkBin)
-		viper.Set("main.validated-tsharks", valids)
-		viper.WriteConfig()
+		termshark.SetConf("main.validated-tsharks", valids)
 	}
 
 	for _, dir := range []string{termshark.CacheDir(), termshark.PcapDir()} {
@@ -2804,14 +2802,14 @@ func cmain() int {
 	if darkModeSwitchSet {
 		darkMode = darkModeSwitch
 	} else {
-		darkMode = viper.GetBool("main.dark-mode")
+		darkMode = termshark.ConfBool("main.dark-mode")
 	}
 
 	// Initialize application state for auto-scroll
 	if autoScrollSwitchSet {
 		autoScroll = autoScrollSwitch
 	} else {
-		autoScroll = viper.GetBool("main.auto-scroll")
+		autoScroll = termshark.ConfBool("main.auto-scroll")
 	}
 
 	//======================================================================
@@ -2930,8 +2928,7 @@ func cmain() int {
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				generalMenu.Close(app)
 				darkMode = !darkMode
-				viper.Set("main.dark-mode", darkMode)
-				viper.WriteConfig()
+				termshark.SetConf("main.dark-mode", darkMode)
 			},
 		},
 		simpleMenuItem{
@@ -3330,7 +3327,7 @@ func cmain() int {
 	altview2 = altview2OuterRows
 
 	topview = holder.New(mainview)
-	defaultLayout := viper.GetString("main.layout")
+	defaultLayout := termshark.ConfString("main.layout", "")
 	switch defaultLayout {
 	case "altview1":
 		topview = holder.New(altview1)
