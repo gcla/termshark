@@ -5,8 +5,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -25,7 +23,6 @@ import (
 	"github.com/gcla/deep"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/button"
-	"github.com/gcla/gowid/widgets/cellmod"
 	"github.com/gcla/gowid/widgets/columns"
 	"github.com/gcla/gowid/widgets/dialog"
 	"github.com/gcla/gowid/widgets/disable"
@@ -35,7 +32,6 @@ import (
 	"github.com/gcla/gowid/widgets/holder"
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/isselected"
-	"github.com/gcla/gowid/widgets/keypress"
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/menu"
 	"github.com/gcla/gowid/widgets/null"
