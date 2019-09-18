@@ -886,7 +886,7 @@ func openMessage(msgt string, app gowid.IApp) {
 	dialog.OpenExt(yesno, topview, fixed, fixed, app)
 }
 
-func openHelp(tmplName string, app gowid.IApp) {
+func openTemplatedDialog(tmplName string, app gowid.IApp) {
 	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(termsharkTemplates, tmplName, tmplData))),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
@@ -1419,7 +1419,7 @@ func copyModeKeys(evk *tcell.EventKey, app gowid.IApp) bool {
 			case 'q', 'c':
 				app.InCopyMode(false)
 			case '?':
-				openHelp("CopyModeHelp", app)
+				openTemplatedDialog("CopyModeHelp", app)
 			}
 		case tcell.KeyEscape:
 			app.InCopyMode(false)
@@ -1559,7 +1559,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		gowid.SetFocusPath(viewOnlyPacketStructure, filterPathMax, app)
 		gowid.SetFocusPath(viewOnlyPacketHex, filterPathMax, app)
 	} else if evk.Rune() == '?' {
-		openHelp("UIHelp", app)
+		openTemplatedDialog("UIHelp", app)
 	} else {
 		handled = false
 	}
