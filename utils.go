@@ -548,6 +548,119 @@ func BrowseUrl(url string) error {
 }
 
 //======================================================================
+
+type ICommandOutput interface {
+	ProcessOutput(output string) error
+}
+
+type ICommandError interface {
+	ProcessCommandError(err error) error
+}
+
+type ICommandDone interface {
+	ProcessCommandDone()
+}
+
+type ICommandKillError interface {
+	ProcessKillError(err error) error
+}
+
+type ICommandTimeout interface {
+	ProcessCommandTimeout() error
+}
+
+type ICommandWaitTicker interface {
+	ProcessWaitTick() error
+}
+
+func CopyCommand(input io.Reader, cb interface{}) error {
+	var err error
+
+	copyCmd := ConfStringSlice(
+		"main.copy-command",
+		CopyToClipboard,
+	)
+
+	if len(copyCmd) == 0 {
+		return errors.WithStack(gowid.WithKVs(BadCommand, map[string]interface{}{"message": "copy command is nil"}))
+	}
+
+	cmd := exec.Command(copyCmd[0], copyCmd[1:]...)
+	cmd.Stdin = input
+	outBuf := bytes.Buffer{}
+	cmd.Stdout = &outBuf
+
+	cmdTimeout := ConfInt("main.copy-command-timeout", 5)
+	if err := cmd.Start(); err != nil {
+		return errors.WithStack(gowid.WithKVs(BadCommand, map[string]interface{}{"err": err}))
+	}
+
+	go func() {
+
+		defer func() {
+			if po, ok := cb.(ICommandDone); ok {
+				po.ProcessCommandDone()
+			}
+		}()
+
+		done := make(chan error, 1)
+		go func() {
+			done <- cmd.Wait()
+		}()
+
+		tick := time.NewTicker(time.Duration(200) * time.Millisecond)
+		defer tick.Stop()
+		tchan := time.After(time.Duration(cmdTimeout) * time.Second)
+
+	Loop:
+		for {
+			select {
+			case <-tick.C:
+				if po, ok := cb.(ICommandWaitTicker); ok {
+					err = po.ProcessWaitTick()
+					if err != nil {
+						break Loop
+					}
+				}
+
+			case <-tchan:
+				if err := cmd.Process.Kill(); err != nil {
+					if po, ok := cb.(ICommandKillError); ok {
+						err = po.ProcessKillError(err)
+						if err != nil {
+							break Loop
+						}
+					}
+				} else {
+					if po, ok := cb.(ICommandTimeout); ok {
+						err = po.ProcessCommandTimeout()
+						if err != nil {
+							break Loop
+						}
+					}
+				}
+				break Loop
+
+			case err := <-done:
+				if err != nil {
+					if po, ok := cb.(ICommandError); ok {
+						po.ProcessCommandError(err)
+					}
+				} else {
+					if po, ok := cb.(ICommandOutput); ok {
+						outStr := outBuf.String()
+						po.ProcessOutput(outStr)
+					}
+				}
+				break Loop
+			}
+		}
+
+	}()
+
+	return nil
+}
+
 //======================================================================
 // Local Variables:
 // mode: Go
