@@ -525,6 +525,30 @@ func RootCause(err error) error {
 }
 
 //======================================================================
+
+func RunningRemotely() bool {
+	return os.Getenv("SSH_TTY") != ""
+}
+
+func BrowseUrl(url string) error {
+	urlCmd := ConfStringSlice(
+		"main.browse-command",
+		OpenURL,
+	)
+
+	if len(urlCmd) == 0 {
+		return errors.WithStack(gowid.WithKVs(BadCommand, map[string]interface{}{"message": "browse command is nil"}))
+	}
+
+	urlCmd = append(urlCmd, url)
+
+	cmd := exec.Command(urlCmd[0], urlCmd[1:]...)
+
+	return cmd.Run()
+}
+
+//======================================================================
+//======================================================================
 // Local Variables:
 // mode: Go
 // fill-column: 78
