@@ -1335,6 +1335,15 @@ func altview2PileKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 }
 
 func copyModeKeys(evk *tcell.EventKey, app gowid.IApp) bool {
+	return copyModeKeysClipped(evk, 0, app)
+}
+
+// Used for limiting samples of reassembled streams
+func copyModeKeys20(evk *tcell.EventKey, app gowid.IApp) bool {
+	return copyModeKeysClipped(evk, 20, app)
+}
+
+func copyModeKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool {
 	handled := false
 	if app.InCopyMode() {
 		handled = true
@@ -1350,7 +1359,7 @@ func copyModeKeys(evk *tcell.EventKey, app gowid.IApp) bool {
 		case tcell.KeyEscape:
 			app.InCopyMode(false)
 		case tcell.KeyCtrlC:
-			openCopyChoices(app)
+			openCopyChoices(copyLen, app)
 		case tcell.KeyRight:
 			cl := app.CopyModeClaimedAt()
 			app.CopyModeClaimedAt(cl + 1)
