@@ -832,61 +832,161 @@ func (t *rowFocusTableWidget) Focus() list.IWalkerPosition {
 
 //======================================================================
 
-func openError(msgt string, app gowid.IApp) {
-	// the same, for now
-	openMessage(msgt, app)
+type pleaseWaitCallbacks struct {
+	w    *spinner.Widget
+	app  gowid.IApp
+	open bool
 }
 
-func openMessage(msgt string, app gowid.IApp) {
-	maximizer := &dialog.Maximizer{}
+func (s *pleaseWaitCallbacks) ProcessWaitTick() error {
+	s.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		s.w.Update()
+		if !s.open {
+			openPleaseWait(s.app)
+			s.open = true
+		}
+	}))
+	return nil
+}
 
-	var al gowid.IHAlignment = hmiddle
-	if strings.Count(msgt, "\n") > 0 {
-		al = gowid.HAlignLeft{}
+// Call in app context
+func (s *pleaseWaitCallbacks) closeWaitDialog(app gowid.IApp) {
+	if s.open {
+		closePleaseWait(app)
+		s.open = false
 	}
+}
 
-	var view gowid.IWidget = text.New(msgt, text.Options{
-		Align: al,
-	})
+func (s *pleaseWaitCallbacks) ProcessCommandDone() {
+	s.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		s.closeWaitDialog(app)
+	}))
+}
 
-	view = hpadding.New(
-		view,
-		hmiddle,
-		gowid.RenderFixed{},
-	)
+//======================================================================
 
-	view = framed.NewSpace(view)
+// Wait until the copy command has finished, then open up a dialog with the results.
+type urlCopiedCallbacks struct {
+	app      gowid.IApp
+	tmplName string
+	*pleaseWaitCallbacks
+}
 
-	view = appkeys.New(
-		view,
-		func(ev *tcell.EventKey, app gowid.IApp) bool {
-			if ev.Rune() == 'z' { // maximize/unmaximize
-				if maximizer.Maxed {
-					maximizer.Unmaximize(yesno, app)
-				} else {
-					maximizer.Maximize(yesno, app)
-				}
-				return true
-			}
-			return false
+var (
+	_ termshark.ICommandOutput     = urlCopiedCallbacks{}
+	_ termshark.ICommandError      = urlCopiedCallbacks{}
+	_ termshark.ICommandDone       = urlCopiedCallbacks{}
+	_ termshark.ICommandKillError  = urlCopiedCallbacks{}
+	_ termshark.ICommandTimeout    = urlCopiedCallbacks{}
+	_ termshark.ICommandWaitTicker = urlCopiedCallbacks{}
+)
+
+func (h urlCopiedCallbacks) displayDialog(output string) {
+	tmplData["CopyCommandMessage"] = output
+
+	h.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		h.closeWaitDialog(app)
+		openTemplatedDialog(h.tmplName, app)
+		delete(tmplData, "CopyCommandMessage")
+	}))
+}
+
+func (h urlCopiedCallbacks) ProcessOutput(output string) error {
+	var msg string
+	if len(output) == 0 {
+		msg = "URL copied to clipboard."
+	} else {
+		msg = output
+	}
+	h.displayDialog(msg)
+	return nil
+}
+
+func (h urlCopiedCallbacks) ProcessCommandTimeout() error {
+	h.displayDialog("")
+	return nil
+}
+
+func (h urlCopiedCallbacks) ProcessCommandError(err error) error {
+	h.displayDialog("")
+	return nil
+}
+
+func (h urlCopiedCallbacks) ProcessKillError(err error) error {
+	h.displayDialog("")
+	return nil
+}
+
+//======================================================================
+
+type userCopiedCallbacks struct {
+	app     gowid.IApp
+	copyCmd []string
+	*pleaseWaitCallbacks
+}
+
+var (
+	_ termshark.ICommandOutput     = userCopiedCallbacks{}
+	_ termshark.ICommandError      = userCopiedCallbacks{}
+	_ termshark.ICommandDone       = userCopiedCallbacks{}
+	_ termshark.ICommandKillError  = userCopiedCallbacks{}
+	_ termshark.ICommandTimeout    = userCopiedCallbacks{}
+	_ termshark.ICommandWaitTicker = userCopiedCallbacks{}
+)
+
+func (h userCopiedCallbacks) ProcessCommandTimeout() error {
+	h.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		h.closeWaitDialog(app)
+		openError(fmt.Sprintf("Copy command \"%v\" timed out", strings.Join(h.copyCmd, " ")), app)
+	}))
+	return nil
+}
+
+func (h userCopiedCallbacks) ProcessCommandError(err error) error {
+	h.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		h.closeWaitDialog(app)
+		openError(fmt.Sprintf("Copy command \"%v\" failed: %v", strings.Join(h.copyCmd, " "), err), app)
+	}))
+	return nil
+}
+
+func (h userCopiedCallbacks) ProcessKillError(err error) error {
+	h.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		h.closeWaitDialog(app)
+		openError(fmt.Sprintf("Timed out, but could not kill copy command: %v", err), app)
+	}))
+	return nil
+}
+
+func (h userCopiedCallbacks) ProcessOutput(output string) error {
+	h.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		h.closeWaitDialog(app)
+		if len(output) == 0 {
+			ui.OpenMessage("   Copied!   ", appView, app)
+		} else {
+			ui.OpenMessage(fmt.Sprintf("Copied! Output was:\n%s\n", output), appView, app)
+		}
+	}))
+	return nil
+}
+
+//======================================================================
+
+func openError(msgt string, app gowid.IApp) {
+	// the same, for now
+	ui.OpenMessage(msgt, appView, app)
+}
+
+func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
+	v := urlCopiedCallbacks{
+		app:      app,
+		tmplName: tmplName,
+		pleaseWaitCallbacks: &pleaseWaitCallbacks{
+			w:   pleaseWaitSpinner,
+			app: app,
 		},
-		appkeys.Options{
-			ApplyBefore: true,
-		},
-	)
-
-	yesno = dialog.New(
-		view,
-		dialog.Options{
-			Buttons:         dialog.CloseOnly,
-			NoShadow:        true,
-			BackgroundStyle: gowid.MakePaletteRef("dialog"),
-			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
-		},
-	)
-
-	dialog.OpenExt(yesno, topview, fixed, fixed, app)
+	}
+	termshark.CopyCommand(strings.NewReader(tocopy), v)
 }
 
 func openTemplatedDialog(tmplName string, app gowid.IApp) {
@@ -906,7 +1006,11 @@ func openPleaseWait(app gowid.IApp) {
 	pleaseWait.Open(topview, fixed, app)
 }
 
-func openCopyChoices(app gowid.IApp) {
+func closePleaseWait(app gowid.IApp) {
+	pleaseWait.Close(app)
+}
+
+func openCopyChoices(copyLen int, app gowid.IApp) {
 	var cc *dialog.Widget
 	maximizer := &dialog.Maximizer{}
 
@@ -927,99 +1031,33 @@ func openCopyChoices(app gowid.IApp) {
 	for _, clip := range clips {
 		c2 := clip
 		lbl := text.New(clip.ClipName() + ":")
-		btn := button.NewBare(text.New(clip.ClipValue(), text.Options{
+		btxt1 := clip.ClipValue()
+		if copyLen > 0 {
+			blines := strings.Split(btxt1, "\n")
+			if len(blines) > copyLen {
+				blines[copyLen-1] = "..."
+				blines = blines[0:copyLen]
+			}
+			btxt1 = strings.Join(blines, "\n")
+		}
+
+		btn := button.NewBare(text.New(btxt1, text.Options{
 			Wrap:          text.WrapClip,
 			ClipIndicator: "...",
 		}))
 
 		btn.OnClick(gowid.MakeWidgetCallback("cb", gowid.WidgetChangedFunction(func(app gowid.IApp, w gowid.IWidget) {
-			cmd := exec.Command(copyCmd[0], copyCmd[1:]...)
-			cmd.Stdin = strings.NewReader(c2.ClipValue())
-			outBuf := bytes.Buffer{}
-			cmd.Stdout = &outBuf
-
 			cc.Close(app)
 			app.InCopyMode(false)
 
-			cmdTimeout := termshark.ConfInt("main.copy-command-timeout", 5)
-			if err := cmd.Start(); err != nil {
-				openError(fmt.Sprintf("Copy command \"%s\" failed: %v", strings.Join(copyCmd, " "), err), app)
-				return
-			}
-
-			go func() {
-				closed := true
-				closeme := func() {
-					if !closed {
-						pleaseWait.Close(app)
-						closed = true
-					}
-				}
-				defer app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					closeme()
-				}))
-
-				done := make(chan error, 1)
-				go func() {
-					done <- cmd.Wait()
-				}()
-
-				tick := time.NewTicker(time.Duration(200) * time.Millisecond)
-				defer tick.Stop()
-				tchan := time.After(time.Duration(cmdTimeout) * time.Second)
-
-			Loop:
-				for {
-					select {
-					case <-tick.C:
-						app.Run(gowid.RunFunction(func(app gowid.IApp) {
-							pleaseWaitSpinner.Update()
-							if closed {
-								openPleaseWait(app)
-								closed = false
-							}
-						}))
-
-					case <-tchan:
-						if err := cmd.Process.Kill(); err != nil {
-							app.Run(gowid.RunFunction(func(app gowid.IApp) {
-								closeme()
-								openError(fmt.Sprintf("Timed out, but could not kill copy command: %v", err), app)
-							}))
-						} else {
-							app.Run(gowid.RunFunction(func(app gowid.IApp) {
-								closeme()
-								openError(fmt.Sprintf("Copy command \"%v\" timed out", strings.Join(copyCmd, " ")), app)
-							}))
-						}
-						break Loop
-
-					case err := <-done:
-						if err != nil {
-							app.Run(gowid.RunFunction(func(app gowid.IApp) {
-								closeme()
-								openError(fmt.Sprintf("Copy command \"%v\" failed: %v", strings.Join(copyCmd, " "), err), app)
-							}))
-						} else {
-							outStr := outBuf.String()
-							if len(outStr) == 0 {
-								app.Run(gowid.RunFunction(func(app gowid.IApp) {
-									closeme()
-									openMessage("   Copied!   ", app)
-								}))
-							} else {
-								app.Run(gowid.RunFunction(func(app gowid.IApp) {
-									closeme()
-									openMessage(fmt.Sprintf("Copied! Output was:\n%s\n", outStr), app)
-								}))
-							}
-						}
-						break Loop
-					}
-				}
-
-			}()
-
+			termshark.CopyCommand(strings.NewReader(c2.ClipValue()), userCopiedCallbacks{
+				app:     app,
+				copyCmd: copyCmd,
+				pleaseWaitCallbacks: &pleaseWaitCallbacks{
+					w:   pleaseWaitSpinner,
+					app: app,
+				},
+			})
 		})))
 
 		btn2 := styled.NewFocus(btn, gowid.MakeStyledAs(gowid.StyleReverse))
