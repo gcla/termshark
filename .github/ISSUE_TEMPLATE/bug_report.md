@@ -43,8 +43,6 @@ Please provide the complete output of these commands:
 
 * Wireshark Version (tshark -v):
 * Termshark Version (termshark -v):
-* List Interfaces ([sudo] tshark -D):
-* List Link-Layer Types for relevant interfaces (tshark -L <interface name>):
 
-Please also provide any relevant information about your environment. 
+Please also provide any relevant information about your environment (OS, VM, pi,...)
 
