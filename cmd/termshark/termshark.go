@@ -2771,24 +2771,8 @@ func cmain() int {
 
 	//======================================================================
 
-	generalMenuItems := []simpleMenuItem{
-		simpleMenuItem{
-			Txt: "Help",
-			Key: gowid.MakeKey('?'),
-			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
-				openHelp("UIHelp", app)
-			},
-		},
-		simpleMenuItem{
-			Txt: "Clear Packets",
-			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlW, ' '),
-			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
-				reallyClear(app)
-			},
-		},
-		simpleMenuItem{
+	generalMenuItems := []ui.SimpleMenuItem{
+		ui.SimpleMenuItem{
 			Txt: "Refresh Screen",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlL, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2796,7 +2780,8 @@ func cmain() int {
 				app.Sync()
 			},
 		},
-		simpleMenuItem{
+		// Put 2nd so a simple menu click, down, enter without thinking doesn't toggle dark mode (annoying...)
+		ui.SimpleMenuItem{
 			Txt: "Toggle Dark Mode",
 			Key: gowid.MakeKey('d'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2805,7 +2790,48 @@ func cmain() int {
 				termshark.SetConf("main.dark-mode", darkMode)
 			},
 		},
-		simpleMenuItem{
+		ui.MakeMenuDivider(),
+		ui.SimpleMenuItem{
+			Txt: "Clear Packets",
+			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlW, ' '),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				generalMenu.Close(app)
+				reallyClear(app)
+			},
+		},
+		ui.MakeMenuDivider(),
+		ui.SimpleMenuItem{
+			Txt: "Help",
+			Key: gowid.MakeKey('?'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				generalMenu.Close(app)
+				openTemplatedDialog("UIHelp", app)
+			},
+		},
+		ui.SimpleMenuItem{
+			Txt: "User Guide",
+			Key: gowid.MakeKey('u'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				generalMenu.Close(app)
+				if !termshark.RunningRemotely() {
+					termshark.BrowseUrl(termshark.UserGuideURL)
+				}
+				openResultsAfterCopy("UIUserGuide", termshark.UserGuideURL, app)
+			},
+		},
+		ui.SimpleMenuItem{
+			Txt: "FAQ",
+			Key: gowid.MakeKey('f'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				generalMenu.Close(app)
+				if !termshark.RunningRemotely() {
+					termshark.BrowseUrl(termshark.FAQURL)
+				}
+				openResultsAfterCopy("UIFAQ", termshark.FAQURL, app)
+			},
+		},
+		ui.MakeMenuDivider(),
+		ui.SimpleMenuItem{
 			Txt: "Quit",
 			Key: gowid.MakeKey('q'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2815,7 +2841,7 @@ func cmain() int {
 		},
 	}
 
-	generalMenuListBox := makeRecentMenu(generalMenuItems)
+	generalMenuListBox := ui.MakeMenuWithHotKeys(generalMenuItems)
 
 	generalMenu = menu.New("main", generalMenuListBox, fixed, menu.Options{
 		Modal:             true,
