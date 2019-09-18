@@ -53,6 +53,7 @@ import (
 	"github.com/gcla/termshark/pcap"
 	"github.com/gcla/termshark/pdmltree"
 	"github.com/gcla/termshark/psmltable"
+	"github.com/gcla/termshark/ui"
 	"github.com/gcla/termshark/widgets/appkeys"
 	"github.com/gcla/termshark/widgets/copymodetree"
 	"github.com/gcla/termshark/widgets/enableselected"

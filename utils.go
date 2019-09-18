@@ -74,6 +74,13 @@ var NotImplemented = NotImplementedError{}
 
 //======================================================================
 
+var (
+	UserGuideURL string = "https://termshark.io/userguide"
+	FAQURL       string = "https://termshark.io/faq"
+)
+
+//======================================================================
+
 func IsCommandInPath(bin string) bool {
 	_, err := exec.LookPath(bin)
 	return err == nil
