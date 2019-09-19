@@ -2790,7 +2790,7 @@ func cmain() int {
 
 	//======================================================================
 
-	openMenu := button.NewBare(text.New("Misc"))
+	openMenu := button.NewBare(text.New("  Misc  "))
 	openMenu2 := styled.NewExt(openMenu, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
 
 	openMenuSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
@@ -2896,7 +2896,7 @@ func cmain() int {
 
 	//======================================================================
 
-	openAnalysis := button.NewBare(text.New("Analysis"))
+	openAnalysis := button.NewBare(text.New("  Analysis  "))
 	openAnalysis2 := styled.NewExt(openAnalysis, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
 
 	openAnalysisSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
@@ -2989,10 +2989,6 @@ func cmain() int {
 			D:       fixed,
 		},
 		&gowid.ContainerWidget{
-			IWidget: fillSpace,
-			D:       units(1),
-		},
-		&gowid.ContainerWidget{
 			IWidget: openMenuSite,
 			D:       fixed,
 		},
@@ -3013,7 +3009,7 @@ func cmain() int {
 	analysisNext.Next = generalMenu
 	analysisNext.Site = openMenuSite
 	analysisNext.Container = titleView
-	analysisNext.Focus = 8 // gcla later todo - find by id!
+	analysisNext.Focus = 7 // gcla later todo - find by id!
 
 	packetListViewHolder = holder.New(nullw)
 	packetStructureViewHolder = holder.New(nullw)
