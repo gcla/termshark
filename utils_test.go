@@ -15,6 +15,21 @@ import (
 
 //======================================================================
 
+func TestApplyArgs(t *testing.T) {
+	cmd := []string{"echo", "something", "$3", "else", "$1", "$3"}
+	args := []string{"a1", "a2"}
+	eres := []string{"echo", "something", "$3", "else", "a1", "$3"}
+	res, total := ApplyArguments(cmd, args)
+	assert.Equal(t, eres, res)
+	assert.Equal(t, total, 1)
+
+	args = []string{"a1", "a2", "a3"}
+	eres = []string{"echo", "something", "a3", "else", "a1", "a3"}
+	res, total = ApplyArguments(cmd, args)
+	assert.Equal(t, eres, res)
+	assert.Equal(t, total, 3)
+}
+
 func TestArgConv(t *testing.T) {
 	var tests = []struct {
 		arg  string
