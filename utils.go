@@ -696,7 +696,7 @@ func CopyCommand(input io.Reader, cb interface{}) error {
 		return errors.WithStack(gowid.WithKVs(BadCommand, map[string]interface{}{"err": err}))
 	}
 
-	go func() {
+	TrackedGo(func() {
 
 		defer func() {
 			if po, ok := cb.(ICommandDone); ok {
@@ -757,7 +757,7 @@ func CopyCommand(input io.Reader, cb interface{}) error {
 			}
 		}
 
-	}()
+	})
 
 	return nil
 }
