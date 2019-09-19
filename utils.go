@@ -631,6 +631,32 @@ func RunningRemotely() bool {
 	return os.Getenv("SSH_TTY") != ""
 }
 
+// ApplyArguments turns ["echo", "hello", "$2"] + ["big", "world"] into
+// ["echo", "hello", "world"]
+func ApplyArguments(cmd []string, args []string) ([]string, int) {
+	total := 0
+	re := regexp.MustCompile("^\\$([1-9][0-9]{0,4})$")
+	res := make([]string, len(cmd))
+	for i, c := range cmd {
+		changed := false
+		matches := re.FindStringSubmatch(c)
+		if len(matches) > 1 {
+			unum, _ := strconv.ParseUint(matches[1], 10, 32)
+			num := int(unum)
+			num -= 1 // 1 indexed
+			if num < len(args) {
+				res[i] = args[num]
+				changed = true
+				total += 1
+			}
+		}
+		if !changed {
+			res[i] = c
+		}
+	}
+	return res, total
+}
+
 func BrowseUrl(url string) error {
 	urlCmd := ConfStringSlice(
 		"main.browse-command",
