@@ -667,9 +667,12 @@ func BrowseUrl(url string) error {
 		return errors.WithStack(gowid.WithKVs(BadCommand, map[string]interface{}{"message": "browse command is nil"}))
 	}
 
-	urlCmd = append(urlCmd, url)
+	urlCmdPP, changed := ApplyArguments(urlCmd, []string{url})
+	if changed == 0 {
+		urlCmdPP = append(urlCmd, url)
+	}
 
-	cmd := exec.Command(urlCmd[0], urlCmd[1:]...)
+	cmd := exec.Command(urlCmdPP[0], urlCmdPP[1:]...)
 
 	return cmd.Run()
 }
