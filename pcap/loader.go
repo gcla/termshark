@@ -517,7 +517,7 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 
 			c.SetState(c.State() | LoadingIface | LoadingPsml)
 		} else {
-			handleError(err, cb)
+			HandleError(err, cb)
 		}
 	} else if c.State() == LoadingIface && psrc.Name() == c.Interface() {
 		//if iface == c.Interface() { // same interface, so just start it back up - iface spooler still running
@@ -578,7 +578,7 @@ func (c *Loader) ReadingFromFifo() bool {
 	return !ok
 }
 
-func handleBegin(cb interface{}) {
+func HandleBegin(cb interface{}) {
 	if c, ok := cb.(IBeforeBegin); ok {
 		ch := make(chan struct{})
 		c.BeforeBegin(ch)
@@ -586,7 +586,7 @@ func handleBegin(cb interface{}) {
 	}
 }
 
-func handleEnd(cb interface{}) {
+func HandleEnd(cb interface{}) {
 	if c, ok := cb.(IAfterEnd); ok {
 		ch := make(chan struct{})
 		c.AfterEnd(ch)
@@ -594,7 +594,7 @@ func handleEnd(cb interface{}) {
 	}
 }
 
-func handleError(err error, cb interface{}) {
+func HandleError(err error, cb interface{}) {
 	if ec, ok := cb.(IOnError); ok {
 		ch := make(chan struct{})
 		ec.OnError(err, ch)
@@ -842,7 +842,7 @@ func (c *Loader) signalStage2Done(cb interface{}) {
 }
 
 func (c *Loader) signalStage2Starting(cb interface{}) {
-	handleBegin(cb)
+	HandleBegin(cb)
 }
 
 // Call from any goroutine - avoid calling in render, don't block it
@@ -1042,7 +1042,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		pdmlOut, err := c.PdmlCmd.StdoutReader()
 		if err != nil {
-			handleError(err, cb)
+			HandleError(err, cb)
 			return
 		}
 
@@ -1051,7 +1051,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		err = c.PdmlCmd.Start()
 		if err != nil {
 			err = fmt.Errorf("Error starting PDML process %v: %v", c.PdmlCmd, err)
-			handleError(err, cb)
+			HandleError(err, cb)
 			return
 		}
 
@@ -1068,7 +1068,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			if err != nil {
 				if unexpectedError(err) {
 					err = fmt.Errorf("Could not read PDML data: %v", err)
-					handleError(err, cb)
+					HandleError(err, cb)
 				}
 				break
 			}
@@ -1081,7 +1081,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 					if err != nil {
 						if !issuedKill && unexpectedError(err) {
 							err = fmt.Errorf("Could not decode PDML data: %v", err)
-							handleError(err, cb)
+							HandleError(err, cb)
 						}
 						break Loop
 					}
@@ -1149,7 +1149,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		pcapOut, err := c.PcapCmd.StdoutReader()
 		if err != nil {
-			handleError(err, cb)
+			HandleError(err, cb)
 			return
 		}
 
@@ -1159,7 +1159,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		if err != nil {
 			// e.g. on the pi
 			err = fmt.Errorf("Error starting PCAP process %v: %v", c.PcapCmd, err)
-			handleError(err, cb)
+			HandleError(err, cb)
 			return
 		}
 
@@ -1176,7 +1176,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		if err != nil {
 			if unexpectedError(err) {
 				err = fmt.Errorf("Could not read PCAP header: %v", err)
-				handleError(err, cb)
+				HandleError(err, cb)
 			}
 			return
 		}
@@ -1188,7 +1188,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			if err != nil {
 				if unexpectedError(err) {
 					err = fmt.Errorf("Could not read PCAP packet header: %v", err)
-					handleError(err, cb)
+					HandleError(err, cb)
 				}
 				break
 			}
@@ -1204,7 +1204,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			if err != nil {
 				if !issuedKill && unexpectedError(err) {
 					err = fmt.Errorf("Could not read PCAP packet: %v", err)
-					handleError(err, cb)
+					HandleError(err, cb)
 				}
 				break
 			}
@@ -1269,7 +1269,7 @@ func (c *Loader) TurnOffPipe() {
 }
 
 func (c *Loader) signalPsmlStarting(cb interface{}) {
-	handleBegin(cb)
+	HandleBegin(cb)
 }
 
 func (c *Loader) signalPsmlDone(cb interface{}) {
@@ -1333,7 +1333,7 @@ func (c *Loader) checkAllBytesRead(cb interface{}) {
 	if cancel {
 		if c.fifoError != nil {
 			err := fmt.Errorf("Fifo error: %v", c.fifoError)
-			handleError(err, cb)
+			HandleError(err, cb)
 		}
 		if c.tailCmd != nil {
 			c.totalFifoBytesWritten = gwutil.NoneInt64()
@@ -1464,7 +1464,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		pr, pw, err = os.Pipe()
 		if err != nil {
 			err = fmt.Errorf("Could not create pipe: %v", err)
-			handleError(err, cb)
+			HandleError(err, cb)
 			intPsmlCancelFn()
 			return
 		}
@@ -1492,7 +1492,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	psmlOut, err = c.PsmlCmd.StdoutReader()
 	if err != nil {
 		err = fmt.Errorf("Could not access pipe output: %v", err)
-		handleError(err, cb)
+		HandleError(err, cb)
 		intPsmlCancelFn()
 		return
 	}
@@ -1502,7 +1502,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	err = c.PsmlCmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Error starting PSML command %v: %v", c.PsmlCmd, err)
-		handleError(err, cb)
+		HandleError(err, cb)
 		intPsmlCancelFn()
 		return
 	}
@@ -1519,7 +1519,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 						"command": c.PsmlCmd.String(),
 						"error":   err,
 					})
-					handleError(cerr, cb)
+					HandleError(cerr, cb)
 				}
 			}
 			// If the psml command generates an error, then we should stop any feed
@@ -1548,7 +1548,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		watcher, err := fsnotify.NewWatcher()
 		if err != nil {
 			err = fmt.Errorf("Could not create FS watch: %v", err)
-			handleError(err, cb)
+			HandleError(err, cb)
 			intPsmlCancelFn()
 			return
 		}
@@ -1556,14 +1556,14 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 		if err := watcher.Add(filepath.Dir(c.ifaceFile)); err != nil {
 			err = fmt.Errorf("Could not set up watcher for %s: %v", c.ifaceFile, err)
-			handleError(err, cb)
+			HandleError(err, cb)
 			intPsmlCancelFn()
 			return
 		} else {
 			// If it's there, touch it so watcher below is notified that everything is in order
 			if _, err := os.Stat(c.ifaceFile); err == nil {
 				if err = os.Chtimes(c.ifaceFile, time.Now(), time.Now()); err != nil {
-					handleError(err, cb)
+					HandleError(err, cb)
 					intPsmlCancelFn()
 					return
 				}
@@ -1584,7 +1584,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 				}
 			case err := <-watcher.Errors:
 				err = fmt.Errorf("Unexpected watcher error for %s: %v", c.ifaceFile, err)
-				handleError(err, cb)
+				HandleError(err, cb)
 				intPsmlCancelFn()
 				return
 			case <-intPsmlCtx.Done():
@@ -1597,7 +1597,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		err = c.tailCmd.Start()
 		if err != nil {
 			err = fmt.Errorf("Could not start tail command %v: %v", c.tailCmd, err)
-			handleError(err, cb)
+			HandleError(err, cb)
 			intPsmlCancelFn()
 			return
 		}
@@ -1655,7 +1655,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		if err != nil {
 			if err != io.EOF && !c.LoadWasCancelled {
 				err = fmt.Errorf("Could not read PSML data: %v", err)
-				handleError(err, cb)
+				HandleError(err, cb)
 			}
 			break
 		}
@@ -1721,7 +1721,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 	err := c.ifaceCmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Error starting interface reader %v: %v", c.ifaceCmd, err)
-		handleError(err, cb)
+		HandleError(err, cb)
 		return
 	}
 
@@ -1741,7 +1741,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 				"command": c.ifaceCmd.String(),
 				"error":   err,
 			})
-			handleError(cerr, cb)
+			HandleError(cerr, cb)
 		}
 	}
 

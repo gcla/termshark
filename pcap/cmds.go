@@ -32,18 +32,18 @@ func (e ProcessNotStarted) Error() string {
 
 //======================================================================
 
-type command struct {
+type Command struct {
 	sync.Mutex
 	*exec.Cmd
 }
 
-func (c *command) String() string {
+func (c *Command) String() string {
 	c.Lock()
 	defer c.Unlock()
 	return fmt.Sprintf("%v %v", c.Cmd.Path, c.Cmd.Args)
 }
 
-func (c *command) Start() error {
+func (c *Command) Start() error {
 	c.Lock()
 	defer c.Unlock()
 	c.Cmd.Stderr = log.StandardLogger().Writer()
@@ -51,17 +51,17 @@ func (c *command) Start() error {
 	return res
 }
 
-func (c *command) Wait() error {
+func (c *Command) Wait() error {
 	return c.Cmd.Wait()
 }
 
-func (c *command) StdoutReader() (io.ReadCloser, error) {
+func (c *Command) StdoutReader() (io.ReadCloser, error) {
 	c.Lock()
 	defer c.Unlock()
 	return c.Cmd.StdoutPipe()
 }
 
-func (c *command) SetStdout(w io.Writer) {
+func (c *Command) SetStdout(w io.Writer) {
 	c.Lock()
 	defer c.Unlock()
 	c.Cmd.Stdout = w
@@ -69,7 +69,7 @@ func (c *command) SetStdout(w io.Writer) {
 
 // If stdout supports Close(), call it. If stdout is a pipe, for example,
 // this can be used to have EOF appear on the reading side (e.g. tshark -T psml)
-func (c *command) Close() error {
+func (c *Command) Close() error {
 	c.Lock()
 	defer c.Unlock()
 	if cl, ok := c.Cmd.Stdout.(io.Closer); ok {
@@ -78,7 +78,7 @@ func (c *command) Close() error {
 	return nil
 }
 
-func (c *command) Kill() error {
+func (c *Command) Kill() error {
 	if c.Cmd.Process == nil {
 		return errors.WithStack(ProcessNotStarted{Command: c.Cmd})
 	}
@@ -89,7 +89,7 @@ func (c *command) Kill() error {
 	}
 }
 
-func (c *command) Pid() int {
+func (c *Command) Pid() int {
 	c.Lock()
 	defer c.Unlock()
 	if c.Cmd.Process == nil {
@@ -123,13 +123,13 @@ func (c Commands) Iface(iface string, captureFilter string, tmpfile string) IBas
 	if captureFilter != "" {
 		args = append(args, "-f", captureFilter)
 	}
-	return &command{Cmd: exec.Command(termshark.DumpcapBin(), args...)}
+	return &Command{Cmd: exec.Command(termshark.DumpcapBin(), args...)}
 }
 
 func (c Commands) Tail(tmpfile string) ITailCommand {
 	args := termshark.TailCommand()
 	args = append(args, tmpfile)
-	return &command{Cmd: exec.Command(args[0], args[1:]...)}
+	return &Command{Cmd: exec.Command(args[0], args[1:]...)}
 }
 
 func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
@@ -173,7 +173,7 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 	if fifo {
 		cmd.Stdin = pcap.(io.Reader)
 	}
-	return &command{Cmd: cmd}
+	return &Command{Cmd: cmd}
 }
 
 func (c Commands) Pcap(pcap string, displayFilter string) IPcapCommand {
@@ -183,7 +183,7 @@ func (c Commands) Pcap(pcap string, displayFilter string) IPcapCommand {
 		args = append(args, "-Y", displayFilter)
 	}
 	args = append(args, c.Args...)
-	return &command{Cmd: exec.Command(termshark.TSharkBin(), args...)}
+	return &Command{Cmd: exec.Command(termshark.TSharkBin(), args...)}
 }
 
 func (c Commands) Pdml(pcap string, displayFilter string) IPcapCommand {
@@ -196,7 +196,7 @@ func (c Commands) Pdml(pcap string, displayFilter string) IPcapCommand {
 	}
 	args = append(args, c.PdmlArgs...)
 	args = append(args, c.Args...)
-	return &command{Cmd: exec.Command(termshark.TSharkBin(), args...)}
+	return &Command{Cmd: exec.Command(termshark.TSharkBin(), args...)}
 }
 
 //======================================================================
