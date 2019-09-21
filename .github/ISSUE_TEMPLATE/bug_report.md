@@ -41,8 +41,8 @@ Please describe the behavior you are expecting.
 
 Please provide the complete output of these commands:
 
-* Wireshark Version (tshark -v):
-* Termshark Version (termshark -v):
+* termshark -v (or termshark -vv if running from git/HEAD)
+* termshark -v | cat
 
 Please also provide any relevant information about your environment (OS, VM, pi,...)
 
