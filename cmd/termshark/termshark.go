@@ -287,6 +287,7 @@ var (
 
 	termsharkTemplates = template.Must(template.New("Help").Parse(`
 {{define "NameVer"}}termshark {{.Version}}{{end}}
+{{define "TsharkVer"}}using tshark {{.TsharkVersion}} (from {{.TsharkAbsolutePath}}){{end}}
 
 {{define "OneLine"}}A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.{{end}}
 
@@ -363,7 +364,7 @@ right    - Narrow selection{{end}}
 		DarkMode      func(bool)     `long:"dark-mode" optional:"true" optional-value:"true" description:"Use dark-mode."`
 		AutoScroll    func(bool)     `long:"auto-scroll" optional:"true" optional-value:"true" description:"Automatically scroll during live capture."`
 		Help          bool           `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
-		Version       bool           `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
+		Version       []bool         `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
 		Args struct {
 			FilterOrFile string `value-name:"<filter-or-file>" description:"Filter (capture for iface, display for pcap), or pcap file to read."`
@@ -421,6 +422,16 @@ func writeHelp(p *flags.Parser, w io.Writer) {
 
 func writeVersion(p *flags.Parser, w io.Writer) {
 	if err := termsharkTemplates.ExecuteTemplate(w, "NameVer", tmplData); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintln(w)
+}
+
+func writeTsharkVersion(p *flags.Parser, bin string, ver semver.Version, w io.Writer) {
+	tmplData["TsharkVersion"] = ver.String()
+	tmplData["TsharkAbsolutePath"] = bin
+	if err := termsharkTemplates.ExecuteTemplate(w, "TsharkVer", tmplData); err != nil {
 		log.Fatal(err)
 	}
 
@@ -2314,8 +2325,6 @@ func cmain() int {
 		fmt.Println("Config file not found...")
 	}
 
-	tsharkBin := termshark.TSharkBin()
-
 	// Add help flag. This is no use for the user and we don't want to display
 	// help for this dummy set of flags designed to check for pass-thru to tshark - but
 	// if help is on, then we'll detect it, parse the flags as termshark, then
@@ -2344,21 +2353,22 @@ func cmain() int {
 			(tsopts.PassThru == "auto" && !isatty.IsTerminal(os.Stdout.Fd())) ||
 			tsopts.PrintIfaces) {
 
-		bin, err := exec.LookPath(tsharkBin)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error looking up tshark binary: %v\n", err)
+		tsharkBin, kverr := termshark.TSharkPath()
+		if kverr != nil {
+			fmt.Fprintf(os.Stderr, kverr.KeyVals["msg"].(string))
 			return 1
 		}
+
 		args := []string{}
 		for _, arg := range os.Args[1:] {
 			if !termshark.StringInSlice(arg, termsharkOnly) && !termshark.StringIsArgPrefixOf(arg, termsharkOnly) {
 				args = append(args, arg)
 			}
 		}
-		args = append([]string{bin}, args...)
+		args = append([]string{tsharkBin}, args...)
 
 		if runtime.GOOS != "windows" {
-			err = syscall.Exec(bin, args, os.Environ())
+			err = syscall.Exec(tsharkBin, args, os.Environ())
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error execing tshark binary: %v\n", err)
 				return 1
@@ -2401,9 +2411,23 @@ func cmain() int {
 		return 0
 	}
 
-	if opts.Version {
+	if len(opts.Version) > 0 {
+		res := 0
 		writeVersion(tmFlags, os.Stdout)
-		return 0
+		if len(opts.Version) > 1 {
+			if tsharkBin, kverr := termshark.TSharkPath(); kverr != nil {
+				fmt.Fprintf(os.Stderr, kverr.KeyVals["msg"].(string))
+				res = 1
+			} else {
+				if ver, err := termshark.TSharkVersion(tsharkBin); err != nil {
+					fmt.Fprintf(os.Stderr, "Could not determine version of tshark from binary %s\n", tsharkBin)
+					res = 1
+				} else {
+					writeTsharkVersion(tmFlags, tsharkBin, ver, os.Stdout)
+				}
+			}
+		}
+		return res
 	}
 
 	var psrc pcap.IPacketSource
@@ -2545,37 +2569,14 @@ func cmain() int {
 		log.SetOutput(logfd)
 	}
 
-	foundTshark := false
-	if termshark.ConfString("main.tshark", "") == "" {
-		if _, err = os.Stat(tsharkBin); err == nil {
-			foundTshark = true
-		} else if termshark.IsCommandInPath(tsharkBin) {
-			foundTshark = true
-		}
-		if !foundTshark {
-			fmt.Fprintf(os.Stderr, "Could not run tshark binary '%s'. The tshark binary is required to run termshark.\n", tsharkBin)
-			fmt.Fprintf(os.Stderr, "Check your config file %s\n", termshark.ConfFile("termshark.toml"))
-			return 1
-		}
-	} else {
-		if !termshark.IsCommandInPath(tsharkBin) {
-			fmt.Fprintf(os.Stderr, "Could not find tshark in your PATH. The tshark binary is required to run termshark.\n")
-			if termshark.IsCommandInPath("apt") {
-				fmt.Fprintf(os.Stderr, "Try installing with: apt install tshark")
-			} else if termshark.IsCommandInPath("apt-get") {
-				fmt.Fprintf(os.Stderr, "Try installing with: apt-get install tshark")
-			} else if termshark.IsCommandInPath("yum") {
-				fmt.Fprintf(os.Stderr, "Try installing with: yum install wireshark")
-			} else if termshark.IsCommandInPath("brew") {
-				fmt.Fprintf(os.Stderr, "Try installing with: brew install wireshark")
-			} else {
-				fmt.Fprintln(os.Stderr, "")
-			}
-			fmt.Fprintln(os.Stderr, "")
-			return 1
-		}
-		tsharkBin = termshark.DirOfPathCommandUnsafe(tsharkBin)
+	tsharkBin, kverr := termshark.TSharkPath()
+	if kverr != nil {
+		fmt.Fprintf(os.Stderr, kverr.KeyVals["msg"].(string))
+		return 1
 	}
+
+	// Here, tsharkBin is a fully-qualified tshark binary that exists on the fs (absent race
+	// conditions...)
 
 	valids := termshark.ConfStrings("main.validated-tsharks")
 

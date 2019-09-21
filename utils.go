@@ -197,6 +197,51 @@ func TSharkVersion(tshark string) (semver.Version, error) {
 	return TSharkVersionFromOutput(string(output))
 }
 
+// TSharkPath will return the full path of the tshark binary, if it's found in the path, otherwise an error
+func TSharkPath() (string, *gowid.KeyValueError) {
+	tsharkBin := ConfString("main.tshark", "")
+	if tsharkBin != "" {
+		confirmedTshark := false
+		if _, err := os.Stat(tsharkBin); err == nil {
+			confirmedTshark = true
+		} else if IsCommandInPath(tsharkBin) {
+			confirmedTshark = true
+		}
+		// This message is for a configured tshark binary that is invalid
+		if !confirmedTshark {
+			err := gowid.WithKVs(ConfigErr, map[string]interface{}{
+				"msg": fmt.Sprintf("Could not run tshark binary '%s'. The tshark binary is required to run termshark.\n", tsharkBin) +
+					fmt.Sprintf("Check your config file %s\n", ConfFile("toml")),
+			})
+			return "", &err
+		}
+	} else {
+		tsharkBin = "tshark"
+		if !IsCommandInPath(tsharkBin) {
+			// This message is for an unconfigured tshark bin (via PATH) that is invalid
+			errstr := fmt.Sprintf("Could not find tshark in your PATH. The tshark binary is required to run termshark.\n")
+			if IsCommandInPath("apt") {
+				errstr += fmt.Sprintf("Try installing with: apt install tshark")
+			} else if IsCommandInPath("apt-get") {
+				errstr += fmt.Sprintf("Try installing with: apt-get install tshark")
+			} else if IsCommandInPath("yum") {
+				errstr += fmt.Sprintf("Try installing with: yum install wireshark")
+			} else if IsCommandInPath("brew") {
+				errstr += fmt.Sprintf("Try installing with: brew install wireshark")
+			} else {
+				errstr += "\n"
+			}
+			err := gowid.WithKVs(ConfigErr, map[string]interface{}{
+				"msg": errstr,
+			})
+			return "", &err
+		}
+	}
+	// Here we know it's in PATH
+	tsharkBin = DirOfPathCommandUnsafe(tsharkBin)
+	return tsharkBin, nil
+}
+
 func RunForExitCode(prog string, args ...string) (int, error) {
 	var err error
 	exitCode := -1 // default bad
