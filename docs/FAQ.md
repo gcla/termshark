@@ -104,6 +104,10 @@ termshark -G fields
 ```
 then parsing the output into a nested collection of Go maps, and serializing it to ```$XDG_CONFIG_CACHE/tsharkfields.gob.gz```.
 
+## What is the oldest supported version of tshark?
+
+As much as possible, I want termshark to work "right out of the box", and to me that meant not requiring the user to have to update tshark. On Linux I have successfully tested termshark with tshark versions back to git tag v1.11.0; but v1.10.0 failed to display the hex view. I didn't debug further. So v1.11.0 is the oldest supported version of tshark. Wireshark v1.11.0 was released in October 2013.
+
 ## What's next?
 
 There are many obvious ways to extend termshark, just based on the long list of tshark capabilities. I'd like to be able to:
