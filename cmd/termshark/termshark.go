@@ -1397,7 +1397,6 @@ func copyModeKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool 
 }
 
 func streamKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
-	log.Infof("GCLA: WOWOW: got a keypress %v", evk)
 	handled := true
 	if evk.Rune() == 'q' || evk.Rune() == 'Q' || evk.Key() == tcell.KeyEscape {
 		appViewNoKeys.SetSubWidget(mainView, app)
