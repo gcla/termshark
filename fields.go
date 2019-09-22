@@ -6,6 +6,7 @@ package termshark
 
 import (
 	"bufio"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -36,6 +37,10 @@ type IPrefixCompleter interface {
 
 func NewFields() *TSharkFields {
 	return &TSharkFields{}
+}
+
+func DeleteCachedFields() error {
+	return os.Remove(CacheFile("tsharkfields.gob.gz"))
 }
 
 // Can be run asynchronously.
