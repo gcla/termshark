@@ -2598,8 +2598,7 @@ func cmain() int {
 	// If the last tshark we used isn't the same as the current one, then remove the cached fields
 	// data structure so it can be regenerated.
 	if tsharkBin != termshark.ConfString("main.last-used-tshark", "") {
-		log.Infof("GCLA: DELETE: removing cached gob")
-		log.Infof("GCLA: DELETE: err was %v", termshark.DeleteCachedFields())
+		termshark.DeleteCachedFields()
 	}
 
 	// Write out the last-used tshark path. We do this to make the above fields cache be consistent
