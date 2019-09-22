@@ -1408,7 +1408,6 @@ func streamKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 // Keys for the main view - packet list, structure, etc
 func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
-	log.Infof("GCLA: WOWOW: mainkeypress called")
 	handled := true
 	if evk.Key() == tcell.KeyCtrlC && loader.State()&pcap.LoadingPsml != 0 {
 		scheduler.RequestStopLoad(noHandlers{}) // iface and psml
@@ -1515,7 +1514,6 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 // Keys for the whole app, applicable whichever view is frontmost
 func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
-	log.Infof("GCLA: WOWOW: appkeypress called")
 	handled := true
 	if evk.Key() == tcell.KeyCtrlC {
 		reallyQuit(app)
