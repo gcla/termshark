@@ -45,4 +45,4 @@ deploy:
   on:
     repo: gcla/termshark
     all_branches: true
-    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.12.x"
+    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.13.x"
