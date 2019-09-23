@@ -289,6 +289,24 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "thebyrdman-git",
+      "name": "thebyrdman-git",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/55452713?v=4",
+      "profile": "https://github.com/thebyrdman-git",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "cmosig",
+      "name": "Clemens Mosig",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/32590522?v=4",
+      "profile": "http://www.mi.fu-berlin.de/en/inf/groups/ilab/members/mosig.html",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7
