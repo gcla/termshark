@@ -15,6 +15,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
@@ -268,7 +269,23 @@ func New(opt Options) *Widget {
 
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				_, y := app.GetScreen().Size()
-				makeCompletions(res.fields, ed.Text(), y, app, func(completions []string, app gowid.IApp) {
+
+				txt := ed.Text()
+				end := ed.CursorPos()
+				start := end
+			Loop:
+				for {
+					if start == 0 {
+						break
+					}
+					start--
+					if !isValidFilterRune(rune(txt[start])) {
+						start++
+						break Loop
+					}
+				}
+
+				makeCompletions(res.fields, txt[start:end], y, app, func(completions []string, app gowid.IApp) {
 					app.Run(gowid.RunFunction(func(app gowid.IApp) {
 						res.processCompletions(completions, app)
 					}))
@@ -359,6 +376,20 @@ func filterOutEnter(evk *tcell.EventKey, app gowid.IApp) bool {
 	return handled
 }
 
+func isValidFilterRune(r rune) bool {
+	res := true
+	switch {
+	case unicode.IsLetter(r):
+	case unicode.IsNumber(r):
+	case r == '-':
+	case r == '_':
+	case r == '.':
+	default:
+		res = false
+	}
+	return res
+}
+
 func newMenuWidgets(ed *edit.Widget, completions []string) []gowid.IWidget {
 	menu2Widgets := make([]gowid.IWidget, 0)
 
@@ -383,15 +414,26 @@ func newMenuWidgets(ed *edit.Widget, completions []string) []gowid.IWidget {
 			txt := ed.Text()
 			end := ed.CursorPos()
 			start := end
+		Loop1:
 			for {
 				if start == 0 {
 					break
 				}
-				if start < len(txt) && txt[start] == ' ' {
+				start--
+				if !isValidFilterRune(rune(txt[start])) {
 					start++
+					break Loop1
+				}
+			}
+		Loop2:
+			for {
+				if end == len(txt) {
 					break
 				}
-				start--
+				if !isValidFilterRune(rune(txt[end])) {
+					break Loop2
+				}
+				end++
 			}
 			ed.SetText(fmt.Sprintf("%s%s%s", txt[0:start], scopy, txt[end:len(txt)]), app)
 			ed.SetCursorPos(len(txt[0:start])+len(scopy), app)
