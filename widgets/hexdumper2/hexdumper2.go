@@ -14,7 +14,7 @@ import (
 	"io"
 
 	"github.com/gcla/gowid"
-	"github.com/gcla/gowid/widgets/palettemap"
+	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/termshark/format"
 	"github.com/gdamore/tcell"
@@ -60,8 +60,8 @@ type Widget struct {
 var _ gowid.IWidget = (*Widget)(nil)
 var _ gowid.IIdentityWidget = (*Widget)(nil)
 
-//var _ gowid.IClipboard = (*Widget)(nil)
-//var _ gowid.IClipboardSelected = (*Widget)(nil)
+var _ gowid.IClipboard = (*Widget)(nil)
+var _ gowid.IClipboardSelected = (*Widget)(nil)
 
 func New(data []byte, opts ...Options) *Widget {
 
@@ -94,7 +94,7 @@ func (w *Widget) RemoveOnPositionChanged(f gowid.IIdentity) {
 }
 
 func (w *Widget) String() string {
-	return "hexdump"
+	return "hexdump2"
 }
 
 func (w *Widget) CursorUnselected() string {
@@ -126,15 +126,6 @@ func (w *Widget) SetData(data []byte, app gowid.IApp) {
 	w.data = data
 }
 
-func (w *Widget) InHex() bool {
-	// gcla later todo
-	return true
-}
-
-func (w *Widget) SetInHex(val bool, app gowid.IApp) {
-	// gcla later todo
-}
-
 func (w *Widget) Position() int {
 	return w.position
 }
@@ -147,87 +138,16 @@ func (w *Widget) SetPosition(pos int, app gowid.IApp) {
 	}
 }
 
-type viewSwitchFn func(ev *tcell.EventKey) bool
-
-type viewSwitch struct {
-	w  *Widget
-	fn viewSwitchFn
-}
-
-// Compatible with appkeys.Widget
-func (v viewSwitch) SwitchView(ev *tcell.EventKey, app gowid.IApp) bool {
-	if v.fn(ev) {
-		v.w.SetInHex(!v.w.InHex(), app)
-		return true
-	}
-	return false
-}
-
-func (w *Widget) OnKey(fn viewSwitchFn) viewSwitch {
-	return viewSwitch{
-		w:  w,
-		fn: fn,
-	}
-}
-
 func (w *Widget) RenderSize(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.IRenderBox {
 	// 1<-4><3><----------(8 * 3)-1---<2<-------(8 * 3)-1-----><3><---8-->1<---8-->
-	return gowid.MakeRenderBox(1+4+3+((8*3)-1)+2+((8*3)-1)+3+8+1+8, (len(w.data)+15)/16)
-}
-
-type privateId struct {
-	*Widget
-}
-
-func (d privateId) ID() interface{} {
-	return d
-}
-
-func (d privateId) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
-	// Skip the embedded Widget to avoid a loop
-	return gowid.Render(d.Widget, size, focus, app)
-}
-
-func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
-	if app.InCopyMode() && app.CopyModeClaimedBy().ID() == w.ID() && focus.Focus {
-
-		var wa gowid.IWidget
-		diff := app.CopyModeClaimedAt() - app.CopyLevel()
-		if diff == 0 {
-			wa = w.AlterWidget(privateId{w}, app) // whole hexdump
-		} else {
-			layerConv := make(map[string]string)
-			for i := diff - 1; i < len(w.Layers()); i++ {
-				layerConv[w.layers[i].ColSelected] = "copy-mode" // only right layers
-			}
-			wa = palettemap.New(privateId{w}, layerConv, layerConv)
-		}
-		return gowid.Render(wa, size, focus, app)
+	var rows int
+	cols := 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3 + 8 + 1 + 8
+	if box, ok := size.(gowid.IRows); ok {
+		rows = box.Rows()
 	} else {
-		return w.realRender(size, focus, app)
+		rows = (len(w.data) + 15) / 16
 	}
-}
-
-type convertedStyle struct {
-	f gowid.TCellColor
-	b gowid.TCellColor
-	s gowid.StyleAttrs
-}
-
-type convertedLayer struct {
-	u convertedStyle
-	s convertedStyle
-}
-
-func convertStyle(style gowid.ICellStyler, app gowid.IApp) convertedStyle {
-	f, b, s := style.GetStyle(app)
-	f1 := gowid.IColorToTCell(f, gowid.ColorNone, app.GetColorMode())
-	b1 := gowid.IColorToTCell(b, gowid.ColorNone, app.GetColorMode())
-	return convertedStyle{
-		f: f1,
-		b: b1,
-		s: s,
-	}
+	return gowid.MakeRenderBox(cols, rows)
 }
 
 // 1<-4><3><----------(8 * 3)-1---<2<-------(8 * 3)-1-----><3><---8-->1<---8-->
@@ -238,16 +158,32 @@ func convertStyle(style gowid.ICellStyler, app gowid.IApp) convertedStyle {
 //  06a0   09 09 09 09 22 64 65 73  63 72 69 70 74 6f 72 22   ...."des criptor"
 //  06b0   3a 20 6e 65 77 73 74 64  69 6e 2c 0a 09 09 09 09   : newstd in,.....
 //
-func (w *Widget) realRender(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
-	rows := (len(w.data) + 15) / 16 // 1 -> 1, 16 -> 1, 17 -> 2
-	if rows == 0 {
+func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
+	var canvasRows int
+	if box, ok := size.(gowid.IRows); ok {
+		canvasRows = box.Rows()
+	} else {
+		canvasRows = (len(w.data) + 15) / 16
+	}
+
+	if canvasRows == 0 {
 		return gowid.NewCanvas()
 	}
+
+	// -1 means not copy mode. 0 means the whole hexdump. 2 means the smallest layer, 1 the next biggest
+	diff := -1
+	if app.InCopyMode() && app.CopyModeClaimedBy().ID() == w.ID() && focus.Focus {
+		diff = app.CopyModeClaimedAt() - app.CopyLevel()
+	}
+
 	cols := 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3 + 8 + 1 + 8
-	c := gowid.NewCanvasOfSize(cols, rows)
+	c := gowid.NewCanvasOfSize(cols, canvasRows)
+
+	rows := gwutil.Min(canvasRows, (len(w.data)+15)/16)
 
 	var lineNumStyle convertedStyle
 	var cursorStyle convertedStyle
+	var copyModeStyle convertedStyle
 
 	if focus.Focus {
 		lineNumStyle = convertStyle(gowid.MakePaletteRef(w.LineNumSelected()), app)
@@ -256,12 +192,13 @@ func (w *Widget) realRender(size gowid.IRenderSize, focus gowid.Selector, app go
 		lineNumStyle = convertStyle(gowid.MakePaletteRef(w.LineNumUnselected()), app)
 		cursorStyle = convertStyle(gowid.MakePaletteRef(w.CursorUnselected()), app)
 	}
+	copyModeStyle = convertStyle(gowid.MakePaletteRef(w.Entry), app)
 
-	chslice := CanvasSlice{
+	twoByteWriter := CanvasSlice{
 		C: c,
 	}
 
-	ahslice := CanvasSlice{
+	asciiWriter := CanvasSlice{
 		C: c,
 	}
 
@@ -285,8 +222,8 @@ func (w *Widget) realRender(size gowid.IRenderSize, focus gowid.Selector, app go
 	var i int
 Loop:
 	for row := 0; row < rows; row++ {
-		chslice.XOffset = 1 + 4 + 3
-		ahslice.XOffset = 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3
+		twoByteWriter.XOffset = 1 + 4 + 3
+		asciiWriter.XOffset = 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3
 
 		for col := 0; col < 16; col++ {
 			i = (row * 16) + col
@@ -298,43 +235,62 @@ Loop:
 			active = nil
 			spactive = nil
 
+			if w.Position() == i {
+				if diff != -1 {
+					active = &copyModeStyle
+				} else {
+					active = &cursorStyle
+				}
+			} else {
+				for j := 0; j < len(layers); j++ {
+					layer = &layers[j]
+					if i >= layer.Start && i < layer.End {
+						if j+1 == diff {
+							active = &copyModeStyle
+							break
+						} else {
+							if focus.Focus {
+								active = &layerStyles[j].s
+							} else {
+								active = &layerStyles[j].u
+							}
+						}
+					}
+				}
+			}
+
 			for j := 0; j < len(layers); j++ {
 				layer = &layers[j]
-				if i >= layer.Start && i < layer.End {
-					if focus.Focus {
-						active = &layerStyles[j].s
-					} else {
-						active = &layerStyles[j].u
-					}
-				}
 				if i >= layer.Start && i < layer.End-1 {
-					if focus.Focus {
-						spactive = &layerStyles[j].s
+					if j+1 == diff {
+						spactive = &copyModeStyle
+						break
 					} else {
-						spactive = &layerStyles[j].u
+						if focus.Focus {
+							spactive = &layerStyles[j].s
+						} else {
+							spactive = &layerStyles[j].u
+						}
 					}
 				}
 			}
 
-			fmt.Fprintf(chslice, "%02x", w.data[i])
+			fmt.Fprintf(twoByteWriter, "%02x", w.data[i])
 
-			if w.Position() == i {
-				styleAt(c, chslice.XOffset, chslice.YOffset, cursorStyle)
-				styleAt(c, chslice.XOffset+1, chslice.YOffset, cursorStyle)
-			} else if active != nil {
-				styleAt(c, chslice.XOffset, chslice.YOffset, *active)
-				styleAt(c, chslice.XOffset+1, chslice.YOffset, *active)
+			if active != nil {
+				styleAt(c, twoByteWriter.XOffset, twoByteWriter.YOffset, *active)
+				styleAt(c, twoByteWriter.XOffset+1, twoByteWriter.YOffset, *active)
 			}
 			if spactive != nil {
-				styleAt(c, chslice.XOffset+2, chslice.YOffset, *spactive)
+				styleAt(c, twoByteWriter.XOffset+2, twoByteWriter.YOffset, *spactive)
 				if col == 7 {
-					styleAt(c, chslice.XOffset+3, chslice.YOffset, *spactive)
+					styleAt(c, twoByteWriter.XOffset+3, twoByteWriter.YOffset, *spactive)
 				}
 			}
 
-			chslice.XOffset += 3
+			twoByteWriter.XOffset += 3
 			if col == 7 {
-				chslice.XOffset += 1
+				twoByteWriter.XOffset += 1
 			}
 
 			ch := '.'
@@ -343,50 +299,54 @@ Loop:
 				ch = rune(byte(r))
 			}
 
-			fmt.Fprintf(ahslice, "%c", ch)
+			fmt.Fprintf(asciiWriter, "%c", ch)
 
-			if w.Position() == i {
-				styleAt(c, ahslice.XOffset, ahslice.YOffset, cursorStyle)
-			} else if active != nil {
-				styleAt(c, ahslice.XOffset, ahslice.YOffset, *active)
+			if active != nil {
+				styleAt(c, asciiWriter.XOffset, asciiWriter.YOffset, *active)
 			}
 			if spactive != nil && col == 7 {
-				styleAt(c, ahslice.XOffset+1, ahslice.YOffset, *spactive)
+				styleAt(c, asciiWriter.XOffset+1, asciiWriter.YOffset, *spactive)
 			}
 
-			ahslice.XOffset += 1
+			asciiWriter.XOffset += 1
 			if col == 7 {
-				ahslice.XOffset += 1
+				asciiWriter.XOffset += 1
 			}
 
 		}
 
-		chslice.YOffset += 1
-		ahslice.YOffset += 1
+		twoByteWriter.YOffset += 1
+		asciiWriter.YOffset += 1
 	}
 
-	hhslice := CanvasSlice{
+	lineNumWriter := CanvasSlice{
 		C:       c,
 		XOffset: 1,
 	}
 
-	for k := 0; k < len(w.data); k += 16 {
-		fmt.Fprintf(hhslice, "%04x", k)
+	for k := 0; k < rows; k++ {
+		fmt.Fprintf(lineNumWriter, "%04x", k*16)
 
-		hhslice.YOffset += 1
+		lineNumWriter.YOffset += 1
 
 		active := false
 		for _, layer := range layers {
-			if k+16 >= layer.Start && k < layer.End {
+			if (k+1)*16 >= layer.Start && k*16 < layer.End {
 				active = true
 				break
 			}
 		}
 		if active {
 			for x := 0; x < 6; x++ {
-				styleAt(c, x, k/16, lineNumStyle)
+				styleAt(c, x, k, lineNumStyle)
 			}
 		}
+	}
+
+	if diff == 0 {
+		gowid.RangeOverCanvas(c, gowid.CellRangeFunc(func(cell gowid.Cell) gowid.Cell {
+			return cell.WithBackgroundColor(copyModeStyle.b).WithForegroundColor(copyModeStyle.f).WithStyle(copyModeStyle.s)
+		}))
 	}
 
 	return c
@@ -418,6 +378,10 @@ func clipsForBytes(data []byte, start int, end int) []gowid.ICopyResult {
 	}
 }
 
+func (w *Widget) CopyModeLevels() int {
+	return len(w.layers)
+}
+
 func (w *Widget) Clips(app gowid.IApp) []gowid.ICopyResult {
 
 	diff := app.CopyModeClaimedAt() - app.CopyLevel()
@@ -428,8 +392,30 @@ func (w *Widget) Clips(app gowid.IApp) []gowid.ICopyResult {
 	}
 }
 
-// Reject tab because I want it to switch views. Not intended to be transferable.
 func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	return gowid.CopyModeUserInput(forCopyModeWidget{forUserInputWidget{Widget: w}}, ev, size, focus, app)
+}
+
+type forCopyModeWidget struct {
+	forUserInputWidget
+}
+
+// CopyModeUserInput calls UserInput() on w.SubWidget() - which is this. Then...
+func (w forCopyModeWidget) SubWidget() gowid.IWidget {
+	return w.forUserInputWidget
+}
+
+type forUserInputWidget struct {
+	*Widget
+}
+
+// ... UserInput is sent to the hexdumper's UserInput logic.
+func (w forUserInputWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	return w.Widget.realUserInput(ev, size, focus, app)
+}
+
+// Reject tab because I want it to switch views. Not intended to be transferable.
+func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
 	res := false
 
 	scrollDown := false
@@ -506,6 +492,32 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 	}
 
 	return res
+}
+
+//======================================================================
+
+// Optimization - convert the styles for use in the canvas once per call
+// to Render()
+type convertedStyle struct {
+	f gowid.TCellColor
+	b gowid.TCellColor
+	s gowid.StyleAttrs
+}
+
+type convertedLayer struct {
+	u convertedStyle
+	s convertedStyle
+}
+
+func convertStyle(style gowid.ICellStyler, app gowid.IApp) convertedStyle {
+	f, b, s := style.GetStyle(app)
+	f1 := gowid.IColorToTCell(f, gowid.ColorNone, app.GetColorMode())
+	b1 := gowid.IColorToTCell(b, gowid.ColorNone, app.GetColorMode())
+	return convertedStyle{
+		f: f1,
+		b: b1,
+		s: s,
+	}
 }
 
 //======================================================================

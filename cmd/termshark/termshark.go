@@ -1606,13 +1606,7 @@ func setLowerWidgets(app gowid.IApp) {
 
 			hex := getHexWidgetToDisplay(row)
 			if hex != nil {
-				// The 't' key will switch from hex <-> ascii
-				sw1 = enableselected.New(appkeys.New(
-					hex,
-					hex.OnKey(func(ev *tcell.EventKey) bool {
-						return ev.Rune() == 't'
-					}).SwitchView,
-				))
+				sw1 = enableselected.New(hex)
 			}
 			str := getStructWidgetToDisplay(row, app)
 			if str != nil {
