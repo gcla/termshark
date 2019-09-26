@@ -15,7 +15,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/tree"
-	"github.com/gcla/termshark/widgets/hexdumper"
+	"github.com/gcla/termshark/widgets/hexdumper2"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -75,15 +75,15 @@ var _ tree.ICollapsible = (*Model)(nil)
 
 // This ignores the first child, "Frame 15", because its range covers the whole packet
 // which results in me always including that in the layers for any position.
-func (n *Model) HexLayers(pos int, includeFirst bool) []hexdumper.LayerStyler {
-	res := make([]hexdumper.LayerStyler, 0)
+func (n *Model) HexLayers(pos int, includeFirst bool) []hexdumper2.LayerStyler {
+	res := make([]hexdumper2.LayerStyler, 0)
 	sidx := 1
 	if includeFirst {
 		sidx = 0
 	}
 	for _, c := range n.Children_[sidx:] {
 		if c.Pos <= pos && pos < c.Pos+c.Size {
-			res = append(res, hexdumper.LayerStyler{
+			res = append(res, hexdumper2.LayerStyler{
 				Start:         c.Pos,
 				End:           c.Pos + c.Size,
 				ColUnselected: "hex-bottom-unselected",
@@ -91,7 +91,7 @@ func (n *Model) HexLayers(pos int, includeFirst bool) []hexdumper.LayerStyler {
 			})
 			for _, c2 := range c.Children_ {
 				if c2.Pos <= pos && pos < c2.Pos+c2.Size {
-					res = append(res, hexdumper.LayerStyler{
+					res = append(res, hexdumper2.LayerStyler{
 						Start:         c2.Pos,
 						End:           c2.Pos + c2.Size,
 						ColUnselected: "hex-top-unselected",

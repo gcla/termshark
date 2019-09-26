@@ -55,7 +55,7 @@ import (
 	"github.com/gcla/termshark/widgets/enableselected"
 	"github.com/gcla/termshark/widgets/expander"
 	"github.com/gcla/termshark/widgets/filter"
-	"github.com/gcla/termshark/widgets/hexdumper"
+	"github.com/gcla/termshark/widgets/hexdumper2"
 	"github.com/gcla/termshark/widgets/ifwidget"
 	"github.com/gcla/termshark/widgets/resizable"
 	"github.com/gcla/termshark/widgets/withscrollbar"
@@ -1803,8 +1803,8 @@ func updateCurrentPdmlPosition(tr tree.IModel) {
 	curPdmlPosition = treeAtCurPos.(*pdmltree.Model).PathToRoot()
 }
 
-func getLayersFromStructWidget(row int, pos int) []hexdumper.LayerStyler {
-	layers := make([]hexdumper.LayerStyler, 0)
+func getLayersFromStructWidget(row int, pos int) []hexdumper2.LayerStyler {
+	layers := make([]hexdumper2.LayerStyler, 0)
 
 	row2 := (row / 1000) * 1000
 	if ws, ok := loader.PacketCache.Get(row2); ok {
@@ -1830,11 +1830,11 @@ func getHexWidgetKey(row int) []byte {
 }
 
 // Can return nil
-func getHexWidgetToDisplay(row int) *hexdumper.Widget {
-	var res2 *hexdumper.Widget
+func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
+	var res2 *hexdumper2.Widget
 
 	if val, ok := packetHexWidgets.Get(row); ok {
-		res2 = val.(*hexdumper.Widget)
+		res2 = val.(*hexdumper2.Widget)
 	} else {
 		row2 := (row / 1000) * 1000
 		if ws, ok := loader.PacketCache.Get(row2); ok {
@@ -1845,7 +1845,7 @@ func getHexWidgetToDisplay(row int) *hexdumper.Widget {
 				copy(b, src)
 
 				layers := getLayersFromStructWidget(row, 0)
-				res2 = hexdumper.New(b, hexdumper.Options{
+				res2 = hexdumper2.New(b, hexdumper2.Options{
 					StyledLayers:      layers,
 					CursorUnselected:  "hex-cur-unselected",
 					CursorSelected:    "hex-cur-selected",
@@ -1944,7 +1944,7 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 					// is [0] then the user has chosen that node by interacting with the struct view (the hex view
 					// can't choose any position that maps to the first pdml child node) - so in this case, we
 					// send back a layer spanning the entire packet. Otherwise we don't want to send back that
-					// packet-spanning layer because it will always be the layer returned, meaning the hexdumper
+					// packet-spanning layer because it will always be the layer returned, meaning the hexdumper2
 					// will always show the entire packet highlighted.
 					if newpos.Equal(tree.NewPosExt([]int{0})) {
 						coverWholePacket = true
