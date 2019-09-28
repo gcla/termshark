@@ -169,14 +169,17 @@ If you are running on OSX, termux (Android) or Windows, termshark assumes you ar
 
 Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_HOME/termshark.toml``` (e.g. ```~/.config/termshark/termshark.toml``` on Linux). All options are saved under the ```[main]``` section. The available options are:
 
+- ```browse-command``` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals ```$1``` will be replaced by the URL prior to the command being run.
 - ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 - ```copy-command-timeout``` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
+- ```dark-mode``` (bool) - if true, termshark will run in dark-mode. 
 - ```dumpcap``` (string) - make termshark use this specific ```dumpcap``` (used when reading from an interface).
 - ```pcap-cache-size``` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of 1000. This setting determines how many such bundles termshark will keep cached. The default is 32.
 - ```pdml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PDML.
 - ```psml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PSML.
 - ```recent-files``` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
 - ```recent-filters``` (string list) - recently used Wireshark display filters.
+- ```stream-view``` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
 - ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is set to the cygwin tail command. But probably better to use Wireshark on Windows :-)
 - ```tshark``` (string) - make termshark use this specific ```tshark```.
 - ```tshark-args``` (string list) - these are added to each invocation of ```tshark``` made by termshark. For example, you could add decoder parameters like ```["-d","udp.port==2075,cflow]"```
