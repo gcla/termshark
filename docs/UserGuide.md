@@ -171,15 +171,15 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 
 - ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 - ```copy-command-timeout``` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
-- ```recent-files``` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
-- ```recent-filters``` (string list) - recently used Wireshark display filters.
-- ```tshark``` (string) - make termshark use this specific ```tshark```.
 - ```dumpcap``` (string) - make termshark use this specific ```dumpcap``` (used when reading from an interface).
-- ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is set to the cygwin tail command. But probably better to use Wireshark on Windows :-)
-- ```tshark-args``` (string list) - these are added to each invocation of ```tshark``` made by termshark. For example, you could add decoder parameters like ```["-d","udp.port==2075,cflow]"```
+- ```pcap-cache-size``` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of 1000. This setting determines how many such bundles termshark will keep cached. The default is 32.
 - ```pdml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PDML.
 - ```psml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PSML.
-- ```validated-tsharks``` - (string list) - termshark saves the path of each ``tshark`` binary it invokes (in case the user upgrades the system ```tshark```). If the selected (e.g. ```PATH```) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
+- ```recent-files``` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
+- ```recent-filters``` (string list) - recently used Wireshark display filters.
+- ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is set to the cygwin tail command. But probably better to use Wireshark on Windows :-)
+- ```tshark``` (string) - make termshark use this specific ```tshark```.
+- ```tshark-args``` (string list) - these are added to each invocation of ```tshark``` made by termshark. For example, you could add decoder parameters like ```["-d","udp.port==2075,cflow]"```
 - ```ui-cache-size``` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
-- ```pcap-cache-size``` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of 1000. This setting determines how many such bundles termshark will keep cached. The default is 32.
+- ```validated-tsharks``` - (string list) - termshark saves the path of each ``tshark`` binary it invokes (in case the user upgrades the system ```tshark```). If the selected (e.g. ```PATH```) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
 
