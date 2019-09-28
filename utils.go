@@ -351,11 +351,11 @@ func ReadGob(filePath string, object interface{}) error {
 	file, err := os.Open(filePath)
 	if err == nil {
 		defer file.Close()
-		var gr io.Reader
-		gr, err = gzip.NewReader(file)
+		gr, err := gzip.NewReader(file)
 		if err != nil {
 			return err
 		}
+		defer gr.Close()
 		decoder := gob.NewDecoder(gr)
 		err = decoder.Decode(object)
 	}
