@@ -3029,13 +3029,18 @@ func cmain() int {
 
 	defer filterWidget.Close()
 
-	applyw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		scheduler.RequestNewFilter(filterWidget.Value(), saveRecents{
 			updatePacketViews: makePacketViewUpdater(app),
 			pcap:              "",
 			filter:            filterWidget.Value(),
 		})
-	}))
+	})
+
+	// Will only be enabled to click if filter is valid
+	applyw.OnClick(validFilterCb)
+	// Will only fire OnSubmit if filter is valid
+	filterWidget.OnSubmit(validFilterCb)
 
 	filterWidget.OnValid(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		applyWidget.Enable()
