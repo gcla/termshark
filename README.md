@@ -2,7 +2,7 @@
 [twitter-follow-img]: https://img.shields.io/twitter/follow/termshark.svg?style=social&label=Follow
 
 # Termshark
-A terminal user-interface for tshark, inspired by Wireshark. [![Follow on Twitter][twitter-follow-img]][twitter-follow-url]
+A terminal user-interface for tshark, inspired by Wireshark.&emsp;&emsp;&emsp;&emsp; [![Follow on Twitter][twitter-follow-img]][twitter-follow-url]
 
 ![demo1](https://drive.google.com/uc?export=view&id=1vDecxjqwJrtMGJjOObL-LLvi-1pBVByt)
 
