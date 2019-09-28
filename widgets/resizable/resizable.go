@@ -36,9 +36,8 @@ var _ IOffsets = (*ColumnsWidget)(nil)
 
 func NewColumns(widgets []gowid.IContainerWidget) *ColumnsWidget {
 	res := &ColumnsWidget{
-		Widget:    columns.New(widgets),
-		Offsets:   make([]Offset, 0, 2),
-		Callbacks: gowid.NewCallbacks(),
+		Widget:  columns.New(widgets),
+		Offsets: make([]Offset, 0, 2),
 	}
 	return res
 }
@@ -52,10 +51,16 @@ func (w *ColumnsWidget) SetOffsets(offs []Offset, app gowid.IApp) {
 }
 
 func (w *ColumnsWidget) OnOffsetsSet(cb gowid.IWidgetChangedCallback) {
+	if w.Callbacks == nil {
+		w.Callbacks = gowid.NewCallbacks()
+	}
 	gowid.AddWidgetCallback(w.Callbacks, OffsetsCB{}, cb)
 }
 
 func (w *ColumnsWidget) RemoveOnOffsetsSet(cb gowid.IIdentity) {
+	if w.Callbacks == nil {
+		w.Callbacks = gowid.NewCallbacks()
+	}
 	gowid.RemoveWidgetCallback(w.Callbacks, OffsetsCB{}, cb)
 }
 
