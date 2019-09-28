@@ -17,12 +17,6 @@ github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/gcla/deep v1.0.2 h1:qBOx6eepcOSRYnHJ+f2ih4hP4Vca1YnLtXxp73n5KWI=
 github.com/gcla/deep v1.0.2/go.mod h1:evE9pbpSGhItmFoBIk8hPOIC/keKTGYhFl6Le1Av+GE=
-github.com/gcla/gowid v1.0.1-0.20190815223346-0bc6d6fd899f h1:MwyB8V+xY0T7Z/Isa+t/ElJAq/oHqdIHBXF22d3kzRQ=
-github.com/gcla/gowid v1.0.1-0.20190815223346-0bc6d6fd899f/go.mod h1:lqtccUr6ABlT/vbYJOQYixx0IgzRLmvHR5Ey6yMEpeE=
-github.com/gcla/gowid v1.0.1-0.20190921162531-490093c61ed0 h1:8MZTM6rgbNoSodnfwp0uJ2fol+son7ULAkBTH11l06Y=
-github.com/gcla/gowid v1.0.1-0.20190921162531-490093c61ed0/go.mod h1:lqtccUr6ABlT/vbYJOQYixx0IgzRLmvHR5Ey6yMEpeE=
-github.com/gcla/gowid v1.0.1-0.20190921213645-dcbc125df777 h1:/MQ81p2mM1+rQdvdq+7MIPo7ZjarncM2Cn/7mkQyVvw=
-github.com/gcla/gowid v1.0.1-0.20190921213645-dcbc125df777/go.mod h1:lqtccUr6ABlT/vbYJOQYixx0IgzRLmvHR5Ey6yMEpeE=
 github.com/gcla/gowid v1.0.1-0.20190927001919-ebbdc0e21575 h1:jHxSnwe39FSvWU2f55k1QPiK9aS+b2SjDPDp1mh2nmo=
 github.com/gcla/gowid v1.0.1-0.20190927001919-ebbdc0e21575/go.mod h1:lqtccUr6ABlT/vbYJOQYixx0IgzRLmvHR5Ey6yMEpeE=
 github.com/gdamore/encoding v1.0.0 h1:+7OoQ1Bc6eTm5niUzBa0Ctsh6JbMW6Ra+YNuAtDBdko=
@@ -54,6 +48,8 @@ github.com/magiconair/properties v1.8.0 h1:LLgXmsheXeRoUOBOjtwPQCWIYqM/LU1ayDtDe
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mattn/go-isatty v0.0.7 h1:UvyT9uN+3r7yLEYSlJsbQGdsaB/a0DlgWP3pql6iwOc=
 github.com/mattn/go-isatty v0.0.7/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
+github.com/mattn/go-isatty v0.0.9 h1:d5US/mDsogSGW37IV293h//ZFaeajb69h+EHFsv2xGg=
+github.com/mattn/go-isatty v0.0.9/go.mod h1:YNRxwqDuOph6SZLI9vUUz6OYw3QyUt7WiY2yME+cCiQ=
 github.com/mattn/go-runewidth v0.0.4 h1:2BvfKmzob6Bmd4YsL0zygOqfdFnK7GR4QL06Do4/p7Y=
 github.com/mattn/go-runewidth v0.0.4/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/mitchellh/mapstructure v1.1.2 h1:fmNYVwqnSfB9mZU6OS2O6GsXM+wcskZDuKQzvN1EDeE=
@@ -111,6 +107,9 @@ golang.org/x/sys v0.0.0-20190520201301-c432e742b0af/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20190626150813-e07cf5db2756/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20190804053845-51ab0e2deafa h1:KIDDMLT1O0Nr7TSxp8xM5tJcdn8tgyAONntO829og1M=
 golang.org/x/sys v0.0.0-20190804053845-51ab0e2deafa/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20190927073244-c990c680b611 h1:q9u40nxWT5zRClI/uU9dHCiYGottAg6Nzz4YUQyHxdA=
+golang.org/x/sys v0.0.0-20190927073244-c990c680b611/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2 h1:tW2bmiBqwgJj/UpqtC8EpXEZVYOwU0yG4iWbprSVAcs=
