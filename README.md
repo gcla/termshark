@@ -1,5 +1,8 @@
+[twitter-follow-url]: https://twitter.com/intent/follow?screen_name=termshark
+[twitter-follow-img]: https://img.shields.io/twitter/follow/termshark.svg?style=social&label=Follow
+
 # Termshark
-A terminal user-interface for tshark, inspired by Wireshark.
+A terminal user-interface for tshark, inspired by Wireshark. [![Follow on Twitter][twitter-follow-img]][twitter-follow-url]
 
 ![demo1](https://drive.google.com/uc?export=view&id=1vDecxjqwJrtMGJjOObL-LLvi-1pBVByt)
 
@@ -48,7 +51,7 @@ Run ```termshark -h``` for options.
 
 ## Downloads
 
-Pre-compiled executables are available via [Github releases](https://github.com/gcla/termshark/releases)
+Pre-compiled executables are available via [Github releases](https://github.com/gcla/termshark/releases). Or download the [![latest builds](https://travis-ci.com/gcla/termshark.svg?branch=master)](https://travis-ci.com/gcla/termshark) from the master branch.
 
 ## User Guide
 
