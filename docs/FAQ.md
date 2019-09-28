@@ -102,7 +102,7 @@ Finally, termshark uses tshark in one more way - to generate the possible comple
 ```bash
 termshark -G fields
 ```
-then parsing the output into a nested collection of Go maps, and serializing it to ```$XDG_CONFIG_CACHE/tsharkfields.gob.gz```.
+then parsing the output into a nested collection of Go maps, and serializing it to ```$XDG_CONFIG_CACHE/tsharkfieldsv2.gob.gz```.
 
 ## What is the oldest supported version of tshark?
 
