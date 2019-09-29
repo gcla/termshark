@@ -164,6 +164,15 @@ to instead set the primary selection. If forwarding X11 is not an option, you co
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
 
+## Problems
+
+If termshark is running slowly or otherwise misbehaving, you might be able to narrow the issue down by using the ```--debug``` flag. When you start termshark with ```--debug```, three things happen:
+
+1. A web server runs with content available at http://<yourip>:6060/debug/pprof. This is a Golang feature and provides a view of some low-level internals of the process such as running goroutines.
+2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
+3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
+
+Profiles are stored under `$XDG_CONFIG_CACHE` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
 
 ## Config File
 
