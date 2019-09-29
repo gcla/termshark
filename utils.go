@@ -572,6 +572,15 @@ func LocalIPs() []string {
 
 //======================================================================
 
+func IsUnixSig(sig os.Signal, usig syscall.Signal) bool {
+	if ssig, ok := sig.(syscall.Signal); ok && ssig == usig {
+		return true
+	}
+	return false
+}
+
+//======================================================================
+
 // From http://blog.kamilkisiel.net/blog/2012/07/05/using-the-go-regexp-package/
 //
 type tsregexp struct {

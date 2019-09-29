@@ -18,11 +18,12 @@ func RegisterForSignals(ch chan<- os.Signal) {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGTSTP, syscall.SIGCONT, syscall.SIGUSR1, syscall.SIGUSR2)
 }
 
-func IsUnixSig(sig os.Signal, usig syscall.Signal) bool {
-	if ssig, ok := sig.(syscall.Signal); ok && ssig == usig {
-		return true
-	}
-	return false
+func IsSigUSR1(sig os.Signal) bool {
+	return IsUnixSig(sig, syscall.SIGUSR1)
+}
+
+func IsSigUSR2(sig os.Signal) bool {
+	return IsUnixSig(sig, syscall.SIGUSR2)
 }
 
 func IsSigTSTP(sig os.Signal) bool {

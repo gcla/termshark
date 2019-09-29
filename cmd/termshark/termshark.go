@@ -3773,14 +3773,14 @@ Loop:
 					uiRunning = true
 					uiSuspended = false
 				}
-			} else if termshark.IsUnixSig(sig, syscall.SIGUSR1) {
+			} else if termshark.IsSigUSR1(sig) {
 				if opts.Debug {
 					termshark.ProfileCPUFor(20)
 				} else {
 					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
 				}
 
-			} else if termshark.IsUnixSig(sig, syscall.SIGUSR2) {
+			} else if termshark.IsSigUSR2(sig) {
 				if opts.Debug {
 					termshark.ProfileHeap()
 				} else {

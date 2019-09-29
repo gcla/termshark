@@ -17,6 +17,14 @@ func RegisterForSignals(ch chan<- os.Signal) {
 	signal.Notify(ch, os.Interrupt)
 }
 
+func IsSigUSR1(sig os.Signal) bool {
+	return false
+}
+
+func IsSigUSR2(sig os.Signal) bool {
+	return false
+}
+
 func IsSigTSTP(sig os.Signal) bool {
 	return false
 }
