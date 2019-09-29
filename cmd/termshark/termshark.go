@@ -3784,7 +3784,7 @@ Loop:
 				if opts.Debug {
 					termshark.ProfileHeap()
 				} else {
-					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
+					log.Infof("SIGUSR2 ignored by termshark - see the --debug flag")
 				}
 
 			} else {
