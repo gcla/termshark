@@ -166,9 +166,9 @@ If you are running on OSX, termux (Android) or Windows, termshark assumes you ar
 
 ## Problems
 
-If termshark is running slowly or otherwise misbehaving, you might be able to narrow the issue down by using the ```--debug``` flag. When you start termshark with ```--debug```, three things happen:
+If termshark is running slowly or otherwise misbehaving, you might be able to narrow the issue down by using the `--debug` flag. When you start termshark with `--debug`, three things happen:
 
-1. A web server runs with content available at http://<yourip>:6060/debug/pprof. This is a Golang feature and provides a view of some low-level internals of the process such as running goroutines.
+1. A web server runs with content available at http://127.0.0.1:6060/debug/pprof (or the remote IP). This is a Golang feature and provides a view of some low-level internals of the process such as running goroutines.
 2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
 3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
 
