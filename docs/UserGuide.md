@@ -142,6 +142,32 @@ When you exit termshark, it will print a message with the location of the pcap f
 $ termshark -i eth0
 Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/eth0-657695279.pcap
 ```
+## Reading from a fifo or stdin
+
+Termshark supports reading packets from a Unix fifo or from standard input - for example
+
+```bash
+tshark -i eth0 icmp | termshark -i -
+```
+
+On some machines, packet capture commands might require sudo or root access. To facilitate this, termshark's UI will not launch until it detects that it has received some packet data on its input. This makes it easier for the user to type in his or her root password on the tty before termshark takes over:
+
+```bash
+$ sudo tshark -i eth0 icmp | termshark -i -
+(The termshark UI will start when packets are detected...)
+[sudo] password for gcla: 
+```
+
+If the termshark UI is active in the terminal but you want to see something displayed there before termshark started, you can now issue a SIGTSTP signal (on Unix) and termshark will suspend itself and give up control of the terminal. In bash, this operation is usually bound to ctrl-z.
+
+```bash
+$ termshark -r foo.pcap
+
+[1]+  Stopped                 termshark -r foo.pcap
+$
+```
+
+Type `fg` to resume termshark.
 
 ## Copy Mode
 
