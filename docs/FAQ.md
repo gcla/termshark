@@ -104,6 +104,36 @@ termshark -G fields
 ```
 then parsing the output into a nested collection of Go maps, and serializing it to ```$XDG_CONFIG_CACHE/tsharkfieldsv2.gob.gz```.
 
+## termshark is laggy or using a lot of RAM
+
+Try running termshark with the ```--debug``` flag e.g.
+
+```bash
+termshark --debug -r foo.pcap
+```
+
+You can then generate a CPU profile with
+
+```bash
+pkill -SIGUSR1 termshark
+```
+
+or a heap/memory profile with 
+
+```bash
+pkill -SIGUSR2 termshark
+```
+
+The profiles are stored under `$XDG_CONFIG_CACHE` (e.g. ~/.cache/termshark/). You can investigate with `go tool pprof` like this:
+
+```bash
+go tool pprof -http=:6061 $(which termshark) ~/.cache/termshark/mem-20190929122218.prof
+```
+
+and then navigate to http://<myip>:6061/ui/ - or open a termshark issue and upload the profile for us to check :-)
+
+There will also be a debug web server running at http://<myip>:6060/debug/pprof from where you can see running goroutines and other information.
+
 ## What is the oldest supported version of tshark?
 
 As much as possible, I want termshark to work "right out of the box", and to me that meant not requiring the user to have to update tshark. On Linux I have successfully tested termshark with tshark versions back to git tag v1.11.0; but v1.10.0 failed to display the hex view. I didn't debug further. So v1.11.0 is the oldest supported version of tshark. Wireshark v1.11.0 was released in October 2013.
