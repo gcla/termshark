@@ -16,6 +16,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.3.0
+	github.com/tevino/abool v0.0.0-20170917061928-9b9efcf221b5
 	golang.org/x/sys v0.0.0-20190927073244-c990c680b611 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7

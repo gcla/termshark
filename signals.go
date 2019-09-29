@@ -18,18 +18,19 @@ func RegisterForSignals(ch chan<- os.Signal) {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGTSTP, syscall.SIGCONT)
 }
 
-func IsSigTSTP(sig os.Signal) bool {
-	if ssig, ok := sig.(syscall.Signal); ok && ssig == syscall.SIGTSTP {
+func IsUnixSig(sig os.Signal, usig syscall.Signal) bool {
+	if ssig, ok := sig.(syscall.Signal); ok && ssig == usig {
 		return true
 	}
 	return false
 }
 
+func IsSigTSTP(sig os.Signal) bool {
+	return IsUnixSig(sig, syscall.SIGTSTP)
+}
+
 func IsSigCont(sig os.Signal) bool {
-	if ssig, ok := sig.(syscall.Signal); ok && ssig == syscall.SIGCONT {
-		return true
-	}
-	return false
+	return IsUnixSig(sig, syscall.SIGCONT)
 }
 
 func StopMyself() error {

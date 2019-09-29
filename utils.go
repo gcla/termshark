@@ -30,12 +30,14 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/termshark/widgets/resizable"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/tevino/abool"
 )
 
 //======================================================================
@@ -514,6 +516,43 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 	}
 	// Hack to make viper save if I only deleted from the map
 	SetConf("main.lastupdate", time.Now().String())
+}
+
+//======================================================================
+
+var cpuProfileRunning *abool.AtomicBool
+
+func init() {
+	cpuProfileRunning = abool.New()
+}
+
+// Down to the second for profiling, etc
+func dateStringForFilename() string {
+	return time.Now().Format("20060102150405")
+}
+
+func ProfileCPUFor(secs int) bool {
+	if !cpuProfileRunning.SetToIf(false, true) {
+		log.Infof("CPU profile already running.")
+		return false
+	}
+	file := filepath.Join(CacheDir(), fmt.Sprintf("cpu-%s.prof", dateStringForFilename()))
+	log.Infof("Starting CPU profile for %d seconds in %s", secs, file)
+	gwutil.StartProfilingCPU(file)
+	go func() {
+		time.Sleep(time.Duration(secs) * time.Second)
+		log.Infof("Stopping CPU profile")
+		gwutil.StopProfilingCPU()
+		cpuProfileRunning.UnSet()
+	}()
+
+	return true
+}
+
+func ProfileHeap() {
+	file := filepath.Join(CacheDir(), fmt.Sprintf("mem-%s.prof", dateStringForFilename()))
+	log.Infof("Creating memory profile in %s", file)
+	gwutil.ProfileHeap(file)
 }
 
 //======================================================================
