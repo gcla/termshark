@@ -204,8 +204,16 @@ Profiles are stored under `$XDG_CONFIG_CACHE` (e.g. `~/.cache/termshark/`). If y
 
 Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_HOME/termshark.toml``` (e.g. ```~/.config/termshark/termshark.toml``` on Linux). All options are saved under the ```[main]``` section. The available options are:
 
-- ```browse-command``` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals ```$1``` will be replaced by the URL prior to the command being run.
+- ```browse-command``` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals ```$1``` will be replaced by the URL prior to the command being run e.g.
+```toml
+[main]
+  browse-command = ["firefox", "$1"]
+```  
 - ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
+```toml
+[main]
+  copy-command = ["xsel", "-i", "-b"]
+```  
 - ```copy-command-timeout``` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
 - ```dark-mode``` (bool) - if true, termshark will run in dark-mode. 
 - ```dumpcap``` (string) - make termshark use this specific ```dumpcap``` (used when reading from an interface).
