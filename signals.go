@@ -15,7 +15,7 @@ import (
 //======================================================================
 
 func RegisterForSignals(ch chan<- os.Signal) {
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGTSTP, syscall.SIGCONT)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGTSTP, syscall.SIGCONT, syscall.SIGUSR1, syscall.SIGUSR2)
 }
 
 func IsUnixSig(sig os.Signal, usig syscall.Signal) bool {

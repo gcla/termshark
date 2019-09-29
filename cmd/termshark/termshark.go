@@ -68,6 +68,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/fsnotify.v1"
+
+	"net/http"
+	_ "net/http"
+	_ "net/http/pprof"
 )
 
 // TODO - just for debugging
@@ -363,6 +367,7 @@ right    - Narrow selection{{end}}
 		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal.."`
 		DarkMode      func(bool)     `long:"dark-mode" optional:"true" optional-value:"true" description:"Use dark-mode."`
 		AutoScroll    func(bool)     `long:"auto-scroll" optional:"true" optional-value:"true" description:"Automatically scroll during live capture."`
+		Debug         bool           `long:"debug" optional:"true" optional-value:"true" description:"Enable termshark debugging. See https://termshark.io/userguide."`
 		Help          bool           `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
 		Version       []bool         `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
@@ -2560,6 +2565,15 @@ func cmain() int {
 		log.SetOutput(logfd)
 	}
 
+	if opts.Debug {
+		for _, addr := range termshark.LocalIPs() {
+			log.Infof("Starting debug web server at http://%s:6060/debug/pprof/", addr)
+		}
+		go func() {
+			log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+		}()
+	}
+
 	tsharkBin, kverr := termshark.TSharkPath()
 	if kverr != nil {
 		fmt.Fprintf(os.Stderr, kverr.KeyVals["msg"].(string))
@@ -3759,6 +3773,20 @@ Loop:
 					uiRunning = true
 					uiSuspended = false
 				}
+			} else if termshark.IsUnixSig(sig, syscall.SIGUSR1) {
+				if opts.Debug {
+					termshark.ProfileCPUFor(20)
+				} else {
+					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
+				}
+
+			} else if termshark.IsUnixSig(sig, syscall.SIGUSR2) {
+				if opts.Debug {
+					termshark.ProfileHeap()
+				} else {
+					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
+				}
+
 			} else {
 				log.Infof("Starting termination via signal %v", sig)
 				quitRequestedChan <- struct{}{}
