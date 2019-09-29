@@ -130,9 +130,9 @@ The profiles are stored under `$XDG_CONFIG_CACHE` (e.g. ~/.cache/termshark/). Yo
 go tool pprof -http=:6061 $(which termshark) ~/.cache/termshark/mem-20190929122218.prof
 ```
 
-and then navigate to http://<myip>:6061/ui/ - or open a termshark issue and upload the profile for us to check :-)
+and then navigate to http://127.0.0.1:6061/ui/ (or remote IP) - or open a termshark issue and upload the profile for us to check :-)
 
-There will also be a debug web server running at http://<myip>:6060/debug/pprof from where you can see running goroutines and other information.
+There will also be a debug web server running at http://127.0.0.1:6060/debug/pprof (or rmote IP) from where you can see running goroutines and other information.
 
 ## What is the oldest supported version of tshark?
 
