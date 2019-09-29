@@ -225,7 +225,11 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 - ```stream-view``` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
 - ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is set to the cygwin tail command. But probably better to use Wireshark on Windows :-)
 - ```tshark``` (string) - make termshark use this specific ```tshark```.
-- ```tshark-args``` (string list) - these are added to each invocation of ```tshark``` made by termshark. For example, you could add decoder parameters like ```["-d","udp.port==2075,cflow]"```
+- ```tshark-args``` (string list) - these are added to each invocation of ```tshark``` made by termshark e.g.
+```toml
+[main]
+  tshark-args = ["-d","udp.port==2075,cflow]"
+```  
 - ```ui-cache-size``` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
 - ```validated-tsharks``` - (string list) - termshark saves the path of each ``tshark`` binary it invokes (in case the user upgrades the system ```tshark```). If the selected (e.g. ```PATH```) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
 
