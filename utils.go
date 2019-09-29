@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -553,6 +554,20 @@ func ProfileHeap() {
 	file := filepath.Join(CacheDir(), fmt.Sprintf("mem-%s.prof", dateStringForFilename()))
 	log.Infof("Creating memory profile in %s", file)
 	gwutil.ProfileHeap(file)
+}
+
+func LocalIPs() []string {
+	res := make([]string, 0)
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return res
+	}
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			res = append(res, ipnet.IP.String())
+		}
+	}
+	return res
 }
 
 //======================================================================
