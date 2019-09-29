@@ -378,7 +378,7 @@ right    - Narrow selection{{end}}
 
 	// If args are passed through to tshark (e.g. stdout not a tty), then
 	// strip these out so tshark doesn't fail.
-	termsharkOnly = []string{"--pass-thru", "--log-tty"}
+	termsharkOnly = []string{"--pass-thru", "--log-tty", "--debug", "--dark-mode", "--auto-scroll"}
 )
 
 func flagIsTrue(val string) bool {
