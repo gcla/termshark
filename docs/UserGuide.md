@@ -173,7 +173,7 @@ Type `fg` to resume termshark. Another option is to launch termshark in its own 
 tty && sleep infinity
 ```
 
-If the output is e.g. `/dev/pts/10`, then you can launch termshark like this:
+If the output is e.g. `/dev/pts/10`, then you can launch termshark in the other tmux pane like this:
 
 ```bash
 termshark -r foo.pcap --tty=/dev/pts/10
