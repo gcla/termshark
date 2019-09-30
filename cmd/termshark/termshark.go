@@ -2418,6 +2418,14 @@ func cmain() int {
 	}
 	os.Setenv("GOWID_TTY", usetty)
 
+	// Allow the user to override the shell's TERM variable this way. Perhaps the user runs
+	// under screen/tmux, and the TERM variable doesn't reflect the fact their preferred
+	// terminal emumlator supports 256 colors.
+	termVar := termshark.ConfString("main.term", "")
+	if termVar != "" {
+		os.Setenv("TERM", termVar)
+	}
+
 	var psrc pcap.IPacketSource
 
 	pcapf := string(opts.Pcap)
