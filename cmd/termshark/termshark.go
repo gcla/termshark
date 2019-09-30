@@ -365,6 +365,7 @@ right    - Narrow selection{{end}}
 		CaptureFilter string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
 		PassThru      string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
 		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal."`
+		Tty           string         `long:"tty" description:"Display the UI on this terminal." value-name:"<tty>"`
 		DarkMode      func(bool)     `long:"dark-mode" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Use dark-mode."`
 		AutoScroll    func(bool)     `long:"auto-scroll" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Automatically scroll during live capture."`
 		Debug         string         `long:"debug" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
@@ -2424,6 +2425,25 @@ func cmain() int {
 			}
 		}
 		return res
+	}
+
+	if opts.Tty != "" {
+		if ttyf, err := os.Open(opts.Tty); err != nil {
+			fmt.Fprintf(os.Stderr, "Could not open terminal %s: %v.\n", opts.Tty, err)
+			return 1
+		} else {
+			if !isatty.IsTerminal(ttyf.Fd()) {
+				fmt.Fprintf(os.Stderr, "%s is not a terminal.\n", opts.Tty)
+				ttyf.Close()
+				return 1
+			}
+			ttyf.Close()
+			os.Setenv("GOWID_TTY", opts.Tty)
+		}
+	} else {
+		// Always override - in case the user has GOWID_TTY in a shell script (if they're
+		// using the gcla fork of tcell for another application).
+		os.Setenv("GOWID_TTY", "/dev/tty")
 	}
 
 	var psrc pcap.IPacketSource
