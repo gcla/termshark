@@ -45,6 +45,7 @@ import (
 	"github.com/gcla/gowid/widgets/tree"
 	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark"
+	"github.com/gcla/termshark/cli"
 	"github.com/gcla/termshark/modeswap"
 	"github.com/gcla/termshark/pcap"
 	"github.com/gcla/termshark/pdmltree"
@@ -350,41 +351,11 @@ right    - Narrow selection{{end}}
 `))
 
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
-	tsopts struct {
-		PassThru    string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
-		PrintIfaces bool   `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
-	}
+	tsopts cli.Tshark
 
 	// Termshark's own command line arguments. Used if we don't pass through to tshark.
-	opts struct {
-		Iface         string         `value-name:"<interface>" short:"i" description:"Interface to read."`
-		Pcap          flags.Filename `value-name:"<file>" short:"r" description:"Pcap file to read."`
-		DecodeAs      []string       `short:"d" description:"Specify dissection of layer type." value-name:"<layer type>==<selector>,<decode-as protocol>"`
-		PrintIfaces   bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
-		DisplayFilter string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
-		CaptureFilter string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
-		PassThru      string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
-		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal."`
-		Tty           string         `long:"tty" description:"Display the UI on this terminal." value-name:"<tty>"`
-		DarkMode      func(bool)     `long:"dark-mode" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Use dark-mode."`
-		AutoScroll    func(bool)     `long:"auto-scroll" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Automatically scroll during live capture."`
-		Debug         string         `long:"debug" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
-		Help          bool           `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
-		Version       []bool         `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
-
-		Args struct {
-			FilterOrFile string `value-name:"<filter-or-file>" description:"Filter (capture for iface, display for pcap), or pcap file to read."`
-		} `positional-args:"yes"`
-	}
-
-	// If args are passed through to tshark (e.g. stdout not a tty), then
-	// strip these out so tshark doesn't fail.
-	termsharkOnly = []string{"--pass-thru", "--log-tty", "--debug", "--dark-mode", "--auto-scroll"}
+	opts cli.Termshark
 )
-
-func flagIsTrue(val string) bool {
-	return val == "true" || val == "yes"
-}
 
 //======================================================================
 
@@ -2346,7 +2317,7 @@ func cmain() int {
 	// binary in the case that termshark is run where stdout is not a tty, in which case I exec tshark - but
 	// it makes sense to use the one in termshark.toml
 	if passthru &&
-		(flagIsTrue(tsopts.PassThru) ||
+		(cli.FlagIsTrue(tsopts.PassThru) ||
 			(tsopts.PassThru == "auto" && !isatty.IsTerminal(os.Stdout.Fd())) ||
 			tsopts.PrintIfaces) {
 
@@ -2358,7 +2329,7 @@ func cmain() int {
 
 		args := []string{}
 		for _, arg := range os.Args[1:] {
-			if !termshark.StringInSlice(arg, termsharkOnly) && !termshark.StringIsArgPrefixOf(arg, termsharkOnly) {
+			if !termshark.StringInSlice(arg, cli.TermsharkOnly) && !termshark.StringIsArgPrefixOf(arg, cli.TermsharkOnly) {
 				args = append(args, arg)
 			}
 		}
@@ -2427,24 +2398,25 @@ func cmain() int {
 		return res
 	}
 
-	if opts.Tty != "" {
-		if ttyf, err := os.Open(opts.Tty); err != nil {
-			fmt.Fprintf(os.Stderr, "Could not open terminal %s: %v.\n", opts.Tty, err)
+	usetty := cli.TtySwitchValue(&opts)
+	if usetty != "" {
+		if ttyf, err := os.Open(usetty); err != nil {
+			fmt.Fprintf(os.Stderr, "Could not open terminal %s: %v.\n", usetty, err)
 			return 1
 		} else {
 			if !isatty.IsTerminal(ttyf.Fd()) {
-				fmt.Fprintf(os.Stderr, "%s is not a terminal.\n", opts.Tty)
+				fmt.Fprintf(os.Stderr, "%s is not a terminal.\n", usetty)
 				ttyf.Close()
 				return 1
 			}
 			ttyf.Close()
-			os.Setenv("GOWID_TTY", opts.Tty)
 		}
 	} else {
 		// Always override - in case the user has GOWID_TTY in a shell script (if they're
 		// using the gcla fork of tcell for another application).
-		os.Setenv("GOWID_TTY", "/dev/tty")
+		usetty = "/dev/tty"
 	}
+	os.Setenv("GOWID_TTY", usetty)
 
 	var psrc pcap.IPacketSource
 
@@ -2571,7 +2543,7 @@ func cmain() int {
 	// Here we now have an accurate view of psrc - either file, fifo, pipe or interface
 
 	// Helpful to use logging when enumerating interfaces below, so do it first
-	if !flagIsTrue(opts.LogTty) {
+	if !opts.LogTty {
 		logfile := termshark.CacheFile("termshark.log")
 		logfd, err := os.OpenFile(logfile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
@@ -2585,7 +2557,7 @@ func cmain() int {
 		log.SetOutput(logfd)
 	}
 
-	if flagIsTrue(opts.Debug) {
+	if cli.FlagIsTrue(opts.Debug) {
 		for _, addr := range termshark.LocalIPs() {
 			log.Infof("Starting debug web server at http://%s:6060/debug/pprof/", addr)
 		}
@@ -3794,14 +3766,14 @@ Loop:
 					uiSuspended = false
 				}
 			} else if termshark.IsSigUSR1(sig) {
-				if flagIsTrue(opts.Debug) {
+				if cli.FlagIsTrue(opts.Debug) {
 					termshark.ProfileCPUFor(20)
 				} else {
 					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
 				}
 
 			} else if termshark.IsSigUSR2(sig) {
-				if flagIsTrue(opts.Debug) {
+				if cli.FlagIsTrue(opts.Debug) {
 					termshark.ProfileHeap()
 				} else {
 					log.Infof("SIGUSR2 ignored by termshark - see the --debug flag")
