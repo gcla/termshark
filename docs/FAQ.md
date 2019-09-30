@@ -44,7 +44,7 @@ If you start to page up quickly, you will likely approach a range of packets tha
 
 ## Termshark's colors are limited...
 
-Termshark respects the ```TERM``` environment variable and chooses a color scheme based on what it thinks the terminal is capable of, via the excellent [tcell](https://github.com/gdamore/tcell) package. You might be running on a terminal that can display more colors than ```TERM``` reports - so you can try adjusting your ```TERM``` variable e.g. if ```TERM``` is ```xterm```, try
+By default, termshark respects the ```TERM``` environment variable and chooses a color scheme based on what it thinks the terminal is capable of, via the excellent [tcell](https://github.com/gdamore/tcell) package. You might be running on a terminal that can display more colors than ```TERM``` reports - so you can try adjusting your ```TERM``` variable e.g. if ```TERM``` is ```xterm```, try
 
 ```bash
 export TERM=xterm-256color
@@ -58,6 +58,13 @@ export TERM=xterm-truecolor
 then re-run termshark.
 
 tcell makes use of the environment variable ```COLORTERM``` when determining how to emit color codes. If ```COLORTERM``` is set to ```truecolor```, then tcell will emit truecolor color codes when the application changes the foreground or background color. If you connect to a remote machine with ssh to run termshark, the ```COLORTERM``` variable will not be forwarded. If that leaves you with ```TERM=xterm``` for example, then termshark, via tcell, will fall back to 8-color support. Here again you can change ```TERM``` or add a setting for ```COLORTERM``` to your remote ```.bashrc``` file.
+
+If you run termshark under tmux or screen and always have ```TERM``` set in a way that doesn't make full use of your terminal emulator, you can configure termshark to always override it. Add the following to your `termshark.toml` file:
+
+```toml
+[main]
+  term = "screen-256color"
+```
 
 ## How does termshark use tshark?
 
