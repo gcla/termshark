@@ -364,10 +364,10 @@ right    - Narrow selection{{end}}
 		DisplayFilter string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
 		CaptureFilter string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
 		PassThru      string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
-		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal.."`
-		DarkMode      func(bool)     `long:"dark-mode" optional:"true" optional-value:"true" description:"Use dark-mode."`
-		AutoScroll    func(bool)     `long:"auto-scroll" optional:"true" optional-value:"true" description:"Automatically scroll during live capture."`
-		Debug         bool           `long:"debug" optional:"true" optional-value:"true" description:"Enable termshark debugging. See https://termshark.io/userguide."`
+		LogTty        string         `long:"log-tty" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Log to the terminal."`
+		DarkMode      func(bool)     `long:"dark-mode" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Use dark-mode."`
+		AutoScroll    func(bool)     `long:"auto-scroll" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Automatically scroll during live capture."`
+		Debug         string         `long:"debug" default:"false" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
 		Help          bool           `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
 		Version       []bool         `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
@@ -2565,7 +2565,7 @@ func cmain() int {
 		log.SetOutput(logfd)
 	}
 
-	if opts.Debug {
+	if flagIsTrue(opts.Debug) {
 		for _, addr := range termshark.LocalIPs() {
 			log.Infof("Starting debug web server at http://%s:6060/debug/pprof/", addr)
 		}
@@ -3774,14 +3774,14 @@ Loop:
 					uiSuspended = false
 				}
 			} else if termshark.IsSigUSR1(sig) {
-				if opts.Debug {
+				if flagIsTrue(opts.Debug) {
 					termshark.ProfileCPUFor(20)
 				} else {
 					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
 				}
 
 			} else if termshark.IsSigUSR2(sig) {
-				if opts.Debug {
+				if flagIsTrue(opts.Debug) {
 					termshark.ProfileHeap()
 				} else {
 					log.Infof("SIGUSR2 ignored by termshark - see the --debug flag")
