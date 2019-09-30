@@ -147,13 +147,13 @@ Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/
 Termshark supports reading packets from a Unix fifo or from standard input - for example
 
 ```bash
-tshark -i eth0 icmp | termshark -i -
+tcpdump -i eth0 -w - icmp | termshark -i -
 ```
 
 On some machines, packet capture commands might require sudo or root access. To facilitate this, termshark's UI will not launch until it detects that it has received some packet data on its input. This makes it easier for the user to type in his or her root password on the tty before termshark takes over:
 
 ```bash
-$ sudo tshark -i eth0 icmp | termshark -i -
+$ sudo tcpdump -i eth0 -w - icmp | termshark -i -
 (The termshark UI will start when packets are detected...)
 [sudo] password for gcla: 
 ```
@@ -167,7 +167,19 @@ $ termshark -r foo.pcap
 $
 ```
 
-Type `fg` to resume termshark.
+Type `fg` to resume termshark. Another option is to launch termshark in its own tty. You could do this using a split screen in tmux. In one pane, type
+
+```bash
+tty && sleep infinity
+```
+
+If the output is e.g. `/dev/pts/10`, then you can launch termshark like this:
+
+```bash
+termshark -r foo.pcap --tty=/dev/pts/10
+```
+
+Issue a sleep in the pane for `/dev/pts/10` so that no other process reads from the terminal while it is dedicated to termshark.
 
 ## Copy Mode
 
