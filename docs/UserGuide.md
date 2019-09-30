@@ -236,6 +236,11 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 - ```recent-filters``` (string list) - recently used Wireshark display filters.
 - ```stream-view``` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
 - ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is set to the cygwin tail command. But probably better to use Wireshark on Windows :-)
+- ```term``` (string) - termshark will use this as a replacement for the TERM environment variable.
+```toml
+[main]
+  term = "screen-256color"
+```  
 - ```tshark``` (string) - make termshark use this specific ```tshark```.
 - ```tshark-args``` (string list) - these are added to each invocation of ```tshark``` made by termshark e.g.
 ```toml
