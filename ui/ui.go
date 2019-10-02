@@ -188,9 +188,10 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 		if fxy, err := packetListView.FocusXY(); err == nil {
 			foo, ok := packetListView.Model().RowIdentifier(fxy.Row)
 			if ok {
+				pktsPerLoad := c.PacketsPerLoad()
 				currentRow = int(foo)
-				currentRowMod = int64(currentRow % 1000)
-				currentRowDiv = (currentRow / 1000) * 1000
+				currentRowMod = int64(currentRow % pktsPerLoad)
+				currentRowDiv = (currentRow / pktsPerLoad) * pktsPerLoad
 				c.Lock()
 				curRowProg.cur, curRowProg.max = int64(currentRow), int64(len(c.PacketPsmlData))
 				c.Unlock()
@@ -198,7 +199,7 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 		}
 	}
 
-	// Progress determined by how many of the (up to) 1000 pdml packets are read
+	// Progress determined by how many of the (up to) pktsPerLoad pdml packets are read
 	// If it's not the same chunk of rows, assume it won't affect our view, so no progress needed
 	if c.State()&pcap.LoadingPdml != 0 {
 		if c.RowCurrentlyLoading == currentRowDiv {
@@ -222,7 +223,7 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 				}
 			}
 
-			// Progress determined by how many of the (up to) 1000 pcap packets are read
+			// Progress determined by how many of the (up to) pktsPerLoad pcap packets are read
 			if x, err = c.LengthOfPcapCacheEntry(c.RowCurrentlyLoading); err == nil {
 				pcapPacketProg.cur = int64(x)
 				pcapPacketProg.max = int64(c.KillAfterReadingThisMany)
@@ -1400,20 +1401,22 @@ func setPacketListWidgets(packetPsmlHeaders []string, packetPsmlData [][]string,
 
 		if gotrow && row >= 0 {
 
-			rowm := row % 1000
+			pktsPerLoad := Loader.PacketsPerLoad()
+
+			rowm := row % pktsPerLoad
 
 			CacheRequests = CacheRequests[:0]
 
 			CacheRequests = append(CacheRequests, pcap.LoadPcapSlice{
-				Row:    (row / 1000) * 1000,
+				Row:    (row / pktsPerLoad) * pktsPerLoad,
 				Cancel: true,
 			})
-			if rowm > 500 {
+			if rowm > pktsPerLoad/2 {
 				CacheRequests = append(CacheRequests, pcap.LoadPcapSlice{
-					Row: ((row / 1000) + 1) * 1000,
+					Row: ((row / pktsPerLoad) + 1) * pktsPerLoad,
 				})
 			} else {
-				row2 := ((row / 1000) - 1) * 1000
+				row2 := ((row / pktsPerLoad) - 1) * pktsPerLoad
 				if row2 < 0 {
 					row2 = 0
 				}
@@ -1487,11 +1490,13 @@ func updateCurrentPdmlPosition(tr tree.IModel) {
 func getLayersFromStructWidget(row int, pos int) []hexdumper2.LayerStyler {
 	layers := make([]hexdumper2.LayerStyler, 0)
 
-	row2 := (row / 1000) * 1000
+	pktsPerLoad := Loader.PacketsPerLoad()
+	row2 := (row / pktsPerLoad) * pktsPerLoad
 	if ws, ok := Loader.PacketCache.Get(row2); ok {
 		srcb2 := ws.(pcap.CacheEntry).Pdml
-		if row%1000 < len(srcb2) {
-			data, err := xml.Marshal(srcb2[row%1000])
+		pktsPerLoad := Loader.PacketsPerLoad()
+		if row%pktsPerLoad < len(srcb2) {
+			data, err := xml.Marshal(srcb2[row%pktsPerLoad])
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -1517,11 +1522,12 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 	if val, ok := packetHexWidgets.Get(row); ok {
 		res2 = val.(*hexdumper2.Widget)
 	} else {
-		row2 := (row / 1000) * 1000
+		pktsPerLoad := Loader.PacketsPerLoad()
+		row2 := (row / pktsPerLoad) * pktsPerLoad
 		if ws, ok := Loader.PacketCache.Get(row2); ok {
 			srca := ws.(pcap.CacheEntry).Pcap
-			if len(srca) > row%1000 {
-				src := srca[row%1000]
+			if len(srca) > row%pktsPerLoad {
+				src := srca[row%pktsPerLoad]
 				b := make([]byte, len(src))
 				copy(b, src)
 
@@ -1585,11 +1591,12 @@ func getStructWidgetKey(row int) []byte {
 func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 	var res gowid.IWidget
 
-	row2 := (row / 1000) * 1000
+	pktsPerLoad := Loader.PacketsPerLoad()
+	row2 := (row / pktsPerLoad) * pktsPerLoad
 	if ws, ok := Loader.PacketCache.Get(row2); ok {
 		srca := ws.(pcap.CacheEntry).Pdml
-		if len(srca) > row%1000 {
-			data, err := xml.Marshal(srca[row%1000])
+		if len(srca) > row%pktsPerLoad {
+			data, err := xml.Marshal(srca[row%pktsPerLoad])
 			if err != nil {
 				log.Fatal(err)
 			}

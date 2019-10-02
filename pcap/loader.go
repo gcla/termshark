@@ -174,7 +174,7 @@ type Loader struct {
 	sync.Mutex
 	PacketPsmlData    [][]string
 	PacketPsmlHeaders []string
-	PacketCache       *lru.Cache // i -> [pdml(i * 1000)..pdml(i+1*1000)]
+	PacketCache       *lru.Cache // i -> [pdml(i * abcdex)..pdml(i+1*abcdex)]
 
 	onStateChange []runFnInState
 
@@ -194,7 +194,8 @@ type Loader struct {
 }
 
 type Options struct {
-	CacheSize int
+	CacheSize      int
+	PacketsPerLoad int
 }
 
 func NewPcapLoader(cmds ILoaderCmds, opts ...Options) *Loader {
@@ -205,6 +206,11 @@ func NewPcapLoader(cmds ILoaderCmds, opts ...Options) *Loader {
 
 	if opt.CacheSize == 0 {
 		opt.CacheSize = 32
+	}
+	if opt.PacketsPerLoad == 0 {
+		opt.PacketsPerLoad = 1000 // default
+	} else if opt.PacketsPerLoad < 100 {
+		opt.PacketsPerLoad = 100 // minimum
 	}
 
 	res := &Loader{
@@ -235,6 +241,10 @@ func (c *Loader) resetData() {
 		log.Fatal(err)
 	}
 	c.PacketCache = packetCache
+}
+
+func (c Loader) PacketsPerLoad() int {
+	return c.opt.PacketsPerLoad
 }
 
 // Close shuts down the whole loader, including progress monitoring goroutines. Use this only
@@ -825,7 +835,7 @@ func (c *Loader) loadIsNecessary(ev LoadPcapSlice) bool {
 	res := true
 	if ev.Row > c.NumLoaded() {
 		res = false
-	} else if ce, ok := c.CacheAt((ev.Row / 1000) * 1000); ok && ce.Complete() {
+	} else if ce, ok := c.CacheAt((ev.Row / c.opt.PacketsPerLoad) * c.opt.PacketsPerLoad); ok && ce.Complete() {
 		// Might be less because a cache load might've been interrupted - if it's not truncated then
 		// we're set
 		res = false
@@ -974,16 +984,16 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		}()
 
 		// If there's no filter, psml, pdml and pcap run concurrently for speed. Therefore the pdml and pcap
-		// don't know how large the psml will be. So we set numToRead to 1000. This might be too high, but
+		// don't know how large the psml will be. So we set numToRead to abcdex. This might be too high, but
 		// we only use this to determine when we can kill the reading processes early. The result will be
 		// correct if we don't kill the processes, it just might load for longer.
-		c.KillAfterReadingThisMany = 1000
+		c.KillAfterReadingThisMany = c.opt.PacketsPerLoad
 		var err error
 		if c.displayFilter == "" {
 			sidx = row + 1
 			// +1 for frame.number being 1-based; +1 to read past the end so that
-			// the XML decoder doesn't stall and I can kill after 1000
-			eidx = row + 1000 + 1 + 1
+			// the XML decoder doesn't stall and I can kill after abcdex
+			eidx = row + c.opt.PacketsPerLoad + 1 + 1
 		} else {
 			c.Lock()
 			if len(c.PacketPsmlData) > row {
@@ -991,12 +1001,12 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 				if err != nil {
 					log.Fatal(err)
 				}
-				if len(c.PacketPsmlData) > row+1000+1 {
+				if len(c.PacketPsmlData) > row+c.opt.PacketsPerLoad+1 {
 					// If we have enough packets to request one more than the amount to
 					// cache, then requesting one more will mean the XML decoder won't
 					// block at packet 999 waiting for </pdml> - so this is a hack to
 					// let me promptly kill tshark when I've read enough.
-					eidx, err = strconv.Atoi(c.PacketPsmlData[row+1000+1][0])
+					eidx, err = strconv.Atoi(c.PacketPsmlData[row+c.opt.PacketsPerLoad+1][0])
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -1063,7 +1073,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		}()
 
 		d := xml.NewDecoder(pdmlOut)
-		packets := make([]*PdmlPacket, 0, 1000)
+		packets := make([]*PdmlPacket, 0, c.opt.PacketsPerLoad)
 		issuedKill := false
 	Loop:
 		for {
@@ -1090,9 +1100,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 					}
 					packets = append(packets, &packet)
 					c.updateCacheEntryWithPdml(row, packets, false)
-					//if len(pdml2) == 1000 {
+					//if len(pdml2) == abcdex {
 					if len(packets) == c.KillAfterReadingThisMany {
-						// Shortcut - we never take more than 1000 - so just kill here
+						// Shortcut - we never take more than abcdex - so just kill here
 						issuedKill = true
 						err = termshark.KillIfPossible(c.PdmlCmd)
 						if err != nil {
@@ -1170,7 +1180,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			c.PcapCmd.Wait()
 		}()
 
-		packets := make([][]byte, 0, 1000)
+		packets := make([][]byte, 0, c.opt.PacketsPerLoad)
 
 		globalHdr := [24]byte{}
 		pktHdr := [16]byte{}
@@ -1216,7 +1226,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			c.updateCacheEntryWithPcap(row, packets, false)
 
 			if readEnough {
-				// Shortcut - we never take more than 1000 - so just kill here
+				// Shortcut - we never take more than abcdex - so just kill here
 				issuedKill = true
 				err = termshark.KillIfPossible(c.PcapCmd)
 				if err != nil {

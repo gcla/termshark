@@ -573,10 +573,17 @@ func cmain() int {
 	psmlArgs := termshark.ConfStringSlice("main.psml-args", []string{})
 	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
 	cacheSize := termshark.ConfInt("main.pcap-cache-size", 64)
+	bundleSize := termshark.ConfInt("main.pcap-bundle-size", 1000)
+	if bundleSize <= 0 {
+		maxBundleSize := 100000
+		log.Infof("Config specifies pcap-bundle-size as %d - setting to max (%d)", bundleSize, maxBundleSize)
+		bundleSize = maxBundleSize
+	}
 	ui.PcapScheduler = pcap.NewScheduler(
 		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs),
 		pcap.Options{
-			CacheSize: cacheSize,
+			CacheSize:      cacheSize,
+			PacketsPerLoad: bundleSize,
 		},
 	)
 	ui.Loader = ui.PcapScheduler.Loader
