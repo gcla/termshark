@@ -1008,15 +1008,13 @@ Loop:
 
 		case <-emptyStructViewChan:
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				ui.SinglePacketViewMsgHolder.SetSubWidget(ui.Loadingw, app)
-				ui.PacketStructureViewHolder.SetSubWidget(ui.MissingMsgw, app)
+				ui.SetStructViewMissing(app)
 				ui.EmptyStructViewTimer = nil
 			}))
 
 		case <-emptyHexViewChan:
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				ui.SinglePacketViewMsgHolder.SetSubWidget(ui.Loadingw, app)
-				ui.PacketHexViewHolder.SetSubWidget(ui.MissingMsgw, app)
+				ui.SetHexViewMissing(app)
 				ui.EmptyHexViewTimer = nil
 			}))
 

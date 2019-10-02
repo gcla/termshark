@@ -100,8 +100,8 @@ var openMenuSite *menu.SiteWidget
 var openAnalysisSite *menu.SiteWidget
 var packetListViewHolder *holder.Widget
 var packetListTable *table.BoundedWidget
-var PacketStructureViewHolder *holder.Widget
-var PacketHexViewHolder *holder.Widget
+var packetStructureViewHolder *holder.Widget
+var packetHexViewHolder *holder.Widget
 var progressHolder *holder.Widget
 var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
@@ -110,7 +110,7 @@ var SavedListBoxWidgetHolder *holder.Widget
 
 var nullw *null.Widget                       // empty
 var Loadingw gowid.IWidget                   // "loading..."
-var SinglePacketViewMsgHolder *holder.Widget // either empty or "loading..."
+var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
 var MissingMsgw gowid.IWidget                // centered, holding singlePacketViewMsgHolder
 var EmptyStructViewTimer *time.Ticker
 var EmptyHexViewTimer *time.Ticker
@@ -359,8 +359,8 @@ func clearPacketViews(app gowid.IApp) {
 	packetHexWidgets.Purge()
 
 	packetListViewHolder.SetSubWidget(nullw, app)
-	PacketStructureViewHolder.SetSubWidget(nullw, app)
-	PacketHexViewHolder.SetSubWidget(nullw, app)
+	packetStructureViewHolder.SetSubWidget(nullw, app)
+	packetHexViewHolder.SetSubWidget(nullw, app)
 }
 
 //======================================================================
@@ -1111,7 +1111,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		gowid.SetFocusPath(viewOnlyPacketStructure, maxViewPath, app)
 		gowid.SetFocusPath(viewOnlyPacketHex, maxViewPath, app)
 
-		if PacketStructureViewHolder.SubWidget() == MissingMsgw {
+		if packetStructureViewHolder.SubWidget() == MissingMsgw {
 			gowid.SetFocusPath(mainview, mainviewPaths[0], app)
 			gowid.SetFocusPath(altview1, altview1Paths[0], app)
 			gowid.SetFocusPath(altview2, altview2Paths[0], app)
@@ -1302,7 +1302,7 @@ func setLowerWidgets(app gowid.IApp) {
 		}
 	}
 	if sw1 != nil {
-		PacketHexViewHolder.SetSubWidget(sw1, app)
+		packetHexViewHolder.SetSubWidget(sw1, app)
 		EmptyHexViewTimer = nil
 	} else {
 		if EmptyHexViewTimer == nil {
@@ -1310,7 +1310,7 @@ func setLowerWidgets(app gowid.IApp) {
 		}
 	}
 	if sw2 != nil {
-		PacketStructureViewHolder.SetSubWidget(sw2, app)
+		packetStructureViewHolder.SetSubWidget(sw2, app)
 		EmptyStructViewTimer = nil
 	} else {
 		if EmptyStructViewTimer == nil {
@@ -1888,7 +1888,7 @@ func (s SetStructWidgets) AfterEnd(ch chan<- struct{}) {
 	close(ch)
 	s.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		setLowerWidgets(app)
-		SinglePacketViewMsgHolder.SetSubWidget(nullw, app)
+		singlePacketViewMsgHolder.SetSubWidget(nullw, app)
 	}))
 }
 
@@ -1934,6 +1934,16 @@ func (u SetNewPdmlRequests) WhenNotLoadingPdml() {
 	})
 }
 
+func SetStructViewMissing(app gowid.IApp) {
+	singlePacketViewMsgHolder.SetSubWidget(Loadingw, app)
+	packetStructureViewHolder.SetSubWidget(MissingMsgw, app)
+}
+
+func SetHexViewMissing(app gowid.IApp) {
+	singlePacketViewMsgHolder.SetSubWidget(Loadingw, app)
+	packetHexViewHolder.SetSubWidget(MissingMsgw, app)
+}
+
 //======================================================================
 
 func Build() (*gowid.App, error) {
@@ -1958,7 +1968,7 @@ func Build() (*gowid.App, error) {
 	nullw = null.New()
 
 	Loadingw = text.New("Loading, please wait...")
-	SinglePacketViewMsgHolder = holder.New(nullw)
+	singlePacketViewMsgHolder = holder.New(nullw)
 	fillSpace = fill.New(' ')
 	if runtime.GOOS == "windows" {
 		fillVBar = fill.New('|')
@@ -1972,7 +1982,7 @@ func Build() (*gowid.App, error) {
 	}
 
 	MissingMsgw = vpadding.New( // centred
-		hpadding.New(SinglePacketViewMsgHolder, hmiddle, fixed),
+		hpadding.New(singlePacketViewMsgHolder, hmiddle, fixed),
 		vmiddle,
 		flow,
 	)
@@ -2236,8 +2246,8 @@ func Build() (*gowid.App, error) {
 	analysisNext.Focus = 7 // gcla later todo - find by id!
 
 	packetListViewHolder = holder.New(nullw)
-	PacketStructureViewHolder = holder.New(nullw)
-	PacketHexViewHolder = holder.New(nullw)
+	packetStructureViewHolder = holder.New(nullw)
+	packetHexViewHolder = holder.New(nullw)
 
 	progressHolder = holder.New(nullw)
 
@@ -2309,7 +2319,7 @@ func Build() (*gowid.App, error) {
 		appkeys.NewMouse(
 			appkeys.New(
 				appkeys.New(
-					PacketStructureViewHolder,
+					packetStructureViewHolder,
 					appKeysResize2,
 				),
 				swallowMovementKeys,
@@ -2324,7 +2334,7 @@ func Build() (*gowid.App, error) {
 	packetHexViewHolderWithKeys := appkeys.New(
 		appkeys.NewMouse(
 			appkeys.New(
-				PacketHexViewHolder,
+				packetHexViewHolder,
 				swallowMovementKeys,
 			),
 			swallowMouseScroll,
@@ -2394,7 +2404,7 @@ func Build() (*gowid.App, error) {
 			D:       units(3),
 		},
 		&gowid.ContainerWidget{
-			IWidget: PacketStructureViewHolder,
+			IWidget: packetStructureViewHolder,
 			D:       weight(1),
 		},
 	})
@@ -2409,7 +2419,7 @@ func Build() (*gowid.App, error) {
 			D:       units(3),
 		},
 		&gowid.ContainerWidget{
-			IWidget: PacketHexViewHolder,
+			IWidget: packetHexViewHolder,
 			D:       weight(1),
 		},
 	})
@@ -2426,7 +2436,7 @@ func Build() (*gowid.App, error) {
 			D:       flow,
 		},
 		&gowid.ContainerWidget{
-			IWidget: PacketStructureViewHolder,
+			IWidget: packetStructureViewHolder,
 			D:       weight(1),
 		},
 	})
@@ -2447,7 +2457,7 @@ func Build() (*gowid.App, error) {
 			D:       units(1),
 		},
 		&gowid.ContainerWidget{
-			IWidget: PacketHexViewHolder,
+			IWidget: packetHexViewHolder,
 			D:       weight(1),
 		},
 	})
@@ -2477,7 +2487,7 @@ func Build() (*gowid.App, error) {
 
 	altview2Cols = resizable.NewColumns([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
-			IWidget: PacketStructureViewHolder,
+			IWidget: packetStructureViewHolder,
 			D:       weight(1),
 		},
 		&gowid.ContainerWidget{
@@ -2485,7 +2495,7 @@ func Build() (*gowid.App, error) {
 			D:       units(1),
 		},
 		&gowid.ContainerWidget{
-			IWidget: PacketHexViewHolder,
+			IWidget: packetHexViewHolder,
 			D:       weight(1),
 		},
 	})
