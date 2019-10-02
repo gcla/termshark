@@ -91,6 +91,18 @@ var ConfigErr = ConfigError{}
 
 //======================================================================
 
+type InternalError struct{}
+
+var _ error = InternalError{}
+
+func (e InternalError) Error() string {
+	return "Internal error"
+}
+
+var InternalErr = InternalError{}
+
+//======================================================================
+
 var (
 	UserGuideURL string = "https://termshark.io/userguide"
 	FAQURL       string = "https://termshark.io/faq"

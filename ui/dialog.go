@@ -81,10 +81,6 @@ func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp)
 	dialog.OpenExt(YesNo, openOver, fixed, fixed, app)
 }
 
-func ratio(r float64) gowid.RenderWithRatio {
-	return gowid.RenderWithRatio{R: r}
-}
-
 func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) {
 	YesNo = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(Templates, tmplName, TemplateData))),
 		dialog.Options{
