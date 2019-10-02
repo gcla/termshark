@@ -33,7 +33,7 @@ See https://termshark.io for more information.{{end}}
 
 {{define "Footer"}}
 If --pass-thru is true (or auto, and stdout is not a tty), tshark will be
-executed with the supplied command- line flags. You can provide
+executed with the supplied command-line flags. You can provide
 tshark-specific flags and they will be passed through to tshark (-n, -d, -T,
 etc). For example:
 
