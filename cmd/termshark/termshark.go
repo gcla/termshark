@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"text/template"
 	"time"
 
 	"github.com/blang/semver"
@@ -290,66 +289,6 @@ var (
 		"copy-mode":              gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
 	}
 
-	termsharkTemplates = template.Must(template.New("Help").Parse(`
-{{define "NameVer"}}termshark {{.Version}}{{end}}
-{{define "TsharkVer"}}using tshark {{.TsharkVersion}} (from {{.TsharkAbsolutePath}}){{end}}
-
-{{define "OneLine"}}A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.{{end}}
-
-{{define "Header"}}{{template "NameVer" .}}
-
-{{template "OneLine"}}
-See https://termshark.io for more information.{{end}}
-
-{{define "Footer"}}
-If --pass-thru is true (or auto, and stdout is not a tty), tshark will be
-executed with the supplied command- line flags. You can provide
-tshark-specific flags and they will be passed through to tshark (-n, -d, -T,
-etc). For example:
-
-$ termshark -r file.pcap -T psml -n | less{{end}}
-
-{{define "UIUserGuide"}}{{.UserGuideURL}}
-
-{{.CopyCommandMessage}}{{end}}
-
-{{define "UIFAQ"}}{{.FAQURL}}
-
-{{.CopyCommandMessage}}{{end}}
-
-{{define "UIHelp"}}{{template "NameVer" .}}
-
-A wireshark-inspired tui for tshark. Analyze network traffic interactively from your terminal.
-
-'/'   - Go to display filter
-'q'   - Quit
-'tab' - Switch panes
-'c'   - Switch to copy-mode
-'|'   - Cycle through pane layouts
-'\'   - Toggle pane zoom
-'esc' - Activate menu
-'t'   - In bytes view, switch hex ⟷ ascii
-'+/-' - Adjust horizontal split
-'</>' - Adjust vertical split
-'?'   - Display help
-
-In the filter, type a wireshark display filter expression.
-
-Most terminals will support using the mouse! Try clicking the Close button.
-
-Use shift-left-mouse to copy and shift-right-mouse to paste.{{end}}
-
-{{define "CopyModeHelp"}}{{template "NameVer" .}}
-
-termshark is in copy-mode. You can press:
-
-'q', 'c' - Exit copy-mode
-ctrl-c   - Copy from selected widget
-left     - Widen selection
-right    - Narrow selection{{end}}
-'?'      - Display copy-mode help
-`))
-
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
 	tsopts cli.Tshark
 
@@ -382,7 +321,7 @@ func init() {
 //======================================================================
 
 func writeHelp(p *flags.Parser, w io.Writer) {
-	if err := termsharkTemplates.ExecuteTemplate(w, "Header", tmplData); err != nil {
+	if err := ui.Templates.ExecuteTemplate(w, "Header", tmplData); err != nil {
 		log.Fatal(err)
 	}
 
@@ -390,7 +329,7 @@ func writeHelp(p *flags.Parser, w io.Writer) {
 	fmt.Fprintln(w)
 	p.WriteHelp(w)
 
-	if err := termsharkTemplates.ExecuteTemplate(w, "Footer", tmplData); err != nil {
+	if err := ui.Templates.ExecuteTemplate(w, "Footer", tmplData); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Fprintln(w)
@@ -398,7 +337,7 @@ func writeHelp(p *flags.Parser, w io.Writer) {
 }
 
 func writeVersion(p *flags.Parser, w io.Writer) {
-	if err := termsharkTemplates.ExecuteTemplate(w, "NameVer", tmplData); err != nil {
+	if err := ui.Templates.ExecuteTemplate(w, "NameVer", tmplData); err != nil {
 		log.Fatal(err)
 	}
 
@@ -408,7 +347,7 @@ func writeVersion(p *flags.Parser, w io.Writer) {
 func writeTsharkVersion(p *flags.Parser, bin string, ver semver.Version, w io.Writer) {
 	tmplData["TsharkVersion"] = ver.String()
 	tmplData["TsharkAbsolutePath"] = bin
-	if err := termsharkTemplates.ExecuteTemplate(w, "TsharkVer", tmplData); err != nil {
+	if err := ui.Templates.ExecuteTemplate(w, "TsharkVer", tmplData); err != nil {
 		log.Fatal(err)
 	}
 
@@ -979,7 +918,7 @@ func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
 }
 
 func openTemplatedDialog(tmplName string, app gowid.IApp) {
-	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(termsharkTemplates, tmplName, tmplData))),
+	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(ui.Templates, tmplName, tmplData))),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
@@ -2791,7 +2730,7 @@ func cmain() int {
 		},
 	)
 
-	title := styled.New(text.New(termshark.TemplateToString(termsharkTemplates, "NameVer", tmplData)), gowid.MakePaletteRef("title"))
+	title := styled.New(text.New(termshark.TemplateToString(ui.Templates, "NameVer", tmplData)), gowid.MakePaletteRef("title"))
 
 	copyMode := styled.New(
 		ifwidget.New(
