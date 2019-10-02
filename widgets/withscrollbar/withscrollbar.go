@@ -137,7 +137,7 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	w.sb.Middle = y
 	w.sb.Bottom = z
 
-	canvas := gowid.Render(w.Widget, size, focus, app)
+	canvas := w.Widget.Render(size, focus, app)
 
 	return canvas
 }

@@ -49,11 +49,11 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 		walk := w.Walker().(ITreeAndListWalker)
 		w.SetWalker(NewWalker(walk, walk.Focus().(tree.IPos), diff, w.clip), app)
 
-		res := gowid.Render(w.Widget, size, focus, app)
+		res := w.Widget.Render(size, focus, app)
 		w.SetWalker(walk, app)
 		return res
 	} else {
-		return gowid.Render(w.Widget, size, focus, app)
+		return w.Widget.Render(size, focus, app)
 	}
 }
 

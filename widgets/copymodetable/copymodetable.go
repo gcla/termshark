@@ -66,12 +66,12 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 		}
 
 		w.SetModel(model, app)
-		res := gowid.Render(w.Widget, size, focus, app)
+		res := w.Widget.Render(size, focus, app)
 		w.SetModel(origModel, app)
 
 		return res
 	} else {
-		return gowid.Render(w.Widget, size, focus, app)
+		return w.Widget.Render(size, focus, app)
 	}
 }
 

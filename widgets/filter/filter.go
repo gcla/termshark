@@ -582,7 +582,7 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 		return false
 	}
 	*w.temporarilyDisabled = false // any input should start the appearance of the drop down again
-	return gowid.UserInput(w.wrapped, ev, size, focus, app)
+	return w.wrapped.UserInput(ev, size, focus, app)
 }
 
 //======================================================================
@@ -607,7 +607,7 @@ func (w *activatorWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 			return false
 		}
 	}
-	res := gowid.UserInput(w.IWidget, ev, size, focus, app)
+	res := w.IWidget.UserInput(ev, size, focus, app)
 	if !res {
 		if ev, ok := ev.(*tcell.EventKey); ok && w.active {
 			if ev.Key() == tcell.KeyUp {
@@ -626,7 +626,7 @@ func (w *activatorWidget) Render(size gowid.IRenderSize, focus gowid.Selector, a
 	if !w.active {
 		newf = gowid.NotSelected
 	}
-	return gowid.Render(w.IWidget, size, newf, app)
+	return w.IWidget.Render(size, newf, app)
 }
 
 //======================================================================
