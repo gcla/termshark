@@ -626,8 +626,7 @@ func cmain() int {
 	}
 
 	var app *gowid.App
-	app, err = ui.Build()
-	if err != nil {
+	if app, err = ui.Build(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		if cerr, ok := termshark.RootCause(err).(*exec.Error); ok {
 			if cerr.Err.Error() == exec.ErrNotFound.Error() {
