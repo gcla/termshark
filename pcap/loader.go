@@ -450,6 +450,7 @@ func (c *Loader) doNewFilterOperation(newfilt string, cb interface{}, fn RunFn) 
 
 	if c.DisplayFilter() == newfilt {
 		log.Infof("No operation - same filter applied.")
+		fn()
 	} else if c.State() == 0 || c.State() == LoadingIface {
 		handleClear(cb)
 
@@ -504,6 +505,7 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 	// are stopped)
 	if c.State()&LoadingPsml != 0 && c.Interface() == psrc.Name() && c.DisplayFilter() == displayFilter && c.CaptureFilter() == captureFilter {
 		log.Infof("No operation - same interface and filters.")
+		fn()
 	} else if c.State() == 0 {
 		if oc, ok := cb.(IClear); ok {
 			ch := make(chan struct{})
@@ -552,6 +554,7 @@ func (c *Loader) doLoadPcapOperation(pcap string, displayFilter string, cb inter
 
 	if c.Pcap() == pcap && c.DisplayFilter() == curDisplayFilter {
 		log.Infof("No operation - same pcap and filter.")
+		fn()
 	} else if c.State() == 0 {
 		handleClear(cb)
 
