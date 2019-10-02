@@ -106,7 +106,7 @@ var progressHolder *holder.Widget
 var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
 
-var SavedListBoxWidgetHolder *holder.Widget
+var savedListBoxWidgetHolder *holder.Widget
 
 var nullw *null.Widget                       // empty
 var Loadingw gowid.IWidget                   // "loading..."
@@ -1787,7 +1787,7 @@ func progMax(x, y Prog) Prog {
 
 //======================================================================
 
-func MakeRecentMenuWidget() gowid.IWidget {
+func makeRecentMenuWidget() gowid.IWidget {
 	savedItems := make([]SimpleMenuItem, 0)
 	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
@@ -1809,6 +1809,11 @@ func MakeRecentMenuWidget() gowid.IWidget {
 	savedListBox := MakeMenuWithHotKeys(savedItems)
 
 	return savedListBox
+}
+
+func UpdateRecentMenu(app gowid.IApp) {
+	savedListBox := makeRecentMenuWidget()
+	savedListBoxWidgetHolder.SetSubWidget(savedListBox, app)
 }
 
 //======================================================================
@@ -2184,10 +2189,10 @@ func Build() (*gowid.App, error) {
 		Styler: gowid.MakePaletteRef("progress-spinner"),
 	})
 
-	savedListBox := MakeRecentMenuWidget()
-	SavedListBoxWidgetHolder = holder.New(savedListBox)
+	savedListBox := makeRecentMenuWidget()
+	savedListBoxWidgetHolder = holder.New(savedListBox)
 
-	savedMenu = menu.New("saved", SavedListBoxWidgetHolder, fixed, menu.Options{
+	savedMenu = menu.New("saved", savedListBoxWidgetHolder, fixed, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
 		CloseKeys: []gowid.IKey{

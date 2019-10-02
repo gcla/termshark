@@ -707,11 +707,6 @@ func cmain() int {
 		validator.Validate(displayFilter)
 	}
 
-	configChangedFn := func(app gowid.IApp) {
-		savedListBox := ui.MakeRecentMenuWidget()
-		ui.SavedListBoxWidgetHolder.SetSubWidget(savedListBox, app)
-	}
-
 	quitRequested := false
 	prevstate := ui.Loader.State()
 	var prev float64
@@ -1031,7 +1026,7 @@ Loop:
 			app.RunThenRenderEvent(ev)
 
 		case <-watcher.ConfigChanged():
-			configChangedFn(app)
+			ui.UpdateRecentMenu(app)
 		}
 
 	}
