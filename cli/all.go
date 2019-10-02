@@ -28,7 +28,7 @@ type Termshark struct {
 	LogTty     bool       `long:"log-tty" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Log to the terminal."`
 	DarkMode   func(bool) `long:"dark-mode" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Use dark-mode."`
 	AutoScroll func(bool) `long:"auto-scroll" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Automatically scroll during live capture."`
-	Debug      string     `long:"debug" default:"false" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
+	Debug      string     `long:"debug" default:"false" hidden:"true" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
 	Help       bool       `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
 	Version    []bool     `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
