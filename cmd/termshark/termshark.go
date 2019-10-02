@@ -45,7 +45,6 @@ import (
 	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark"
 	"github.com/gcla/termshark/cli"
-	"github.com/gcla/termshark/modeswap"
 	"github.com/gcla/termshark/pcap"
 	"github.com/gcla/termshark/pdmltree"
 	"github.com/gcla/termshark/psmltable"
@@ -167,134 +166,11 @@ var flow gowid.RenderFlow
 var hmiddle gowid.HAlignMiddle
 var vmiddle gowid.VAlignMiddle
 
-var (
-	lightGray   gowid.GrayColor = gowid.MakeGrayColor("g74")
-	mediumGray  gowid.GrayColor = gowid.MakeGrayColor("g50")
-	darkGray    gowid.GrayColor = gowid.MakeGrayColor("g35")
-	brightBlue  gowid.RGBColor  = gowid.MakeRGBColor("#08f")
-	brightGreen gowid.RGBColor  = gowid.MakeRGBColor("#6f2")
+// Used to determine if we should run tshark instead e.g. stdout is not a tty
+var tsopts cli.Tshark
 
-	//======================================================================
-	// Regular mode
-	//
-
-	//                                                      256 color   < 256 color
-	pktListRowSelectedBgReg  *modeswap.Color = modeswap.New(mediumGray, gowid.ColorBlack)
-	pktListRowFocusBgReg     *modeswap.Color = modeswap.New(brightBlue, gowid.ColorBlue)
-	pktListCellSelectedBgReg *modeswap.Color = modeswap.New(darkGray, gowid.ColorBlack)
-	pktStructSelectedBgReg   *modeswap.Color = modeswap.New(mediumGray, gowid.ColorBlack)
-	pktStructFocusBgReg      *modeswap.Color = modeswap.New(brightBlue, gowid.ColorBlue)
-	hexTopUnselectedFgReg    *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorWhite)
-	hexTopUnselectedBgReg    *modeswap.Color = modeswap.New(mediumGray, gowid.ColorBlack)
-	hexTopSelectedFgReg      *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorWhite)
-	hexTopSelectedBgReg      *modeswap.Color = modeswap.New(brightBlue, gowid.ColorBlue)
-	hexBottomUnselectedFgReg *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexBottomUnselectedBgReg *modeswap.Color = modeswap.New(lightGray, gowid.ColorBlack)
-	hexBottomSelectedFgReg   *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexBottomSelectedBgReg   *modeswap.Color = modeswap.New(lightGray, gowid.ColorBlack)
-	hexCurUnselectedFgReg    *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
-	hexCurUnselectedBgReg    *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexLineFgReg             *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexLineBgReg             *modeswap.Color = modeswap.New(lightGray, gowid.ColorBlack)
-	filterValidBgReg         *modeswap.Color = modeswap.New(brightGreen, gowid.ColorGreen)
-
-	regularPalette gowid.Palette = gowid.Palette{
-		"default":                gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorWhite),
-		"title":                  gowid.MakeForeground(gowid.ColorDarkRed),
-		"pkt-list-row-focus":     gowid.MakePaletteEntry(gowid.ColorWhite, pktListRowFocusBgReg),
-		"pkt-list-cell-focus":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorPurple),
-		"pkt-list-row-selected":  gowid.MakePaletteEntry(gowid.ColorWhite, pktListRowSelectedBgReg),
-		"pkt-list-cell-selected": gowid.MakePaletteEntry(gowid.ColorWhite, pktListCellSelectedBgReg),
-		"pkt-struct-focus":       gowid.MakePaletteEntry(gowid.ColorWhite, pktStructFocusBgReg),
-		"pkt-struct-selected":    gowid.MakePaletteEntry(gowid.ColorWhite, pktStructSelectedBgReg),
-		"filter-menu-focus":      gowid.MakeStyledPaletteEntry(gowid.ColorBlack, gowid.ColorWhite, gowid.StyleBold),
-		"filter-valid":           gowid.MakePaletteEntry(gowid.ColorBlack, filterValidBgReg),
-		"filter-invalid":         gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorRed),
-		"filter-intermediate":    gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorOrange),
-		"dialog":                 gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
-		"dialog-buttons":         gowid.MakePaletteEntry(gowid.ColorYellow, gowid.ColorBlack),
-		"button":                 gowid.MakeForeground(gowid.ColorMagenta),
-		"button-focus":           gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorDarkBlue),
-		"progress-default":       gowid.MakeStyledPaletteEntry(gowid.ColorWhite, gowid.ColorBlack, gowid.StyleBold),
-		"progress-complete":      gowid.MakeStyleMod(gowid.MakePaletteRef("progress-default"), gowid.MakeBackground(gowid.ColorMagenta)),
-		"progress-spinner":       gowid.MakePaletteEntry(gowid.ColorYellow, gowid.ColorBlack),
-		"hex-cur-selected":       gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorMagenta),
-		"hex-cur-unselected":     gowid.MakePaletteEntry(hexCurUnselectedFgReg, hexCurUnselectedBgReg),
-		"hex-top-selected":       gowid.MakePaletteEntry(hexTopSelectedFgReg, hexTopSelectedBgReg),
-		"hex-top-unselected":     gowid.MakePaletteEntry(hexTopUnselectedFgReg, hexTopUnselectedBgReg),
-		"hex-bottom-selected":    gowid.MakePaletteEntry(hexBottomSelectedFgReg, hexBottomSelectedBgReg),
-		"hex-bottom-unselected":  gowid.MakePaletteEntry(hexBottomUnselectedFgReg, hexBottomUnselectedBgReg),
-		"hexln-selected":         gowid.MakePaletteEntry(hexLineFgReg, hexLineBgReg),
-		"hexln-unselected":       gowid.MakePaletteEntry(hexLineFgReg, hexLineBgReg),
-		"copy-mode-indicator":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorDarkRed),
-		"copy-mode":              gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
-	}
-
-	//======================================================================
-	// Dark mode
-	//
-
-	//                                                       256 color   < 256 color
-	pktListRowSelectedFgDark  *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
-	pktListRowSelectedBgDark  *modeswap.Color = modeswap.New(darkGray, gowid.ColorWhite)
-	pktListRowFocusBgDark     *modeswap.Color = modeswap.New(brightBlue, gowid.ColorBlue)
-	pktListCellSelectedBgDark *modeswap.Color = modeswap.New(mediumGray, gowid.ColorBlack)
-	pktStructSelectedFgDark   *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
-	pktStructSelectedBgDark   *modeswap.Color = modeswap.New(darkGray, gowid.ColorWhite)
-	pktStructFocusBgDark      *modeswap.Color = modeswap.New(brightBlue, gowid.ColorBlue)
-	hexTopUnselectedFgDark    *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlue)
-	hexTopUnselectedBgDark    *modeswap.Color = modeswap.New(mediumGray, gowid.ColorWhite)
-	hexTopSelectedFgDark      *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorWhite)
-	hexTopSelectedBgDark      *modeswap.Color = modeswap.New(brightBlue, gowid.ColorBlue)
-	hexBottomUnselectedFgDark *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorBlack)
-	hexBottomUnselectedBgDark *modeswap.Color = modeswap.New(darkGray, gowid.ColorWhite)
-	hexBottomSelectedFgDark   *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorBlack)
-	hexBottomSelectedBgDark   *modeswap.Color = modeswap.New(darkGray, gowid.ColorWhite)
-	hexCurUnselectedFgDark    *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorMagenta)
-	hexCurUnselectedBgDark    *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexLineFgDark             *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
-	hexLineBgDark             *modeswap.Color = modeswap.New(darkGray, gowid.ColorBlack)
-	filterValidBgDark         *modeswap.Color = modeswap.New(brightGreen, gowid.ColorGreen)
-	buttonBgDark              *modeswap.Color = modeswap.New(mediumGray, gowid.ColorWhite)
-
-	darkModePalette gowid.Palette = gowid.Palette{
-		"default":                gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorBlack),
-		"title":                  gowid.MakeForeground(gowid.ColorRed),
-		"pkt-list-row-focus":     gowid.MakePaletteEntry(gowid.ColorWhite, pktListRowFocusBgDark),
-		"pkt-list-cell-focus":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorPurple),
-		"pkt-list-row-selected":  gowid.MakePaletteEntry(pktListRowSelectedFgDark, pktListRowSelectedBgDark),
-		"pkt-list-cell-selected": gowid.MakePaletteEntry(gowid.ColorWhite, pktListCellSelectedBgDark),
-		"pkt-struct-focus":       gowid.MakePaletteEntry(gowid.ColorWhite, pktStructFocusBgDark),
-		"pkt-struct-selected":    gowid.MakePaletteEntry(pktStructSelectedFgDark, pktStructSelectedBgDark),
-		"filter-menu-focus":      gowid.MakeStyledPaletteEntry(gowid.ColorWhite, gowid.ColorBlack, gowid.StyleBold),
-		"filter-valid":           gowid.MakePaletteEntry(gowid.ColorBlack, filterValidBgDark),
-		"filter-invalid":         gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorRed),
-		"filter-intermediate":    gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorOrange),
-		"dialog":                 gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
-		"dialog-buttons":         gowid.MakePaletteEntry(gowid.ColorYellow, gowid.ColorBlack),
-		"button":                 gowid.MakePaletteEntry(gowid.ColorMagenta, buttonBgDark),
-		"button-focus":           gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorMagenta),
-		"progress-default":       gowid.MakeStyledPaletteEntry(gowid.ColorWhite, gowid.ColorBlack, gowid.StyleBold),
-		"progress-complete":      gowid.MakeStyleMod(gowid.MakePaletteRef("progress-default"), gowid.MakeBackground(gowid.ColorMagenta)),
-		"progress-spinner":       gowid.MakePaletteEntry(gowid.ColorYellow, gowid.ColorBlack),
-		"hex-cur-selected":       gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorMagenta),
-		"hex-cur-unselected":     gowid.MakePaletteEntry(hexCurUnselectedFgDark, hexCurUnselectedBgDark),
-		"hex-top-selected":       gowid.MakePaletteEntry(hexTopSelectedFgDark, hexTopSelectedBgDark),
-		"hex-top-unselected":     gowid.MakePaletteEntry(hexTopUnselectedFgDark, hexTopUnselectedBgDark),
-		"hex-bottom-selected":    gowid.MakePaletteEntry(hexBottomSelectedFgDark, hexBottomSelectedBgDark),
-		"hex-bottom-unselected":  gowid.MakePaletteEntry(hexBottomUnselectedFgDark, hexBottomUnselectedBgDark),
-		"hexln-selected":         gowid.MakePaletteEntry(hexLineFgDark, hexLineBgDark),
-		"hexln-unselected":       gowid.MakePaletteEntry(hexLineFgDark, hexLineBgDark),
-		"copy-mode-indicator":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorDarkRed),
-		"copy-mode":              gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
-	}
-
-	// Used to determine if we should run tshark instead e.g. stdout is not a tty
-	tsopts cli.Tshark
-
-	// Termshark's own command line arguments. Used if we don't pass through to tshark.
-	opts cli.Termshark
-)
+// Termshark's own command line arguments. Used if we don't pass through to tshark.
+var opts cli.Termshark
 
 //======================================================================
 
@@ -3314,8 +3190,8 @@ func cmain() int {
 	//======================================================================
 
 	palette := termshark.PaletteSwitcher{
-		P1:        &darkModePalette,
-		P2:        &regularPalette,
+		P1:        &ui.DarkModePalette,
+		P2:        &ui.RegularPalette,
 		ChooseOne: &darkMode,
 	}
 
