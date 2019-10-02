@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/xml"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -150,8 +149,7 @@ var cacheRequestsChan chan struct{} // false means started, true means finished
 var quitRequestedChan chan struct{}
 var loader *pcap.Loader
 var scheduler *pcap.Scheduler
-var captureFilter string // global for now, might make it possible to change in app at some point
-var tmplData map[string]interface{}
+var captureFilter string     // global for now, might make it possible to change in app at some point
 var darkModeSwitchSet bool   // whether switch was passed at command line
 var darkModeSwitch bool      // set via command line
 var darkMode bool            // global state in app
@@ -175,11 +173,6 @@ var opts cli.Termshark
 //======================================================================
 
 func init() {
-	tmplData = map[string]interface{}{
-		"Version":      termshark.Version,
-		"FAQURL":       termshark.FAQURL,
-		"UserGuideURL": termshark.UserGuideURL,
-	}
 	quitRequestedChan = make(chan struct{}, 1) // buffered because send happens from ui goroutine, which runs global select
 	cacheRequestsChan = make(chan struct{}, 1000)
 	cacheRequests = make([]pcap.LoadPcapSlice, 0)
@@ -192,42 +185,6 @@ func init() {
 		autoScrollSwitch = val
 		autoScrollSwitchSet = true
 	}
-}
-
-//======================================================================
-
-func writeHelp(p *flags.Parser, w io.Writer) {
-	if err := ui.Templates.ExecuteTemplate(w, "Header", tmplData); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Fprintln(w)
-	fmt.Fprintln(w)
-	p.WriteHelp(w)
-
-	if err := ui.Templates.ExecuteTemplate(w, "Footer", tmplData); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Fprintln(w)
-	fmt.Fprintln(w)
-}
-
-func writeVersion(p *flags.Parser, w io.Writer) {
-	if err := ui.Templates.ExecuteTemplate(w, "NameVer", tmplData); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Fprintln(w)
-}
-
-func writeTsharkVersion(p *flags.Parser, bin string, ver semver.Version, w io.Writer) {
-	tmplData["TsharkVersion"] = ver.String()
-	tmplData["TsharkAbsolutePath"] = bin
-	if err := ui.Templates.ExecuteTemplate(w, "TsharkVer", tmplData); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Fprintln(w)
 }
 
 //======================================================================
@@ -686,12 +643,12 @@ var (
 )
 
 func (h urlCopiedCallbacks) displayDialog(output string) {
-	tmplData["CopyCommandMessage"] = output
+	ui.TemplateData["CopyCommandMessage"] = output
 
 	h.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		h.closeWaitDialog(app)
 		openTemplatedDialog(h.tmplName, app)
-		delete(tmplData, "CopyCommandMessage")
+		delete(ui.TemplateData, "CopyCommandMessage")
 	}))
 }
 
@@ -794,7 +751,7 @@ func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
 }
 
 func openTemplatedDialog(tmplName string, app gowid.IApp) {
-	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(ui.Templates, tmplName, tmplData))),
+	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(ui.Templates, tmplName, ui.TemplateData))),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
@@ -2185,18 +2142,18 @@ func cmain() int {
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Command-line error: %v\n\n", err)
-		writeHelp(tmFlags, os.Stderr)
+		ui.WriteHelp(tmFlags, os.Stderr)
 		return 1
 	}
 
 	if opts.Help {
-		writeHelp(tmFlags, os.Stdout)
+		ui.WriteHelp(tmFlags, os.Stdout)
 		return 0
 	}
 
 	if len(opts.Version) > 0 {
 		res := 0
-		writeVersion(tmFlags, os.Stdout)
+		ui.WriteVersion(tmFlags, os.Stdout)
 		if len(opts.Version) > 1 {
 			if tsharkBin, kverr := termshark.TSharkPath(); kverr != nil {
 				fmt.Fprintf(os.Stderr, kverr.KeyVals["msg"].(string))
@@ -2206,7 +2163,7 @@ func cmain() int {
 					fmt.Fprintf(os.Stderr, "Could not determine version of tshark from binary %s\n", tsharkBin)
 					res = 1
 				} else {
-					writeTsharkVersion(tmFlags, tsharkBin, ver, os.Stdout)
+					ui.WriteTsharkVersion(tmFlags, tsharkBin, ver, os.Stdout)
 				}
 			}
 		}
@@ -2606,7 +2563,7 @@ func cmain() int {
 		},
 	)
 
-	title := styled.New(text.New(termshark.TemplateToString(ui.Templates, "NameVer", tmplData)), gowid.MakePaletteRef("title"))
+	title := styled.New(text.New(termshark.TemplateToString(ui.Templates, "NameVer", ui.TemplateData)), gowid.MakePaletteRef("title"))
 
 	copyMode := styled.New(
 		ifwidget.New(

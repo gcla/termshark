@@ -5,9 +5,20 @@
 // Package ui contains user-interface functions and helpers for termshark.
 package ui
 
-import "text/template"
+import (
+	"fmt"
+	"io"
+	"log"
+	"text/template"
+
+	"github.com/blang/semver"
+	"github.com/gcla/termshark"
+	"github.com/jessevdk/go-flags"
+)
 
 //======================================================================
+
+var TemplateData map[string]interface{}
 
 var Templates = template.Must(template.New("Help").Parse(`
 {{define "NameVer"}}termshark {{.Version}}{{end}}
@@ -68,6 +79,50 @@ left     - Widen selection
 right    - Narrow selection{{end}}
 '?'      - Display copy-mode help
 `))
+
+//======================================================================
+
+func init() {
+	TemplateData = map[string]interface{}{
+		"Version":      termshark.Version,
+		"FAQURL":       termshark.FAQURL,
+		"UserGuideURL": termshark.UserGuideURL,
+	}
+}
+
+func WriteHelp(p *flags.Parser, w io.Writer) {
+	if err := Templates.ExecuteTemplate(w, "Header", TemplateData); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+	p.WriteHelp(w)
+
+	if err := Templates.ExecuteTemplate(w, "Footer", TemplateData); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w)
+}
+
+func WriteVersion(p *flags.Parser, w io.Writer) {
+	if err := Templates.ExecuteTemplate(w, "NameVer", TemplateData); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintln(w)
+}
+
+func WriteTsharkVersion(p *flags.Parser, bin string, ver semver.Version, w io.Writer) {
+	TemplateData["TsharkVersion"] = ver.String()
+	TemplateData["TsharkAbsolutePath"] = bin
+	if err := Templates.ExecuteTemplate(w, "TsharkVer", TemplateData); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintln(w)
+}
 
 //======================================================================
 // Local Variables:
