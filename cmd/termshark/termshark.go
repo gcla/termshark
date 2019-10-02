@@ -36,34 +36,6 @@ import (
 	_ "net/http/pprof"
 )
 
-// TODO - just for debugging
-var ensureGoroutinesStopWG sync.WaitGroup
-
-var captureFilter string     // global for now, might make it possible to change in app at some point
-var darkModeSwitchSet bool   // whether switch was passed at command line
-var darkModeSwitch bool      // set via command line
-var autoScrollSwitchSet bool // whether switch was passed at command line
-var autoScrollSwitch bool    // set via command line
-
-// Used to determine if we should run tshark instead e.g. stdout is not a tty
-var tsopts cli.Tshark
-
-// Termshark's own command line arguments. Used if we don't pass through to tshark.
-var opts cli.Termshark
-
-//======================================================================
-
-func init() {
-	opts.DarkMode = func(val bool) {
-		darkModeSwitch = val
-		darkModeSwitchSet = true
-	}
-	opts.AutoScroll = func(val bool) {
-		autoScrollSwitch = val
-		autoScrollSwitchSet = true
-	}
-}
-
 //======================================================================
 
 // Run cmain() and afterwards make sure all goroutines stop, then exit with
@@ -73,6 +45,7 @@ func main() {
 	// TODO - fix this later. goroutinewg is used every time a
 	// goroutine is started, to ensure we don't terminate until all are
 	// stopped. Any exception is a bug.
+	var ensureGoroutinesStopWG sync.WaitGroup
 	filter.Goroutinewg = &ensureGoroutinesStopWG
 	termshark.Goroutinewg = &ensureGoroutinesStopWG
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
@@ -132,6 +105,9 @@ func cmain() int {
 	if err != nil {
 		fmt.Println("Config file not found...")
 	}
+
+	// Used to determine if we should run tshark instead e.g. stdout is not a tty
+	var tsopts cli.Tshark
 
 	// Add help flag. This is no use for the user and we don't want to display
 	// help for this dummy set of flags designed to check for pass-thru to tshark - but
@@ -201,6 +177,26 @@ func cmain() int {
 
 			return 0
 		}
+	}
+
+	// These are needed because we need to distinguish from the flag being provided
+	// and set off and the flag not being provided - in which case the config file
+	// value is used.
+	var darkModeSwitchSet bool   // whether switch was passed at command line
+	var darkModeSwitch bool      // set via command line
+	var autoScrollSwitchSet bool // whether switch was passed at command line
+	var autoScrollSwitch bool    // set via command line
+
+	// Termshark's own command line arguments. Used if we don't pass through to tshark.
+	var opts cli.Termshark
+
+	opts.DarkMode = func(val bool) {
+		darkModeSwitch = val
+		darkModeSwitchSet = true
+	}
+	opts.AutoScroll = func(val bool) {
+		autoScrollSwitch = val
+		autoScrollSwitchSet = true
 	}
 
 	// Parse the args now as intended for termshark
@@ -305,7 +301,7 @@ func cmain() int {
 	// Work out capture filter afterwards because we need to determine first
 	// whether any potential first argument is intended as a pcap file instead of
 	// a capture filter.
-	captureFilter = opts.CaptureFilter
+	captureFilter := opts.CaptureFilter
 
 	if psrc.IsInterface() && argsFilter != "" {
 		if opts.CaptureFilter != "" {
