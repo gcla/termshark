@@ -81,8 +81,6 @@ var appViewNoKeys *holder.Widget
 var appView *appkeys.KeyWidget
 var mainViewNoKeys *holder.Widget
 var mainView *appkeys.KeyWidget
-var yesno *dialog.Widget
-var pleaseWait *dialog.Widget
 var pleaseWaitSpinner *spinner.Widget
 var mainviewRows *resizable.PileWidget
 var mainview gowid.IWidget
@@ -603,7 +601,7 @@ func (s *pleaseWaitCallbacks) ProcessWaitTick() error {
 	s.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		s.w.Update()
 		if !s.open {
-			openPleaseWait(s.app)
+			ui.OpenPleaseWait(appView, s.app)
 			s.open = true
 		}
 	}))
@@ -613,7 +611,7 @@ func (s *pleaseWaitCallbacks) ProcessWaitTick() error {
 // Call in app context
 func (s *pleaseWaitCallbacks) closeWaitDialog(app gowid.IApp) {
 	if s.open {
-		closePleaseWait(app)
+		ui.ClosePleaseWait(app)
 		s.open = false
 	}
 }
@@ -647,7 +645,7 @@ func (h urlCopiedCallbacks) displayDialog(output string) {
 
 	h.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		h.closeWaitDialog(app)
-		openTemplatedDialog(h.tmplName, app)
+		ui.OpenTemplatedDialog(appView, h.tmplName, app)
 		delete(ui.TemplateData, "CopyCommandMessage")
 	}))
 }
@@ -748,27 +746,6 @@ func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
 		},
 	}
 	termshark.CopyCommand(strings.NewReader(tocopy), v)
-}
-
-func openTemplatedDialog(tmplName string, app gowid.IApp) {
-	yesno = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(ui.Templates, tmplName, ui.TemplateData))),
-		dialog.Options{
-			Buttons:         dialog.CloseOnly,
-			NoShadow:        true,
-			BackgroundStyle: gowid.MakePaletteRef("dialog"),
-			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
-		},
-	)
-	yesno.Open(appView, ratio(0.5), app)
-}
-
-func openPleaseWait(app gowid.IApp) {
-	pleaseWait.Open(appView, fixed, app)
-}
-
-func closePleaseWait(app gowid.IApp) {
-	pleaseWait.Close(app)
 }
 
 func openCopyChoices(copyLen int, app gowid.IApp) {
@@ -874,7 +851,7 @@ func openCopyChoices(copyLen int, app gowid.IApp) {
 func reallyQuit(app gowid.IApp) {
 	msgt := "Do you want to quit?"
 	msg := text.New(msgt)
-	yesno = dialog.New(
+	ui.YesNo = dialog.New(
 		framed.NewSpace(hpadding.New(msg, hmiddle, fixed)),
 		dialog.Options{
 			Buttons: []dialog.Button{
@@ -892,7 +869,7 @@ func reallyQuit(app gowid.IApp) {
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
-	yesno.Open(appView, units(len(msgt)+20), app)
+	ui.YesNo.Open(appView, units(len(msgt)+20), app)
 }
 
 //======================================================================
@@ -999,14 +976,14 @@ func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
 func reallyClear(app gowid.IApp) {
 	msgt := "Do you want to clear current capture?"
 	msg := text.New(msgt)
-	yesno = dialog.New(
+	ui.YesNo = dialog.New(
 		framed.NewSpace(hpadding.New(msg, hmiddle, fixed)),
 		dialog.Options{
 			Buttons: []dialog.Button{
 				dialog.Button{
 					Msg: "Ok",
 					Action: func(app gowid.IApp, w gowid.IWidget) {
-						yesno.Close(app)
+						ui.YesNo.Close(app)
 						scheduler.RequestClearPcap(makePacketViewUpdater(app))
 					},
 				},
@@ -1018,7 +995,7 @@ func reallyClear(app gowid.IApp) {
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
-	yesno.Open(mainViewNoKeys, units(len(msgt)+28), app)
+	ui.YesNo.Open(mainViewNoKeys, units(len(msgt)+28), app)
 }
 
 //======================================================================
@@ -1115,7 +1092,7 @@ func copyModeKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool 
 			case 'q', 'c':
 				app.InCopyMode(false)
 			case '?':
-				openTemplatedDialog("CopyModeHelp", app)
+				ui.OpenTemplatedDialog(appView, "CopyModeHelp", app)
 			}
 		case tcell.KeyEscape:
 			app.InCopyMode(false)
@@ -1280,7 +1257,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 		generalMenu.Open(openMenuSite, app)
 	} else if evk.Rune() == '?' {
-		openTemplatedDialog("UIHelp", app)
+		ui.OpenTemplatedDialog(appView, "UIHelp", app)
 	} else {
 		handled = false
 	}
@@ -2545,7 +2522,7 @@ func cmain() int {
 		Styler: gowid.MakePaletteRef("progress-spinner"),
 	})
 
-	pleaseWait = dialog.New(framed.NewSpace(
+	ui.PleaseWait = dialog.New(framed.NewSpace(
 		pile.NewFlow(
 			&gowid.ContainerWidget{
 				IWidget: text.New(" Please wait... "),
@@ -2622,7 +2599,7 @@ func cmain() int {
 			Key: gowid.MakeKey('?'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				generalMenu.Close(app)
-				openTemplatedDialog("UIHelp", app)
+				ui.OpenTemplatedDialog(appView, "UIHelp", app)
 			},
 		},
 		ui.SimpleMenuItem{
