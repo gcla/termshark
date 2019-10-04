@@ -9,6 +9,8 @@ import (
 	"compress/gzip"
 	"encoding/gob"
 	"encoding/xml"
+
+	"github.com/mreiferson/go-snappystream"
 )
 
 //======================================================================
@@ -69,42 +71,38 @@ func GzipPdmlPacket(p PdmlPacket) IPdmlPacket {
 
 //======================================================================
 
-// type SnappiedPdmlPacket struct {
-// 	Data bytes.Buffer
-// }
+type SnappiedPdmlPacket struct {
+	Data bytes.Buffer
+}
 
-// var _ IPdmlPacket = SnappiedPdmlPacket{}
+var _ IPdmlPacket = SnappiedPdmlPacket{}
 
-// func (p SnappiedPdmlPacket) Packet() PdmlPacket {
-// 	return p.Uncompress()
-// }
+func (p SnappiedPdmlPacket) Packet() PdmlPacket {
+	return p.Uncompress()
+}
 
-// func (p SnappiedPdmlPacket) Uncompress() PdmlPacket {
-// 	greader := snappystream.NewReader(&p.Data, false)
-// 	decoder := gob.NewDecoder(greader)
-// 	var res PdmlPacket
-// 	err := decoder.Decode(&res)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+func (p SnappiedPdmlPacket) Uncompress() PdmlPacket {
+	greader := snappystream.NewReader(&p.Data, false)
+	decoder := gob.NewDecoder(greader)
+	var res PdmlPacket
+	err := decoder.Decode(&res)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
 
-// 	log.Infof("GCLA: UNCOMPRESS: SNAPPY: len %d to len %d", p.Data.Len(), len(res.Content))
-
-// 	return res
-// }
-
-// func SnappyPdmlPacket(p PdmlPacket) IPdmlPacket {
-// 	res := SnappiedPdmlPacket{}
-// 	gwriter := snappystream.NewBufferedWriter(&res.Data)
-// 	encoder := gob.NewEncoder(gwriter)
-// 	err := encoder.Encode(p)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	gwriter.Close()
-// 	log.Infof("GCLA: COMPRESS: SNAPPY: len %d to len %d", len(p.Content), res.Data.Len())
-// 	return res
-// }
+func SnappyPdmlPacket(p PdmlPacket) IPdmlPacket {
+	res := SnappiedPdmlPacket{}
+	gwriter := snappystream.NewBufferedWriter(&res.Data)
+	encoder := gob.NewEncoder(gwriter)
+	err := encoder.Encode(p)
+	if err != nil {
+		panic(err)
+	}
+	gwriter.Close()
+	return res
+}
 
 //======================================================================
 // Local Variables:

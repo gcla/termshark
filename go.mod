@@ -10,6 +10,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/mattn/go-isatty v0.0.9
+	github.com/mreiferson/go-snappystream v0.2.3
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0

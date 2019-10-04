@@ -1101,7 +1101,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 					}
 					// Enabled for now - do something more subtle perhaps in the future
 					if true {
-						cpacket = GzipPdmlPacket(packet)
+						cpacket = SnappyPdmlPacket(packet)
 					} else {
 						cpacket = packet
 					}
