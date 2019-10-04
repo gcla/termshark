@@ -1496,7 +1496,7 @@ func getLayersFromStructWidget(row int, pos int) []hexdumper2.LayerStyler {
 		srcb2 := ws.(pcap.CacheEntry).Pdml
 		pktsPerLoad := Loader.PacketsPerLoad()
 		if row%pktsPerLoad < len(srcb2) {
-			data, err := xml.Marshal(srcb2[row%pktsPerLoad])
+			data, err := xml.Marshal(srcb2[row%pktsPerLoad].Packet())
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -1596,7 +1596,7 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 	if ws, ok := Loader.PacketCache.Get(row2); ok {
 		srca := ws.(pcap.CacheEntry).Pdml
 		if len(srca) > row%pktsPerLoad {
-			data, err := xml.Marshal(srca[row%pktsPerLoad])
+			data, err := xml.Marshal(srca[row%pktsPerLoad].Packet())
 			if err != nil {
 				log.Fatal(err)
 			}

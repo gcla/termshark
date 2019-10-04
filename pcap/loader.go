@@ -706,7 +706,7 @@ func (c *Loader) startLoadPdml(row int, cb interface{}) {
 }
 
 // if done==true, then this cache entry is complete
-func (c *Loader) updateCacheEntryWithPdml(row int, pdml []*PdmlPacket, done bool) {
+func (c *Loader) updateCacheEntryWithPdml(row int, pdml []IPdmlPacket, done bool) {
 	var ce CacheEntry
 	c.Lock()
 	defer c.Unlock()
@@ -1073,8 +1073,10 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		}()
 
 		d := xml.NewDecoder(pdmlOut)
-		packets := make([]*PdmlPacket, 0, c.opt.PacketsPerLoad)
+		packets := make([]IPdmlPacket, 0, c.opt.PacketsPerLoad)
 		issuedKill := false
+		var packet PdmlPacket
+		var cpacket IPdmlPacket
 	Loop:
 		for {
 			tok, err := d.Token()
@@ -1089,7 +1091,6 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			case xml.StartElement:
 				switch tok.Name.Local {
 				case "packet":
-					var packet PdmlPacket
 					err := d.DecodeElement(&packet, &tok)
 					if err != nil {
 						if !issuedKill && unexpectedError(err) {
@@ -1098,7 +1099,13 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 						}
 						break Loop
 					}
-					packets = append(packets, &packet)
+					// Enabled for now - do something more subtle perhaps in the future
+					if true {
+						cpacket = GzipPdmlPacket(packet)
+					} else {
+						cpacket = packet
+					}
+					packets = append(packets, cpacket)
 					c.updateCacheEntryWithPdml(row, packets, false)
 					//if len(pdml2) == abcdex {
 					if len(packets) == c.KillAfterReadingThisMany {
@@ -1793,13 +1800,8 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 
 //======================================================================
 
-type PdmlPacket struct {
-	XMLName xml.Name `xml:"packet"`
-	Content []byte   `xml:",innerxml"`
-}
-
 type CacheEntry struct {
-	Pdml         []*PdmlPacket
+	Pdml         []IPdmlPacket
 	Pcap         [][]byte
 	PdmlComplete bool
 	PcapComplete bool
