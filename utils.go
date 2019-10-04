@@ -541,7 +541,7 @@ func init() {
 
 // Down to the second for profiling, etc
 func dateStringForFilename() string {
-	return time.Now().Format("20060102150405")
+	return time.Now().Format("2006-01-02--15-04-05")
 }
 
 func ProfileCPUFor(secs int) bool {
