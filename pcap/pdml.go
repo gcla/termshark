@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"encoding/gob"
 	"encoding/xml"
+	"io"
 
 	"github.com/mreiferson/go-snappystream"
 )
@@ -82,26 +83,39 @@ func (p SnappiedPdmlPacket) Packet() PdmlPacket {
 }
 
 func (p SnappiedPdmlPacket) Uncompress() PdmlPacket {
-	greader := snappystream.NewReader(&p.Data, false)
-	decoder := gob.NewDecoder(greader)
 	var res PdmlPacket
-	err := decoder.Decode(&res)
-	if err != nil {
-		panic(err)
-	}
+	UnsnappyMe(&res, &p.Data)
 	return res
 }
 
 func SnappyPdmlPacket(p PdmlPacket) IPdmlPacket {
 	res := SnappiedPdmlPacket{}
-	gwriter := snappystream.NewBufferedWriter(&res.Data)
+	SnappyMe(p, &res.Data)
+	return res
+}
+
+//======================================================================
+
+// SnappyMe compresses the object within interface p to the
+// writer w.
+func SnappyMe(p interface{}, w io.Writer) {
+	gwriter := snappystream.NewBufferedWriter(w)
 	encoder := gob.NewEncoder(gwriter)
-	err := encoder.Encode(p)
-	if err != nil {
+	if err := encoder.Encode(p); err != nil {
 		panic(err)
 	}
 	gwriter.Close()
-	return res
+}
+
+// UnsnappyMe decompresses from reader r into res. Afterwards,
+// res will be an interface whose type is a pointer to whatever
+// was serialized in the first place.
+func UnsnappyMe(res interface{}, r io.Reader) {
+	greader := snappystream.NewReader(r, false)
+	decoder := gob.NewDecoder(greader)
+	if err := decoder.Decode(res); err != nil {
+		panic(err)
+	}
 }
 
 //======================================================================
