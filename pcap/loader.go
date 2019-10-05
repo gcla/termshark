@@ -256,6 +256,10 @@ func (c *Loader) Close() error {
 	return nil
 }
 
+func (c *Loader) Context() context.Context {
+	return c.mainCtx
+}
+
 func (c *Loader) stopLoadIface() {
 	if c.ifaceCancelFn != nil {
 		c.ifaceCancelFn()
