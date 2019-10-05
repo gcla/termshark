@@ -8,9 +8,9 @@ package withscrollbar
 import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/columns"
+	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/vscroll"
-	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
@@ -25,7 +25,7 @@ type Widget struct {
 
 type IScrollSubWidget interface {
 	gowid.IWidget
-	CalculateOnScreen(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) (int, int, int, error)
+	BoundedWalker() list.IBoundedWalker
 	Up(lines int, size gowid.IRenderSize, app gowid.IApp)
 	Down(lines int, size gowid.IRenderSize, app gowid.IApp)
 	UpPage(num int, size gowid.IRenderSize, app gowid.IApp)
@@ -75,19 +75,20 @@ func (e *Widget) clickDownArrow(app gowid.IApp, w gowid.IWidget) {
 	e.goUpDown += 1
 }
 
+// Don't attempt to calculate actual rendered rows - it's terribly slow, and O(n) rows.
+func CalculateMenuRows(walker list.IBoundedWalker, rows int, focus gowid.Selector, app gowid.IApp) (int, int, int) {
+	cur := walker.Focus().(list.IBoundedWalkerPosition)
+	len := walker.Length()
+	return cur.ToInt(), 1, len - (cur.ToInt() + 1)
+}
+
 func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
 	box, ok := size.(gowid.IRenderBox)
 	if !ok {
 		panic(gowid.WidgetSizeError{Widget: w, Size: size, Required: "gowid.IRenderBox"})
 	}
 
-	ecols := box.BoxColumns() - 1
-	ebox := gowid.MakeRenderBox(ecols, box.BoxRows())
-
-	x, y, z, err := w.w.CalculateOnScreen(ebox, focus, app)
-	if err != nil {
-		log.Error(err)
-	}
+	x, y, z := CalculateMenuRows(w.w.BoundedWalker(), box.BoxRows(), focus, app)
 
 	w.sb.Top = x
 	w.sb.Middle = y
@@ -109,7 +110,6 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	var x int
 	var y int
 	var z int
-	var err error
 	if ecols >= 1 {
 		ebox := gowid.MakeRenderBox(ecols, box.BoxRows())
 		if w.goUpDown != 0 || w.pgUpDown != 0 {
@@ -128,10 +128,7 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 		w.goUpDown = 0
 		w.pgUpDown = 0
 
-		x, y, z, err = w.w.CalculateOnScreen(ebox, focus, app)
-		if err != nil {
-			log.Error(err)
-		}
+		x, y, z = CalculateMenuRows(w.w.BoundedWalker(), box.BoxRows(), focus, app)
 	}
 	w.sb.Top = x
 	w.sb.Middle = y
