@@ -174,7 +174,7 @@ type Loader struct {
 	sync.Mutex
 	PacketPsmlData    [][]string
 	PacketPsmlHeaders []string
-	PacketCache       *lru.Cache // i -> [pdml(i * abcdex)..pdml(i+1*abcdex)]
+	PacketCache       *lru.Cache // i -> [pdml(i * 1000)..pdml(i+1*1000)]
 
 	onStateChange []runFnInState
 
