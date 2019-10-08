@@ -644,10 +644,10 @@ func cmain() int {
 	var app *gowid.App
 	if app, err = ui.Build(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		if cerr, ok := termshark.RootCause(err).(*exec.Error); ok {
-			if cerr.Err.Error() == exec.ErrNotFound.Error() {
-				fmt.Fprintf(os.Stderr, "Termshark could not recognize your terminal. Try changing $TERM.\n")
-			}
+		// Tcell returns ExitError now because if its internal terminfo DB does not have
+		// a matching entry, it tries to build one with infocmp.
+		if _, ok := termshark.RootCause(err).(*exec.ExitError); ok {
+			fmt.Fprintf(os.Stderr, "Termshark could not recognize your terminal. Try changing $TERM.\n")
 		}
 		return 1
 	}
