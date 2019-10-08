@@ -26,6 +26,7 @@ var (
 	//                                                      256 color   < 256 color
 	PktListRowSelectedBgReg  *modeswap.Color = modeswap.New(MediumGray, gowid.ColorBlack)
 	PktListRowFocusBgReg     *modeswap.Color = modeswap.New(BrightBlue, gowid.ColorBlue)
+	PktListCellSelectedFgReg *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorWhite)
 	PktListCellSelectedBgReg *modeswap.Color = modeswap.New(DarkGray, gowid.ColorBlack)
 	PktStructSelectedBgReg   *modeswap.Color = modeswap.New(MediumGray, gowid.ColorBlack)
 	PktStructFocusBgReg      *modeswap.Color = modeswap.New(BrightBlue, gowid.ColorBlue)
@@ -49,7 +50,7 @@ var (
 		"pkt-list-row-focus":     gowid.MakePaletteEntry(gowid.ColorWhite, PktListRowFocusBgReg),
 		"pkt-list-cell-focus":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorPurple),
 		"pkt-list-row-selected":  gowid.MakePaletteEntry(gowid.ColorWhite, PktListRowSelectedBgReg),
-		"pkt-list-cell-selected": gowid.MakePaletteEntry(gowid.ColorWhite, PktListCellSelectedBgReg),
+		"pkt-list-cell-selected": gowid.MakePaletteEntry(PktListCellSelectedFgReg, PktListCellSelectedBgReg),
 		"pkt-struct-focus":       gowid.MakePaletteEntry(gowid.ColorWhite, PktStructFocusBgReg),
 		"pkt-struct-selected":    gowid.MakePaletteEntry(gowid.ColorWhite, PktStructSelectedBgReg),
 		"filter-menu-focus":      gowid.MakeStyledPaletteEntry(gowid.ColorBlack, gowid.ColorWhite, gowid.StyleBold),
@@ -83,7 +84,8 @@ var (
 	PktListRowSelectedFgDark  *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
 	PktListRowSelectedBgDark  *modeswap.Color = modeswap.New(DarkGray, gowid.ColorWhite)
 	PktListRowFocusBgDark     *modeswap.Color = modeswap.New(BrightBlue, gowid.ColorBlue)
-	PktListCellSelectedBgDark *modeswap.Color = modeswap.New(MediumGray, gowid.ColorBlack)
+	PktListCellSelectedFgDark *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
+	PktListCellSelectedBgDark *modeswap.Color = modeswap.New(MediumGray, gowid.ColorWhite)
 	PktStructSelectedFgDark   *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
 	PktStructSelectedBgDark   *modeswap.Color = modeswap.New(DarkGray, gowid.ColorWhite)
 	PktStructFocusBgDark      *modeswap.Color = modeswap.New(BrightBlue, gowid.ColorBlue)
@@ -108,7 +110,7 @@ var (
 		"pkt-list-row-focus":     gowid.MakePaletteEntry(gowid.ColorWhite, PktListRowFocusBgDark),
 		"pkt-list-cell-focus":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorPurple),
 		"pkt-list-row-selected":  gowid.MakePaletteEntry(PktListRowSelectedFgDark, PktListRowSelectedBgDark),
-		"pkt-list-cell-selected": gowid.MakePaletteEntry(gowid.ColorWhite, PktListCellSelectedBgDark),
+		"pkt-list-cell-selected": gowid.MakePaletteEntry(PktListCellSelectedFgDark, PktListCellSelectedBgDark),
 		"pkt-struct-focus":       gowid.MakePaletteEntry(gowid.ColorWhite, PktStructFocusBgDark),
 		"pkt-struct-selected":    gowid.MakePaletteEntry(PktStructSelectedFgDark, PktStructSelectedBgDark),
 		"filter-menu-focus":      gowid.MakeStyledPaletteEntry(gowid.ColorWhite, gowid.ColorBlack, gowid.StyleBold),
