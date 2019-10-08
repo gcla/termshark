@@ -632,6 +632,15 @@ func cmain() int {
 		startUIChan <- struct{}{}
 	}
 
+	// Do this before ui.Build. If ui.Build fails (e.g. bad TERM), then the filter will be left
+	// running, so we need the defer to be in effect here and not after the processing of ui.Build's
+	// error
+	defer func() {
+		if ui.FilterWidget != nil {
+			ui.FilterWidget.Close()
+		}
+	}()
+
 	var app *gowid.App
 	if app, err = ui.Build(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -642,8 +651,6 @@ func cmain() int {
 		}
 		return 1
 	}
-
-	defer ui.FilterWidget.Close()
 
 	appRunner := app.Runner()
 
