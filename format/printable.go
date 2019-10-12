@@ -27,8 +27,10 @@ func MakePrintableString(data []byte) string {
 func MakePrintableStringWithNewlines(data []byte) string {
 	var buffer bytes.Buffer
 	for i := 0; i < len(data); i++ {
-		if unicode.IsPrint(rune(data[i])) || data[i] == '\n' {
+		if (data[i] >= 32 && data[i] < 127) || data[i] == '\n' {
 			buffer.WriteString(string(rune(data[i])))
+		} else {
+			buffer.WriteRune('.')
 		}
 	}
 	return buffer.String()
