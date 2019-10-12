@@ -1340,13 +1340,26 @@ func (r *tailReadTracker) Read(p []byte) (int, error) {
 	} else {
 		r.loader.totalFifoBytesRead = gwutil.SomeInt64(int64(n) + r.loader.totalFifoBytesRead.Val())
 	}
-	if err != nil && r.loader.fifoError == nil && err != io.EOF {
+	// err == ErrClosed if the pipe (tailReader) that is wrapped in this tracker is closed.
+	// This can happen because this call to Read() and the deferred closepipe() function run
+	// at the same time.
+	if err != nil && r.loader.fifoError == nil && err != io.EOF && !errIsAlreadyClosed(err) {
 		r.loader.fifoError = err
 	}
 
 	r.loader.checkAllBytesRead(r.callback)
 
 	return n, err
+}
+
+func errIsAlreadyClosed(err error) bool {
+	if err == os.ErrClosed {
+		return true
+	} else if err, ok := err.(*os.PathError); ok {
+		return errIsAlreadyClosed(err.Err)
+	} else {
+		return false
+	}
 }
 
 // checkReadAllBytes is called (a) when the tshark -i process is finished
