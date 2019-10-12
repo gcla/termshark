@@ -504,6 +504,16 @@ func (t *rowFocusTableWidget) Rows() int {
 	return t.Widget.Model().(table.IBoundedModel).Rows()
 }
 
+// Implement withscrollbar.IScrollValues
+func (t *rowFocusTableWidget) ScrollLength() int {
+	return t.Rows()
+}
+
+// Implement withscrollbar.IScrollValues
+func (t *rowFocusTableWidget) ScrollPosition() int {
+	return t.CurrentRow()
+}
+
 func (t *rowFocusTableWidget) Up(lines int, size gowid.IRenderSize, app gowid.IApp) {
 	for i := 0; i < lines; i++ {
 		t.Widget.UserInput(tcell.NewEventKey(tcell.KeyUp, ' ', tcell.ModNone), size, gowid.Focused, app)
