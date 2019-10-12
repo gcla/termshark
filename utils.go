@@ -540,7 +540,7 @@ func init() {
 }
 
 // Down to the second for profiling, etc
-func dateStringForFilename() string {
+func DateStringForFilename() string {
 	return time.Now().Format("2006-01-02--15-04-05")
 }
 
@@ -549,7 +549,7 @@ func ProfileCPUFor(secs int) bool {
 		log.Infof("CPU profile already running.")
 		return false
 	}
-	file := filepath.Join(CacheDir(), fmt.Sprintf("cpu-%s.prof", dateStringForFilename()))
+	file := filepath.Join(CacheDir(), fmt.Sprintf("cpu-%s.prof", DateStringForFilename()))
 	log.Infof("Starting CPU profile for %d seconds in %s", secs, file)
 	gwutil.StartProfilingCPU(file)
 	go func() {
@@ -563,7 +563,7 @@ func ProfileCPUFor(secs int) bool {
 }
 
 func ProfileHeap() {
-	file := filepath.Join(CacheDir(), fmt.Sprintf("mem-%s.prof", dateStringForFilename()))
+	file := filepath.Join(CacheDir(), fmt.Sprintf("mem-%s.prof", DateStringForFilename()))
 	log.Infof("Creating memory profile in %s", file)
 	gwutil.ProfileHeap(file)
 }

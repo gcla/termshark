@@ -6,8 +6,6 @@ package pcap
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -403,7 +401,6 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 
 		c.stopLoadCurrentSource()
 
-
 		c.When(c.IdleState, func() {
 			// Document why this needs to be delayed again, since runWhenReadyFn
 			// will run in app goroutine
@@ -640,9 +637,10 @@ func TempPcapFile(token string) string {
 	re := regexp.MustCompile(`[^a-zA-Z0-9.-]`)
 	tokenClean := re.ReplaceAllString(token, "_")
 
-	randBytes := make([]byte, 2)
-	rand.Read(randBytes)
-	return filepath.Join(termshark.PcapDir(), fmt.Sprintf("%s-%s-%s.pcap", tokenClean, time.Now().Format("20060102150405"), hex.EncodeToString(randBytes)))
+	return filepath.Join(termshark.PcapDir(), fmt.Sprintf("%s--%s.pcap",
+		tokenClean,
+		termshark.DateStringForFilename(),
+	))
 }
 
 func (c *Loader) makeNewSourceContext() {
