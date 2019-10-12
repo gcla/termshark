@@ -1744,6 +1744,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 }
 
 // dumpcap -i eth0 -w /tmp/foo.pcap
+// dumpcap -i /dev/fd/3 -w /tmp/foo.pcap
 func (c *Loader) loadIfaceAsync(cb interface{}) {
 	c.totalFifoBytesWritten = gwutil.NoneInt64()
 	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.thisSrcCtx)
@@ -1779,6 +1780,9 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 	err = c.ifaceCmd.Wait() // it definitely started, so we must wait
 	if !c.suppressErrors && err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
+			// This could be if termshark is started like this: cat nosuchfile.pcap | termshark -i -
+			// Then dumpcap will be started with /dev/fd/3 as its stdin, but will fail with EOF and
+			// exit status 1.
 			cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
 				"command": c.ifaceCmd.String(),
 				"error":   err,
@@ -1797,7 +1801,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 	// termshark will get EOF when the cat terminates (if there are no more writers).
 	//
 
-	// Calculate the final size of the tmp file we wrote it with packets read from the
+	// Calculate the final size of the tmp file we wrote with packets read from the
 	// interface/pipe. This runs after the dumpcap command finishes.
 	fi, err := os.Stat(c.ifaceFile)
 	if err != nil {

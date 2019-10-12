@@ -613,7 +613,7 @@ func cmain() int {
 		// Don't start the UI until this file is created. When listening on a pipe,
 		// termshark will start a process similar to:
 		//
-		// dumpcap -i - -w ~/.cache/pcaps/tmp123.pcap
+		// dumpcap -i /dev/fd/3 -w ~/.cache/pcaps/tmp123.pcap
 		//
 		// dumpcap will not actually create that file until it has data to write to it.
 		// So we watch for the creation of that file, and until then, don't launch the UI.
