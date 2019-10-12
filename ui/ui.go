@@ -490,6 +490,10 @@ func (w *selectedComposite) SubWidget() gowid.IWidget {
 // rowFocusTableWidget provides a table that highlights the selected row or
 // focused row.
 type rowFocusTableWidget struct {
+	// set to true after the first time we move focus from the table header to the data. We do this
+	// once and that this happens quickly, but then assume the user might want to move back to the
+	// table header manually, and it would be strange if the table keeps jumping back to the data...
+	didFirstAutoFocus bool
 	*table.BoundedWidget
 }
 
@@ -1405,13 +1409,18 @@ func updatePacketListWithData(packetPsmlHeaders []string, packetPsmlData [][]str
 		// ... adjust the widget so it is rendering with the last item at the bottom.
 		packetListTable.GoToBottom(app)
 	}
+	// Only do this once, the first time.
+	if !packetListView.didFirstAutoFocus && len(packetPsmlData) > 0 {
+		packetListView.SetFocusOnData(app)
+		packetListView.didFirstAutoFocus = true
+	}
 }
 
 func setPacketListWidgets(packetPsmlHeaders []string, packetPsmlData [][]string, app gowid.IApp) {
 	expandingModel := makePacketListModel(packetPsmlHeaders, packetPsmlData, app)
 
 	packetListTable = &table.BoundedWidget{Widget: table.New(expandingModel)}
-	packetListView = &rowFocusTableWidget{packetListTable}
+	packetListView = &rowFocusTableWidget{BoundedWidget: packetListTable}
 
 	packetListView.Lower().IWidget = list.NewBounded(packetListView)
 	packetListView.OnFocusChanged(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
