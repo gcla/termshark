@@ -1129,6 +1129,36 @@ func streamKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	return handled
 }
 
+func setFocusOnPacketList(app gowid.IApp) {
+	gowid.SetFocusPath(mainview, mainviewPaths[0], app)
+	gowid.SetFocusPath(altview1, altview1Paths[0], app)
+	gowid.SetFocusPath(altview2, altview2Paths[0], app)
+	gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
+}
+
+func setFocusOnPacketStruct(app gowid.IApp) {
+	gowid.SetFocusPath(mainview, mainviewPaths[1], app)
+	gowid.SetFocusPath(altview1, altview1Paths[1], app)
+	gowid.SetFocusPath(altview2, altview2Paths[1], app)
+	gowid.SetFocusPath(viewOnlyPacketStructure, maxViewPath, app)
+}
+
+func setFocusOnPacketHex(app gowid.IApp) {
+	gowid.SetFocusPath(mainview, mainviewPaths[2], app)
+	gowid.SetFocusPath(altview1, altview1Paths[2], app)
+	gowid.SetFocusPath(altview2, altview2Paths[2], app)
+	gowid.SetFocusPath(viewOnlyPacketHex, maxViewPath, app)
+}
+
+func setFocusOnDisplayFilter(app gowid.IApp) {
+	gowid.SetFocusPath(mainview, filterPathMain, app)
+	gowid.SetFocusPath(altview1, filterPathAlt, app)
+	gowid.SetFocusPath(altview2, filterPathAlt, app)
+	gowid.SetFocusPath(viewOnlyPacketList, filterPathMax, app)
+	gowid.SetFocusPath(viewOnlyPacketStructure, filterPathMax, app)
+	gowid.SetFocusPath(viewOnlyPacketHex, filterPathMax, app)
+}
+
 // Keys for the main view - packet list, structure, etc
 func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
@@ -1148,9 +1178,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		gowid.SetFocusPath(viewOnlyPacketHex, maxViewPath, app)
 
 		if packetStructureViewHolder.SubWidget() == MissingMsgw {
-			gowid.SetFocusPath(mainview, mainviewPaths[0], app)
-			gowid.SetFocusPath(altview1, altview1Paths[0], app)
-			gowid.SetFocusPath(altview2, altview2Paths[0], app)
+			setFocusOnPacketList(app)
 		} else {
 			newidx := -1
 			if mainViewNoKeys.SubWidget() == mainview {
@@ -1209,11 +1237,11 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			if deep.Equal(fp, maxViewPath) == nil {
 				switch w {
 				case viewOnlyPacketList:
-					gowid.SetFocusPath(mainview, mainviewPaths[0], app)
+					setFocusOnPacketList(app)
 				case viewOnlyPacketStructure:
-					gowid.SetFocusPath(mainview, mainviewPaths[1], app)
+					setFocusOnPacketStruct(app)
 				case viewOnlyPacketHex:
-					gowid.SetFocusPath(mainview, mainviewPaths[2], app)
+					setFocusOnPacketList(app)
 				}
 			}
 		} else {
@@ -1223,12 +1251,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			}
 		}
 	} else if evk.Rune() == '/' {
-		gowid.SetFocusPath(mainview, filterPathMain, app)
-		gowid.SetFocusPath(altview1, filterPathAlt, app)
-		gowid.SetFocusPath(altview2, filterPathAlt, app)
-		gowid.SetFocusPath(viewOnlyPacketList, filterPathMax, app)
-		gowid.SetFocusPath(viewOnlyPacketStructure, filterPathMax, app)
-		gowid.SetFocusPath(viewOnlyPacketHex, filterPathMax, app)
+		setFocusOnDisplayFilter(app)
 	} else {
 		handled = false
 	}
