@@ -126,7 +126,7 @@ type Loader struct {
 
 	state LoaderState // which pieces are currently loading
 
-	userInitiatedOp bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
+	suppressErrors bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
 
 	psrc          IPacketSource // The canonical struct for the loader's current packet source.
 	ifaceFile     string        // The temp pcap file that is created by reading from the interface
@@ -137,14 +137,16 @@ type Loader struct {
 	PcapPdml string      // Pcap file source for the pdml reader - tmpfile if iface; pcap otherwise
 	PcapPcap string      // Pcap file source for the pcap reader - tmpfile if iface; pcap otherwise
 
-	mainCtx        context.Context // cancelling this cancels the dependent contexts
-	mainCancelFn   context.CancelFunc
-	psmlCtx        context.Context // cancels the psml loading process
-	psmlCancelFn   context.CancelFunc
-	stage2Ctx      context.Context // cancels the pcap/pdml loading process
-	stage2CancelFn context.CancelFunc
-	ifaceCtx       context.Context // cancels the iface reader process
-	ifaceCancelFn  context.CancelFunc
+	mainCtx         context.Context // cancelling this cancels the dependent contexts - used to close whole loader.
+	mainCancelFn    context.CancelFunc
+	thisSrcCtx      context.Context // cancelling this cancels the dependent contexts - used to stop current load.
+	thisSrcCancelFn context.CancelFunc
+	psmlCtx         context.Context // cancels the psml loading process
+	psmlCancelFn    context.CancelFunc
+	stage2Ctx       context.Context // cancels the pcap/pdml loading process
+	stage2CancelFn  context.CancelFunc
+	ifaceCtx        context.Context // cancels the iface reader process
+	ifaceCancelFn   context.CancelFunc
 
 	//psmlDecodingProcessChan chan struct{} // signalled by psml load stage when the XML decoding is complete - signals rest of stage 1 to shut down
 	stage2GoroutineDoneChan chan struct{} // signalled by a goroutine in stage 2 for pcap/pdml - always signalled at end. When x2, signals rest of stage 2 to shut down
@@ -256,8 +258,12 @@ func (c *Loader) Close() error {
 	return nil
 }
 
-func (c *Loader) Context() context.Context {
+func (c *Loader) MainContext() context.Context {
 	return c.mainCtx
+}
+
+func (c *Loader) SourceContext() context.Context {
+	return c.thisSrcCtx
 }
 
 func (c *Loader) stopLoadIface() {
@@ -275,6 +281,12 @@ func (c *Loader) stopLoadPsml() {
 func (c *Loader) stopLoadPdml() {
 	if c.stage2CancelFn != nil {
 		c.stage2CancelFn()
+	}
+}
+
+func (c *Loader) stopLoadCurrentSource() {
+	if c.thisSrcCancelFn != nil {
+		c.thisSrcCancelFn()
 	}
 }
 
@@ -299,12 +311,12 @@ func (c *Scheduler) IsEnabled() bool {
 
 func (c *Scheduler) Enable() {
 	c.disabled = false
-	c.userInitiatedOp = false
+	c.suppressErrors = false
 }
 
 func (c *Scheduler) Disable() {
 	c.disabled = true
-	c.userInitiatedOp = true
+	c.suppressErrors = true
 }
 
 func (c *Scheduler) RequestClearPcap(cb interface{}) {
@@ -387,12 +399,10 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 
 		if c.State()&LoadingIface != 0 {
 			startIfaceAgain = CanRestart(c.psrc) // Only try to restart if the packet source allows
-			c.stopLoadIface()
 		}
 
-		if c.State()&LoadingPsml != 0 {
-			c.stopLoadPsml()
-		}
+		c.stopLoadCurrentSource()
+
 
 		c.When(c.IdleState, func() {
 			// Document why this needs to be delayed again, since runWhenReadyFn
@@ -429,9 +439,7 @@ func (c *Loader) doStopLoadOperation(cb interface{}, fn RunFn) {
 	}
 
 	if c.State() != 0 {
-		c.stopLoadPsml()
-		c.stopLoadPdml()
-		c.stopLoadIface()
+		c.stopLoadCurrentSource()
 
 		c.When(c.IdleState, func() {
 			c.doStopLoadOperation(cb, fn)
@@ -637,6 +645,10 @@ func TempPcapFile(token string) string {
 	return filepath.Join(termshark.PcapDir(), fmt.Sprintf("%s-%s-%s.pcap", tokenClean, time.Now().Format("20060102150405"), hex.EncodeToString(randBytes)))
 }
 
+func (c *Loader) makeNewSourceContext() {
+	c.thisSrcCtx, c.thisSrcCancelFn = context.WithCancel(c.mainCtx)
+}
+
 // Save the file first
 // Always called from app goroutine context - so don't need to protect for race on cancelfn
 // Assumes gstate is ready
@@ -650,6 +662,8 @@ func (c *Loader) startLoadInterfaceNew(psrc IPacketSource, captureFilter string,
 	c.ifaceFile = tmpfile
 	c.displayFilter = displayFilter
 	c.captureFilter = captureFilter
+
+	c.makeNewSourceContext()
 
 	// It's a temporary unique file, and no processes are started yet, so either
 	// (a) it doesn't exist, OR
@@ -673,6 +687,8 @@ func (c *Loader) startLoadInterfaceNew(psrc IPacketSource, captureFilter string,
 func (c *Loader) startLoadNewFilter(displayFilter string, cb interface{}) {
 	c.displayFilter = displayFilter
 
+	c.makeNewSourceContext()
+
 	log.Infof("Applying new display filter '%s'", displayFilter)
 	c.startLoadPsml(cb)
 }
@@ -685,6 +701,8 @@ func (c *Loader) startLoadNewFile(pcap string, displayFilter string, cb interfac
 	c.PcapPdml = pcap
 	c.PcapPcap = pcap
 	c.displayFilter = displayFilter
+
+	c.makeNewSourceContext()
 
 	log.Infof("Starting new pcap file load '%s'", pcap)
 	c.startLoadPsml(cb)
@@ -887,7 +905,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	// too. When the 2/3 data loading processes are done, a goroutine will then run uiCtxCancel()
 	// to stop the UI updates.
 
-	c.stage2Ctx, c.stage2CancelFn = context.WithCancel(c.mainCtx)
+	c.stage2Ctx, c.stage2CancelFn = context.WithCancel(c.thisSrcCtx)
 
 	intStage2Ctx, intStage2CancelFn := context.WithCancel(context.Background())
 
@@ -988,7 +1006,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		}()
 
 		// If there's no filter, psml, pdml and pcap run concurrently for speed. Therefore the pdml and pcap
-		// don't know how large the psml will be. So we set numToRead to abcdex. This might be too high, but
+		// don't know how large the psml will be. So we set numToRead to 1000. This might be too high, but
 		// we only use this to determine when we can kill the reading processes early. The result will be
 		// correct if we don't kill the processes, it just might load for longer.
 		c.KillAfterReadingThisMany = c.opt.PacketsPerLoad
@@ -1385,7 +1403,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	// too. When the 2/3 data loading processes are done, a goroutine will then run uiCtxCancel()
 	// to stop the UI updates.
 
-	c.psmlCtx, c.psmlCancelFn = context.WithCancel(c.mainCtx)
+	c.psmlCtx, c.psmlCancelFn = context.WithCancel(c.thisSrcCtx)
 
 	intPsmlCtx, intPsmlCancelFn := context.WithCancel(context.Background())
 
@@ -1536,7 +1554,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// PsmlCmd.Wait() below completes.
 		closePipe()
 		err := c.PsmlCmd.Wait()
-		if !c.userInitiatedOp {
+		if !c.suppressErrors {
 			if err != nil {
 				if _, ok := err.(*exec.ExitError); ok {
 					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
@@ -1728,7 +1746,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 // dumpcap -i eth0 -w /tmp/foo.pcap
 func (c *Loader) loadIfaceAsync(cb interface{}) {
 	c.totalFifoBytesWritten = gwutil.NoneInt64()
-	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.mainCtx)
+	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.thisSrcCtx)
 
 	defer func() {
 		ch := c.IfaceFinishedChan
@@ -1759,7 +1777,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 	}, Goroutinewg)
 
 	err = c.ifaceCmd.Wait() // it definitely started, so we must wait
-	if !c.userInitiatedOp && err != nil {
+	if !c.suppressErrors && err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
 				"command": c.ifaceCmd.String(),
