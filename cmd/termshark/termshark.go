@@ -179,25 +179,8 @@ func cmain() int {
 		}
 	}
 
-	// These are needed because we need to distinguish from the flag being provided
-	// and set off and the flag not being provided - in which case the config file
-	// value is used.
-	var darkModeSwitchSet bool   // whether switch was passed at command line
-	var darkModeSwitch bool      // set via command line
-	var autoScrollSwitchSet bool // whether switch was passed at command line
-	var autoScrollSwitch bool    // set via command line
-
 	// Termshark's own command line arguments. Used if we don't pass through to tshark.
 	var opts cli.Termshark
-
-	opts.DarkMode = func(val bool) {
-		darkModeSwitch = val
-		darkModeSwitchSet = true
-	}
-	opts.AutoScroll = func(val bool) {
-		autoScrollSwitch = val
-		autoScrollSwitchSet = true
-	}
 
 	// Parse the args now as intended for termshark
 	tmFlags := flags.NewParser(&opts, flags.PassDoubleDash)
@@ -553,19 +536,9 @@ func cmain() int {
 		}
 	}()
 
-	// Initialize application state for dark mode
-	if darkModeSwitchSet {
-		ui.DarkMode = darkModeSwitch
-	} else {
-		ui.DarkMode = termshark.ConfBool("main.dark-mode")
-	}
-
-	// Initialize application state for auto-scroll
-	if autoScrollSwitchSet {
-		ui.AutoScroll = autoScrollSwitch
-	} else {
-		ui.AutoScroll = termshark.ConfBool("main.auto-scroll")
-	}
+	// Initialize application state for dark mode and auto-scroll
+	ui.DarkMode = termshark.ConfBool("main.dark-mode", false)
+	ui.AutoScroll = termshark.ConfBool("main.auto-scroll", true)
 
 	// Set them up here so they have access to any command-line flags that
 	// need to be passed to the tshark commands used

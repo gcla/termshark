@@ -24,13 +24,11 @@ type Termshark struct {
 	DisplayFilter string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
 	CaptureFilter string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
 	PlatformSpecific
-	PassThru   string     `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
-	LogTty     bool       `long:"log-tty" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Log to the terminal."`
-	DarkMode   func(bool) `long:"dark-mode" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Use dark-mode."`
-	AutoScroll func(bool) `long:"auto-scroll" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Automatically scroll during live capture."`
-	Debug      string     `long:"debug" default:"false" hidden:"true" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
-	Help       bool       `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
-	Version    []bool     `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
+	PassThru string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
+	LogTty   bool   `long:"log-tty" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Log to the terminal."`
+	Debug    string `long:"debug" default:"false" hidden:"true" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
+	Help     bool   `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
+	Version  []bool `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
 	Args struct {
 		FilterOrFile string `value-name:"<filter-or-file>" description:"Filter (capture for iface, display for pcap), or pcap file to read."`
@@ -39,7 +37,7 @@ type Termshark struct {
 
 // If args are passed through to tshark (e.g. stdout not a tty), then
 // strip these out so tshark doesn't fail.
-var TermsharkOnly = []string{"--pass-thru", "--log-tty", "--debug", "--dark-mode", "--auto-scroll"}
+var TermsharkOnly = []string{"--pass-thru", "--log-tty", "--debug"}
 
 func FlagIsTrue(val string) bool {
 	return val == "true" || val == "yes"
