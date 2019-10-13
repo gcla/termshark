@@ -21,6 +21,8 @@ import (
 	"github.com/gcla/termshark"
 	"github.com/gcla/termshark/cli"
 	"github.com/gcla/termshark/pcap"
+	"github.com/gcla/termshark/system"
+	"github.com/gcla/termshark/tty"
 	"github.com/gcla/termshark/ui"
 	"github.com/gcla/termshark/widgets/filter"
 	"github.com/gdamore/tcell"
@@ -80,7 +82,7 @@ func cmain() int {
 	// through but maps to SIGTSTP, then tcpdump will be stopped by ctrl-z
 	// via the shell by virtue of the fact that when all pipeline
 	// processes start running, they use the same tty line discipline.
-	termshark.RegisterForSignals(sigChan)
+	system.RegisterForSignals(sigChan)
 
 	viper.SetConfigName("termshark") // no need to include file extension - looks for file called termshark.ini for example
 
@@ -323,13 +325,13 @@ func cmain() int {
 			return 1
 		}
 		if runtime.GOOS != "windows" {
-			newinputfd, err = termshark.MoveStdin()
+			newinputfd, err = system.MoveStdin()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				return 1
 			}
 			defer func() {
-				termshark.CloseDescriptor(newinputfd)
+				system.CloseDescriptor(newinputfd)
 			}()
 			psrc = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd)}
 		} else {
@@ -699,7 +701,7 @@ func cmain() int {
 	loaderIfaceFinChan := ui.Loader.IfaceFinishedChan
 	loaderPdmlFinChan := ui.Loader.Stage2FinishedChan
 
-	ctrlzLineDisc := termshark.TerminalSignals{}
+	ctrlzLineDisc := tty.TerminalSignals{}
 
 Loop:
 	for {
@@ -866,7 +868,7 @@ Loop:
 			}
 
 		case sig := <-sigChan:
-			if termshark.IsSigTSTP(sig) {
+			if system.IsSigTSTP(sig) {
 				if ui.Running {
 					// Remove our terminal overrides that allow ctrl-z
 					ctrlzLineDisc.Restore()
@@ -883,12 +885,12 @@ Loop:
 				}
 
 				// This is not synchronous, but some time after calling this, we'll be suspended.
-				if err := termshark.StopMyself(); err != nil {
+				if err := system.StopMyself(); err != nil {
 					fmt.Fprintf(os.Stderr, "Unexpected error issuing SIGSTOP: %v\n", err)
 					return 1
 				}
 
-			} else if termshark.IsSigCont(sig) {
+			} else if system.IsSigCont(sig) {
 				if uiSuspended {
 					// Go to termshark UI view
 					if err = app.ActivateScreen(); err != nil {
@@ -907,14 +909,14 @@ Loop:
 					ui.Running = true
 					uiSuspended = false
 				}
-			} else if termshark.IsSigUSR1(sig) {
+			} else if system.IsSigUSR1(sig) {
 				if cli.FlagIsTrue(opts.Debug) {
 					termshark.ProfileCPUFor(20)
 				} else {
 					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
 				}
 
-			} else if termshark.IsSigUSR2(sig) {
+			} else if system.IsSigUSR2(sig) {
 				if cli.FlagIsTrue(opts.Debug) {
 					termshark.ProfileHeap()
 				} else {
@@ -977,7 +979,7 @@ Loop:
 			ui.Loader.SetState(ui.Loader.State() & ^pcap.LoadingPdml)
 
 		case <-tickChan:
-			if termshark.HaveFdinfo && (ui.Loader.State() == pcap.LoadingPdml || !ui.Loader.ReadingFromFifo()) {
+			if system.HaveFdinfo && (ui.Loader.State() == pcap.LoadingPdml || !ui.Loader.ReadingFromFifo()) {
 				prev = ui.UpdateProgressBarForFile(ui.Loader, prev, app)
 			} else {
 				ui.UpdateProgressBarForInterface(ui.Loader, app)

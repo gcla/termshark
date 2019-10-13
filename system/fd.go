@@ -4,7 +4,7 @@
 
 // +build !windows
 
-package termshark
+package system
 
 import (
 	"os"

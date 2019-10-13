@@ -41,6 +41,7 @@ import (
 	"github.com/gcla/termshark/pcap"
 	"github.com/gcla/termshark/pdmltree"
 	"github.com/gcla/termshark/psmltable"
+	"github.com/gcla/termshark/system"
 	"github.com/gcla/termshark/widgets/appkeys"
 	"github.com/gcla/termshark/widgets/copymodetree"
 	"github.com/gcla/termshark/widgets/enableselected"
@@ -213,7 +214,7 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 
 			// Progress determined by how far through the pcap the pdml reader is.
 			c.Lock()
-			c2, m, err = termshark.ProcessProgress(termshark.SafePid(c.PdmlCmd), c.PcapPdml)
+			c2, m, err = system.ProcessProgress(termshark.SafePid(c.PdmlCmd), c.PcapPdml)
 			c.Unlock()
 			if err == nil {
 				pdmlIdxProg.cur, pdmlIdxProg.max = c2, m
@@ -234,7 +235,7 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 
 			// Progress determined by how far through the pcap the pcap reader is.
 			c.Lock()
-			c2, m, err = termshark.ProcessProgress(termshark.SafePid(c.PcapCmd), c.PcapPcap)
+			c2, m, err = system.ProcessProgress(termshark.SafePid(c.PcapCmd), c.PcapPcap)
 			c.Unlock()
 			if err == nil {
 				pcapIdxProg.cur, pcapIdxProg.max = c2, m
@@ -248,7 +249,7 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 
 	if psml, ok := c.PcapPsml.(string); ok && c.State()&pcap.LoadingPsml != 0 {
 		c.Lock()
-		c2, m, err = termshark.ProcessProgress(termshark.SafePid(c.PsmlCmd), psml)
+		c2, m, err = system.ProcessProgress(termshark.SafePid(c.PsmlCmd), psml)
 		c.Unlock()
 		if err == nil {
 			psmlProg.cur, psmlProg.max = c2, m
@@ -871,6 +872,7 @@ func getCurrentStructModel(row int) *pdmltree.Model {
 
 	return res
 }
+
 type NoHandlers struct{}
 
 //======================================================================
