@@ -67,18 +67,6 @@ var BadCommand = BadCommandError{}
 
 //======================================================================
 
-type NotImplementedError struct{}
-
-var _ error = NotImplementedError{}
-
-func (e NotImplementedError) Error() string {
-	return "Feature not implemented"
-}
-
-var NotImplemented = NotImplementedError{}
-
-//======================================================================
-
 type ConfigError struct{}
 
 var _ error = ConfigError{}
