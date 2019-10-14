@@ -2648,7 +2648,7 @@ func Build() (*gowid.App, error) {
 
 	//======================================================================
 
-	palette := termshark.PaletteSwitcher{
+	palette := PaletteSwitcher{
 		P1:        &DarkModePalette,
 		P2:        &RegularPalette,
 		ChooseOne: &DarkMode,
