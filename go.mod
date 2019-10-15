@@ -27,3 +27,5 @@ require (
 )
 
 replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20190930013645-5e4b40606ce2
+
+replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
