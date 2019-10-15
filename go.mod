@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/tevino/abool v0.0.0-20170917061928-9b9efcf221b5
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
-	golang.org/x/sys v0.0.0-20190927073244-c990c680b611
+	golang.org/x/sys v0.0.0-20191010194322-b09406accb47
 	gopkg.in/fsnotify.v1 v1.4.7
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 )
