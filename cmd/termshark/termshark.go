@@ -257,7 +257,17 @@ func cmain() int {
 		pcapf = string(opts.Args.FilterOrFile)
 		// `termshark` => `termshark -i 1` (livecapture on default interface if no args)
 		if pcapf == "" {
-			psrc = pcap.InterfaceSource{Iface: "1"}
+			if termshark.IsTerminal(os.Stdin.Fd()) {
+				// $ termshark
+				// # use network interface 1 - maps to
+				// # termshark -i 1
+				psrc = pcap.InterfaceSource{Iface: "1"}
+			} else {
+				// $ cat foo.pcap | termshark
+				// # use stdin - maps to
+				// $ cat foo.pcap | termshark -r -
+				psrc = pcap.FileSource{Filename: "-"}
+			}
 		}
 	} else {
 		// Add it to filter args. Figure out later if they're capture or display.
