@@ -12,6 +12,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 //======================================================================
@@ -58,7 +59,7 @@ func MoveStdin() (int, error) {
 		return -1, err
 	}
 	if newstdin != 0 {
-		err = Dup2(newstdin, 0)
+		err = unix.Dup2(newstdin, 0)
 		if err != nil {
 			err = errors.WithStack(gowid.WithKVs(DupError, map[string]interface{}{
 				"descriptor": newstdin,
