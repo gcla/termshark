@@ -493,13 +493,20 @@ func cmain() int {
 		}
 
 		gotit := false
-		for i, n := range ifaces {
+		var canonicalName string
+		for i, n := range ifaces { // ("NDIS_...", 7)
 			if i == psrc.Name() || n == ifaceIdx {
 				gotit = true
+				canonicalName = i
 				break
 			}
 		}
-		if !gotit {
+		if gotit {
+			// Guaranteed that psrc.IsInterface() is true
+			// Use the canonical name e.g. "NDIS_...". Then the temporary filename will
+			// have a more meaningful name.
+			psrc = pcap.InterfaceSource{Iface: canonicalName}
+		} else {
 			fmt.Fprintf(os.Stderr, "Could not find network interface %s\n", psrc.Name())
 			return 1
 		}
