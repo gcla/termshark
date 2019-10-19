@@ -63,8 +63,22 @@ func NewConfigWatcher() (*ConfigWatcher, error) {
 }
 
 func (c *ConfigWatcher) Close() error {
+	// Close the watcher first. This prevents a dossible deadlock
+	// - termshark shuts down, exiting select loop that processes c.change channel
+	// - an event from the watcher occurs, the goroutine above writes to c.change and blocks
+	// - the deferred call to Close() here is made, and deadlocks on writing to c.close
+	//
+	res := c.watcher.Close()
+
+	// drain the change channel to ensure the goroutine above can process the close. This
+	// is safe because I know, at this point, there are no other readers because termshark
+	// has exited its select loop.
+	for len(c.change) > 0 {
+		<-c.change
+	}
+
 	c.close <- struct{}{}
-	return c.watcher.Close()
+	return res
 }
 
 func (c *ConfigWatcher) ConfigChanged() <-chan struct{} {
