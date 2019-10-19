@@ -384,11 +384,7 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 	if c.State() == 0 {
 		c.resetData()
 
-		if oc, ok := cb.(IClear); ok {
-			ch := make(chan struct{})
-			oc.OnClear(ch)
-		}
-		//cb.OnClear()
+		handleClear(cb)
 
 		fn()
 	} else {
@@ -528,10 +524,7 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 		log.Infof("No operation - same interface and filters.")
 		fn()
 	} else if c.State() == 0 {
-		if oc, ok := cb.(IClear); ok {
-			ch := make(chan struct{})
-			oc.OnClear(ch)
-		}
+		handleClear(cb)
 
 		if err := c.startLoadInterfaceNew(psrc, captureFilter, displayFilter, tmpfile, cb); err == nil {
 			c.When(func() bool {
