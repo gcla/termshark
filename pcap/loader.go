@@ -1379,7 +1379,7 @@ func errIsAlreadyClosed(err error) bool {
 	}
 }
 
-// checkReadAllBytes is called (a) when the tshark -i process is finished
+// checkAllBytesRead is called (a) when the tshark -i process is finished
 // writing to the tmp file and (b) every time the tmpfile tail process reads
 // bytes. totalFifoBytesWrite is set to non-nil only when the tail process
 // completes. totalFifoBytesRead is updated every read. If they are every
