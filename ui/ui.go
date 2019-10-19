@@ -149,21 +149,19 @@ func init() {
 	CacheRequests = make([]pcap.LoadPcapSlice, 0)
 }
 
+// Runs in app goroutine
 func UpdateProgressBarForInterface(c *pcap.Loader, app gowid.IApp) {
 	SetProgressIndeterminate(app)
 	switch Loader.State() {
 	case 0:
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			ClearProgressWidget(app)
-		}))
+		ClearProgressWidget(app)
 	default:
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			loadSpinner.Update()
-			setProgressWidget(app)
-		}))
+		loadSpinner.Update()
+		setProgressWidget(app)
 	}
 }
 
+// Runs in app goroutine
 func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp) float64 {
 	SetProgressDeterminate(app)
 
@@ -203,8 +201,8 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 	// Progress determined by how many of the (up to) pktsPerLoad pdml packets are read
 	// If it's not the same chunk of rows, assume it won't affect our view, so no progress needed
 	if c.State()&pcap.LoadingPdml != 0 {
-		if c.RowCurrentlyLoading == currentRowDiv {
-			if x, err = c.LengthOfPdmlCacheEntry(c.RowCurrentlyLoading); err == nil {
+		if c.LoadingRow() == currentRowDiv {
+			if x, err = c.LengthOfPdmlCacheEntry(c.LoadingRow()); err == nil {
 				pdmlPacketProg.cur = int64(x)
 				pdmlPacketProg.max = int64(c.KillAfterReadingThisMany)
 				if currentRow != -1 && currentRowMod < pdmlPacketProg.max {
@@ -225,7 +223,7 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 			}
 
 			// Progress determined by how many of the (up to) pktsPerLoad pcap packets are read
-			if x, err = c.LengthOfPcapCacheEntry(c.RowCurrentlyLoading); err == nil {
+			if x, err = c.LengthOfPcapCacheEntry(c.LoadingRow()); err == nil {
 				pcapPacketProg.cur = int64(x)
 				pcapPacketProg.max = int64(c.KillAfterReadingThisMany)
 				if currentRow != -1 && currentRowMod < pcapPacketProg.max {
@@ -291,17 +289,13 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 	curRatio := float64(prog.cur) / float64(prog.max)
 	if prog.Complete() {
 		if prevRatio < 1.0 {
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				ClearProgressWidget(app)
-			}))
+			ClearProgressWidget(app)
 		}
 	} else {
 		if prevRatio < curRatio {
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				loadProgress.SetTarget(app, int(prog.max))
-				loadProgress.SetProgress(app, int(prog.cur))
-				setProgressWidget(app)
-			}))
+			loadProgress.SetTarget(app, int(prog.max))
+			loadProgress.SetProgress(app, int(prog.cur))
+			setProgressWidget(app)
 		}
 	}
 	return curRatio
@@ -858,6 +852,9 @@ func getCurrentStructModel(row int) *pdmltree.Model {
 
 	pktsPerLoad := Loader.PacketsPerLoad()
 	row2 := (row / pktsPerLoad) * pktsPerLoad
+
+	Loader.Lock()
+	defer Loader.Unlock()
 	if ws, ok := Loader.PacketCache.Get(row2); ok {
 		srca := ws.(pcap.CacheEntry).Pdml
 		if len(srca) > row%pktsPerLoad {
@@ -919,9 +916,11 @@ func (t UpdatePacketViews) BeforeBegin(ch chan<- struct{}) {
 		termshark.TrackedGo(func() {
 			fn2 := func() {
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					Loader.Lock()
-					defer Loader.Unlock()
-					updatePacketListWithData(Loader.PacketPsmlHeaders, Loader.PacketPsmlData, app)
+					t.Ld.Lock()
+					curHeaders := Loader.PacketPsmlHeaders
+					curData := Loader.PacketPsmlData
+					t.Ld.Unlock()
+					updatePacketListWithData(curHeaders, curData, app)
 				}))
 			}
 
@@ -938,8 +937,6 @@ func (t UpdatePacketViews) BeforeBegin(ch chan<- struct{}) {
 func (t UpdatePacketViews) AfterEnd(ch chan<- struct{}) {
 	close(ch)
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		t.Ld.Lock()
-		defer t.Ld.Unlock()
 		updatePacketListWithData(t.Ld.PacketPsmlHeaders, t.Ld.PacketPsmlData, app)
 	}))
 }
@@ -1575,6 +1572,7 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 		res2 = val.(*hexdumper2.Widget)
 	} else {
 		pktsPerLoad := Loader.PacketsPerLoad()
+
 		row2 := (row / pktsPerLoad) * pktsPerLoad
 		if ws, ok := Loader.PacketCache.Get(row2); ok {
 			srca := ws.(pcap.CacheEntry).Pcap
@@ -1789,12 +1787,16 @@ var _ pcap.IAfterEnd = SaveRecents{}
 
 func (t SaveRecents) AfterEnd(closeMe chan<- struct{}) {
 	t.UpdatePacketViews.AfterEnd(closeMe)
-	if t.Pcap != "" {
-		termshark.AddToRecentFiles(t.Pcap)
-	}
-	if t.Filter != "" {
-		termshark.AddToRecentFilters(t.Filter)
-	}
+	// Run on main goroutine to avoid problems flagged by -race
+	t.App.Run(gowid.RunFunction(func(gowid.IApp) {
+		if t.Pcap != "" {
+			termshark.AddToRecentFiles(t.Pcap)
+		}
+		if t.Filter != "" {
+			// Run on main goroutine to avoid problems flagged by -race
+			termshark.AddToRecentFilters(t.Filter)
+		}
+	}))
 }
 
 // Call from app goroutine context

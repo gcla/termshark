@@ -997,9 +997,13 @@ Loop:
 
 		case <-tickChan:
 			if system.HaveFdinfo && (ui.Loader.State() == pcap.LoadingPdml || !ui.Loader.ReadingFromFifo()) {
-				prev = ui.UpdateProgressBarForFile(ui.Loader, prev, app)
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					prev = ui.UpdateProgressBarForFile(ui.Loader, prev, app)
+				}))
 			} else {
-				ui.UpdateProgressBarForInterface(ui.Loader, app)
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					ui.UpdateProgressBarForInterface(ui.Loader, app)
+				}))
 			}
 
 		case <-emptyStructViewChan:

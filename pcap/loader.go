@@ -243,7 +243,9 @@ func (c *Loader) resetData() {
 	c.PacketCache = packetCache
 }
 
-func (c Loader) PacketsPerLoad() int {
+func (c *Loader) PacketsPerLoad() int {
+	c.Lock()
+	defer c.Unlock()
 	return c.opt.PacketsPerLoad
 }
 
@@ -718,7 +720,9 @@ func (c *Loader) startLoadPsml(cb interface{}) {
 
 // assumes no pcap is being loaded
 func (c *Loader) startLoadPdml(row int, cb interface{}) {
+	c.Lock()
 	c.RowCurrentlyLoading = row
+	c.Unlock()
 
 	termshark.TrackedGo(func() {
 		c.loadPcapAsync(row, cb)
@@ -840,15 +844,17 @@ func (c *Loader) NumLoaded() int {
 	return len(c.PacketPsmlData)
 }
 
+func (c *Loader) LoadingRow() int {
+	c.Lock()
+	defer c.Unlock()
+	return c.RowCurrentlyLoading
+}
+
 func (c *Loader) CacheAt(row int) (ISimpleCache, bool) {
 	if ce, ok := c.PacketCache.Get(row); ok {
 		return ce.(CacheEntry), ok
 	}
 	return CacheEntry{}, false
-}
-
-func (c *Loader) LoadingRow() int {
-	return c.RowCurrentlyLoading
 }
 
 func (c *Loader) loadIsNecessary(ev LoadPcapSlice) bool {
@@ -866,8 +872,10 @@ func (c *Loader) loadIsNecessary(ev LoadPcapSlice) bool {
 }
 
 func (c *Loader) signalStage2Done(cb interface{}) {
+	c.Lock()
 	ch := c.Stage2FinishedChan
 	c.Stage2FinishedChan = make(chan struct{})
+	c.Unlock()
 	if a, ok := cb.(IAfterEnd); ok {
 		a.AfterEnd(ch)
 		<-ch
@@ -903,7 +911,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	// too. When the 2/3 data loading processes are done, a goroutine will then run uiCtxCancel()
 	// to stop the UI updates.
 
+	c.Lock()
 	c.stage2Ctx, c.stage2CancelFn = context.WithCancel(c.thisSrcCtx)
+	c.Unlock()
 
 	intStage2Ctx, intStage2CancelFn := context.WithCancel(context.Background())
 
@@ -969,8 +979,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		// Wait for all other goroutines to complete
 		c.stage2Wg.Wait()
 
-		// Safe, in goroutine thread
+		c.Lock()
 		c.RowCurrentlyLoading = -1
+		c.Unlock()
 
 		c.signalStage2Done(cb)
 	}()
@@ -1071,7 +1082,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			return
 		}
 
+		c.Lock()
 		c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
+		c.Unlock()
 
 		pdmlOut, err := c.PdmlCmd.StdoutReader()
 		if err != nil {
@@ -1148,10 +1161,12 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		if cancelled == 0 {
 			// never evict row 0
 			c.PacketCache.Get(0)
+			c.Lock()
 			if c.highestCachedRow != -1 {
 				// try not to evict "end"
 				c.PacketCache.Get(c.highestCachedRow)
 			}
+			c.Unlock()
 
 			// the cache entry is marked complete if we are not reading from a fifo, which implies
 			// the source of packets will not grow larger. If it could grow larger, we want to ensure
@@ -1159,7 +1174,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			// in the cache from a previous request - now there might be 950 packets.
 			c.updateCacheEntryWithPdml(row, packets, !c.ReadingFromFifo())
 			if row > c.highestCachedRow {
+				c.Lock()
 				c.highestCachedRow = row
+				c.Unlock()
 			}
 		}
 	}, &c.stage2Wg, Goroutinewg)
@@ -1185,7 +1202,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			return
 		}
 
+		c.Lock()
 		c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
+		c.Unlock()
 
 		pcapOut, err := c.PcapCmd.StdoutReader()
 		if err != nil {
@@ -1427,11 +1446,10 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	c.Lock()
 	c.PacketPsmlData = make([][]string, 0)
 	c.PacketPsmlHeaders = make([]string, 0, 10)
-	c.Unlock()
-
 	c.PacketCache.Purge()
 	c.LoadWasCancelled = false
 	c.StartStage2Chan = make(chan struct{}) // do this before signalling start
+	c.Unlock()
 
 	// signal to updater that we're about to start. This will block until cb completes
 	c.signalPsmlStarting(cb)

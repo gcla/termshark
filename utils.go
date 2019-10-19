@@ -115,23 +115,16 @@ func DirOfPathCommand(bin string) (string, error) {
 	return exec.LookPath(bin)
 }
 
-func TSharkBin() string {
-	return ConfString("main.tshark", "tshark")
-}
+//======================================================================
 
-func DumpcapBin() string {
-	return ConfString("main.dumpcap", "dumpcap")
-}
-
-func TailCommand() []string {
-	def := []string{"tail", "-f", "-c", "+0"}
-	if runtime.GOOS == "windows" {
-		def[0] = "c:\\cygwin64\\bin\\tail.exe"
-	}
-	return ConfStringSlice("main.tail-command", def)
-}
+// The config is accessed by the main goroutine and pcap loading goroutines. So this
+// is an attempt to prevent warnings with the -race flag (though they are very likely
+// harmless)
+var confMutex sync.Mutex
 
 func ConfString(name string, def string) string {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	if viper.Get(name) != nil {
 		return viper.GetString(name)
 	} else {
@@ -140,20 +133,28 @@ func ConfString(name string, def string) string {
 }
 
 func SetConf(name string, val interface{}) {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	viper.Set(name, val)
 	viper.WriteConfig()
 }
 
 func ConfStrings(name string) []string {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	return viper.GetStringSlice(name)
 }
 
 func DeleteConf(name string) {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	delete(viper.Get("main").(map[string]interface{}), name)
 	viper.WriteConfig()
 }
 
 func ConfInt(name string, def int) int {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	if viper.Get(name) != nil {
 		return viper.GetInt(name)
 	} else {
@@ -162,6 +163,8 @@ func ConfInt(name string, def int) int {
 }
 
 func ConfBool(name string, def ...bool) bool {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	if viper.Get(name) != nil {
 		return viper.GetBool(name)
 	} else {
@@ -172,6 +175,18 @@ func ConfBool(name string, def ...bool) bool {
 		}
 	}
 }
+
+func ConfStringSlice(name string, def []string) []string {
+	confMutex.Lock()
+	defer confMutex.Unlock()
+	res := viper.GetStringSlice(name)
+	if res == nil {
+		res = def
+	}
+	return res
+}
+
+//======================================================================
 
 var TSharkVersionUnknown = fmt.Errorf("Could not determine version of tshark")
 
@@ -263,14 +278,6 @@ func RunForExitCode(prog string, args ...string) (int, error) {
 	return exitCode, err
 }
 
-func ConfStringSlice(name string, def []string) []string {
-	res := viper.GetStringSlice(name)
-	if res == nil {
-		res = def
-	}
-	return res
-}
-
 func ConfFile(file string) string {
 	stdConf := configdir.New("", "termshark")
 	dirs := stdConf.QueryFolders(configdir.Global)
@@ -292,6 +299,22 @@ func CacheDir() string {
 // and I don't want to be constantly triggered by log file updates.
 func PcapDir() string {
 	return path.Join(CacheDir(), "pcaps")
+}
+
+func TSharkBin() string {
+	return ConfString("main.tshark", "tshark")
+}
+
+func DumpcapBin() string {
+	return ConfString("main.dumpcap", "dumpcap")
+}
+
+func TailCommand() []string {
+	def := []string{"tail", "-f", "-c", "+0"}
+	if runtime.GOOS == "windows" {
+		def[0] = "c:\\cygwin64\\bin\\tail.exe"
+	}
+	return ConfStringSlice("main.tail-command", def)
 }
 
 func RemoveFromStringSlice(pcap string, comps []string) []string {

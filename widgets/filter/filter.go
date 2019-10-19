@@ -58,6 +58,7 @@ type Widget struct {
 	intermediate         gowid.IWidget    // what to display when the filter value's validity is being determined
 	edCtx                context.Context
 	edCancelFn           context.CancelFunc
+	edCtxLock            sync.Mutex
 	fields               termshark.IPrefixCompleter // provides completions, given a prefix
 	completionsList      *list.Widget               // the filter widget replaces the list walker when new completions are generated
 	completionsActivator *activatorWidget           // used to disable focus going to drop down
@@ -454,10 +455,17 @@ func makeCompletions(comp termshark.IPrefixCompleter, txt string, max int, app g
 // options. Runs on a small delay so it can be cancelled and restarted if the
 // user is typing quickly.
 func (w *Widget) UpdateCompletions(app gowid.IApp) {
-	if w.ed.Text() != "" {
-		w.validitySite.SetSubWidget(w.intermediate, app)
-		gowid.RunWidgetCallbacks(w.Callbacks, IntermediateCB{}, app, w)
-	}
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		if w.ed.Text() != "" {
+			w.validitySite.SetSubWidget(w.intermediate, app)
+			gowid.RunWidgetCallbacks(w.Callbacks, IntermediateCB{}, app, w)
+		}
+	}))
+
+	// UpdateCompletions can be called outside of the app goroutine, so we
+	// need to protect the context
+	w.edCtxLock.Lock()
+	defer w.edCtxLock.Unlock()
 
 	if w.edCancelFn != nil {
 		w.edCancelFn()
@@ -473,6 +481,7 @@ func (w *Widget) UpdateCompletions(app gowid.IApp) {
 			break
 		}
 
+		// Send the value to be run by tshark. This will kill any other one in progress.
 		w.filterchangedchan <- &filtStruct{w.ed.Text(), app}
 
 		app.Run(gowid.RunFunction(func(app gowid.IApp) {

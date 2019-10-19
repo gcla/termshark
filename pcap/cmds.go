@@ -79,6 +79,8 @@ func (c *Command) Close() error {
 }
 
 func (c *Command) Kill() error {
+	c.Lock()
+	defer c.Unlock()
 	if c.Cmd.Process == nil {
 		return errors.WithStack(ProcessNotStarted{Command: c.Cmd})
 	}
