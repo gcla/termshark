@@ -3,3 +3,4 @@ dist/
 *~
 
 /cmd/termshark/termshark
+/typescript
