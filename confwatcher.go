@@ -19,7 +19,8 @@ var Goroutinewg *sync.WaitGroup
 type ConfigWatcher struct {
 	watcher *fsnotify.Watcher
 	change  chan struct{}
-	close   chan struct{}
+	closech chan struct{}
+	closed  bool
 }
 
 func NewConfigWatcher() (*ConfigWatcher, error) {
@@ -29,25 +30,35 @@ func NewConfigWatcher() (*ConfigWatcher, error) {
 	}
 
 	change := make(chan struct{})
-	close := make(chan struct{})
+	closech := make(chan struct{})
 
 	res := &ConfigWatcher{
-		change: change,
-		close:  close,
+		change:  change,
+		closech: closech,
 	}
 
 	TrackedGo(func() {
+		defer func() {
+			close(change)
+		}()
 	Loop:
 		for {
+			var evch <-chan fsnotify.Event
+			var errch <-chan error
+			if !res.closed {
+				evch = watcher.Events
+				errch = watcher.Errors
+			}
+
 			select {
 			// watch for events
-			case <-watcher.Events:
+			case <-evch:
 				res.change <- struct{}{}
 
-			case err := <-watcher.Errors:
+			case err := <-errch:
 				log.Debugf("Error from config watcher: %v", err)
 
-			case <-close:
+			case <-closech:
 				break Loop
 			}
 		}
@@ -69,15 +80,21 @@ func (c *ConfigWatcher) Close() error {
 	// - the deferred call to Close() here is made, and deadlocks on writing to c.close
 	//
 	res := c.watcher.Close()
+	c.closed = true
 
 	// drain the change channel to ensure the goroutine above can process the close. This
 	// is safe because I know, at this point, there are no other readers because termshark
 	// has exited its select loop.
-	for len(c.change) > 0 {
+	TrackedGo(func() {
+		// This might block because the goroutine above might not be blocked sending
+		// to c.change. But then that means the goroutine's for loop above will terminate,
+		// c.change will be closed, and then this goroutine will end. If the above
+		// goroutine is blocked sending to c.change, then this will drain that value,
+		// and again the goroutine above will end.
 		<-c.change
-	}
+	})
 
-	c.close <- struct{}{}
+	c.closech <- struct{}{}
 	return res
 }
 
