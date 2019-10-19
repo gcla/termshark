@@ -499,6 +499,10 @@ type IClear interface {
 	OnClear(closeMe chan<- struct{})
 }
 
+type INewSource interface {
+	OnNewSource(closeMe chan<- struct{})
+}
+
 type IOnError interface {
 	OnError(err error, closeMe chan<- struct{})
 }
@@ -525,6 +529,7 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 		fn()
 	} else if c.State() == 0 {
 		handleClear(cb)
+		handleNewSource(cb)
 
 		if err := c.startLoadInterfaceNew(psrc, captureFilter, displayFilter, tmpfile, cb); err == nil {
 			c.When(func() bool {
@@ -571,6 +576,7 @@ func (c *Loader) doLoadPcapOperation(pcap string, displayFilter string, cb inter
 		fn()
 	} else if c.State() == 0 {
 		handleClear(cb)
+		handleNewSource(cb)
 
 		c.startLoadNewFile(pcap, curDisplayFilter, cb)
 
@@ -623,6 +629,14 @@ func handleClear(cb interface{}) {
 	if c, ok := cb.(IClear); ok {
 		ch := make(chan struct{})
 		c.OnClear(ch)
+		<-ch
+	}
+}
+
+func handleNewSource(cb interface{}) {
+	if c, ok := cb.(INewSource); ok {
+		ch := make(chan struct{})
+		c.OnNewSource(ch)
 		<-ch
 	}
 }
