@@ -92,7 +92,7 @@ func (c *ConfigWatcher) Close() error {
 		// goroutine is blocked sending to c.change, then this will drain that value,
 		// and again the goroutine above will end.
 		<-c.change
-	})
+	}, Goroutinewg)
 
 	c.closech <- struct{}{}
 	return res

@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gcla/deep"
@@ -58,6 +59,8 @@ import (
 )
 
 //======================================================================
+
+var Goroutinewg *sync.WaitGroup
 
 // Global so that we can change the displayed packet in the struct view, etc
 // test
@@ -928,7 +931,7 @@ func (t UpdatePacketViews) BeforeBegin(ch chan<- struct{}) {
 				time.Duration(100)*time.Millisecond,
 				time.Duration(2000)*time.Millisecond,
 				10)
-		})
+		}, Goroutinewg)
 
 		close(ch)
 	}))
@@ -1936,7 +1939,7 @@ func (s SetStructWidgets) BeforeBegin(ch chan<- struct{}) {
 			time.Duration(100)*time.Millisecond,
 			time.Duration(2000)*time.Millisecond,
 			10)
-	})
+	}, Goroutinewg)
 
 	close(ch)
 }

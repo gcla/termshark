@@ -51,6 +51,7 @@ func main() {
 	filter.Goroutinewg = &ensureGoroutinesStopWG
 	termshark.Goroutinewg = &ensureGoroutinesStopWG
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
+	ui.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
 	ensureGoroutinesStopWG.Wait()
