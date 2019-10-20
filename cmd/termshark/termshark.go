@@ -699,11 +699,11 @@ func cmain() int {
 			}))
 			ifacePcapFilename = ifaceTmpFile
 			ui.PcapScheduler.RequestLoadInterface(psrc, captureFilter, displayFilter, ifaceTmpFile,
-				ui.SaveRecents{
-					UpdatePacketViews: ui.MakePacketViewUpdater(app),
-					Pcap:              "",
-					Filter:            displayFilter,
-				})
+				pcap.HandlerList{
+					ui.MakeSaveRecents("", displayFilter, app),
+					ui.MakePacketViewUpdater(app),
+				},
+			)
 		}
 		validator.Valid = &filter.ValidateCB{Fn: ifValid, App: app}
 		validator.Validate(displayFilter)

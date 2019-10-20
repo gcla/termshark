@@ -873,39 +873,41 @@ func getCurrentStructModel(row int) *pdmltree.Model {
 	return res
 }
 
+//======================================================================
+
 type NoHandlers struct{}
 
 //======================================================================
 
-type UpdatePacketViews struct {
+type updatePacketViews struct {
 	Ld  *pcap.Scheduler
 	App gowid.IApp
 }
 
-var _ pcap.IOnError = UpdatePacketViews{}
-var _ pcap.IClear = UpdatePacketViews{}
-var _ pcap.IBeforeBegin = UpdatePacketViews{}
-var _ pcap.IAfterEnd = UpdatePacketViews{}
+var _ pcap.IOnError = updatePacketViews{}
+var _ pcap.IClear = updatePacketViews{}
+var _ pcap.IBeforeBegin = updatePacketViews{}
+var _ pcap.IAfterEnd = updatePacketViews{}
 
-func MakePacketViewUpdater(app gowid.IApp) UpdatePacketViews {
-	res := UpdatePacketViews{}
+func MakePacketViewUpdater(app gowid.IApp) updatePacketViews {
+	res := updatePacketViews{}
 	res.App = app
 	res.Ld = PcapScheduler
 	return res
 }
 
-func (t UpdatePacketViews) EnableOperations() {
+func (t updatePacketViews) EnableOperations() {
 	t.Ld.Enable()
 }
 
-func (t UpdatePacketViews) OnClear(closeMe chan<- struct{}) {
+func (t updatePacketViews) OnClear(closeMe chan<- struct{}) {
 	close(closeMe)
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		clearPacketViews(app)
 	}))
 }
 
-func (t UpdatePacketViews) BeforeBegin(ch chan<- struct{}) {
+func (t updatePacketViews) BeforeBegin(ch chan<- struct{}) {
 	ch2 := Loader.PsmlFinishedChan
 
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
@@ -937,14 +939,14 @@ func (t UpdatePacketViews) BeforeBegin(ch chan<- struct{}) {
 	}))
 }
 
-func (t UpdatePacketViews) AfterEnd(ch chan<- struct{}) {
-	close(ch)
+func (t updatePacketViews) AfterEnd(closeMe chan<- struct{}) {
+	close(closeMe)
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		updatePacketListWithData(t.Ld.PacketPsmlHeaders, t.Ld.PacketPsmlData, app)
 	}))
 }
 
-func (t UpdatePacketViews) OnError(err error, closeMe chan<- struct{}) {
+func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
 	close(closeMe)
 	log.Error(err)
 	if !Running {
@@ -1781,15 +1783,23 @@ func (r copyModePalette) AlterWidget(w gowid.IWidget, app gowid.IApp) gowid.IWid
 //======================================================================
 
 type SaveRecents struct {
-	UpdatePacketViews
 	Pcap   string
 	Filter string
+	App    gowid.IApp
 }
 
 var _ pcap.IAfterEnd = SaveRecents{}
 
+func MakeSaveRecents(pcap string, filter string, app gowid.IApp) SaveRecents {
+	return SaveRecents{
+		Pcap:   pcap,
+		Filter: filter,
+		App:    app,
+	}
+}
+
 func (t SaveRecents) AfterEnd(closeMe chan<- struct{}) {
-	t.UpdatePacketViews.AfterEnd(closeMe)
+	close(closeMe)
 	// Run on main goroutine to avoid problems flagged by -race
 	t.App.Run(gowid.RunFunction(func(gowid.IApp) {
 		if t.Pcap != "" {
@@ -1802,12 +1812,19 @@ func (t SaveRecents) AfterEnd(closeMe chan<- struct{}) {
 	}))
 }
 
+//======================================================================
+
 // Call from app goroutine context
-func RequestLoadPcapWithCheck(pcap string, displayFilter string, app gowid.IApp) {
-	if _, err := os.Stat(pcap); os.IsNotExist(err) {
-		OpenError(fmt.Sprintf("File %s not found.", pcap), app)
+func RequestLoadPcapWithCheck(pcapf string, displayFilter string, app gowid.IApp) {
+	if _, err := os.Stat(pcapf); os.IsNotExist(err) {
+		OpenError(fmt.Sprintf("File %s not found.", pcapf), app)
 	} else {
-		PcapScheduler.RequestLoadPcap(pcap, displayFilter, SaveRecents{MakePacketViewUpdater(app), pcap, displayFilter})
+		PcapScheduler.RequestLoadPcap(pcapf, displayFilter,
+			pcap.HandlerList{
+				MakeSaveRecents(pcapf, displayFilter, app),
+				MakePacketViewUpdater(app),
+			},
+		)
 	}
 }
 
@@ -2323,11 +2340,12 @@ func Build() (*gowid.App, error) {
 	})
 
 	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		PcapScheduler.RequestNewFilter(FilterWidget.Value(), SaveRecents{
-			UpdatePacketViews: MakePacketViewUpdater(app),
-			Pcap:              "",
-			Filter:            FilterWidget.Value(),
-		})
+		PcapScheduler.RequestNewFilter(FilterWidget.Value(),
+			pcap.HandlerList{
+				MakeSaveRecents("", FilterWidget.Value(), app),
+				MakePacketViewUpdater(app),
+			},
+		)
 	})
 
 	// Will only be enabled to click if filter is valid
