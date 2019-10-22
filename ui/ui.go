@@ -100,6 +100,8 @@ var generalMenu *menu.Widget
 var analysisMenu *menu.Widget
 var savedMenu *menu.Widget
 var FilterWidget *filter.Widget
+var CopyModeWidget gowid.IWidget
+var CopyModePredicate ifwidget.Predicate
 var openMenuSite *menu.SiteWidget
 var openAnalysisSite *menu.SiteWidget
 var packetListViewHolder *holder.Widget
@@ -2091,13 +2093,15 @@ func Build() (*gowid.App, error) {
 
 	title := styled.New(text.New(termshark.TemplateToString(Templates, "NameVer", TemplateData)), gowid.MakePaletteRef("title"))
 
-	copyMode := styled.New(
+	CopyModePredicate = func() bool {
+		return app != nil && app.InCopyMode()
+	}
+
+	CopyModeWidget = styled.New(
 		ifwidget.New(
 			text.New(" COPY-MODE "),
 			null.New(),
-			func() bool {
-				return app != nil && app.InCopyMode()
-			},
+			CopyModePredicate,
 		),
 		gowid.MakePaletteRef("copy-mode-indicator"),
 	)
@@ -2287,7 +2291,7 @@ func Build() (*gowid.App, error) {
 			D:       weight(1),
 		},
 		&gowid.ContainerWidget{
-			IWidget: copyMode,
+			IWidget: CopyModeWidget,
 			D:       fixed,
 		},
 		&gowid.ContainerWidget{
