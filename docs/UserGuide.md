@@ -6,10 +6,10 @@ Termshark provides a terminal-based user interface for analyzing packet captures
 $ termshark -h
 ```
 ```console
-termshark v1.0.0
+termshark v2.0.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
-See https://github.com/gcla/termshark for more information.
+See https://termshark.io for more information.
 
 Usage:
   termshark [FilterOrFile]
@@ -18,10 +18,12 @@ Application Options:
   -i=<interface>                                          Interface to read.
   -r=<file>                                               Pcap file to read.
   -d=<layer type>==<selector>,<decode-as protocol>        Specify dissection of layer type.
+  -D                                                      Print a list of the interfaces on which termshark can capture.
   -Y=<displaY filter>                                     Apply display filter.
   -f=<capture filter>                                     Apply capture filter.
-      --pass-thru=[yes|no|auto|true|false]                Run tshark instead (auto => if stdout is not a tty). (default: auto)
-      --log-tty=[yes|no|true|false]                       Log to the terminal.. (default: false)
+      --tty=<tty>                                         Display the UI on this terminal.
+      --pass-thru=[auto|true|false]                       Run tshark instead (auto => if stdout is not a tty). (default: auto)
+      --log-tty                                           Log to the terminal.
   -h, --help                                              Show this help message.
   -v, --version                                           Show version information.
 
@@ -29,7 +31,7 @@ Arguments:
   FilterOrFile:                                           Filter (capture for iface, display for pcap), or pcap file to read.
 
 If --pass-thru is true (or auto, and stdout is not a tty), tshark will be
-executed with the supplied command- line flags. You can provide
+executed with the supplied command-line flags. You can provide
 tshark-specific flags and they will be passed through to tshark (-n, -d, -T,
 etc). For example:
 
