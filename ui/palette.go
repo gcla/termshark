@@ -59,7 +59,7 @@ var (
 		"filter-intermediate":    gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorOrange),
 		"dialog":                 gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
 		"dialog-buttons":         gowid.MakePaletteEntry(gowid.ColorYellow, gowid.ColorBlack),
-		"button":                 gowid.MakeForeground(gowid.ColorMagenta),
+		"button":                 gowid.MakePaletteEntry(gowid.ColorDarkBlue, ButtonBg),
 		"button-focus":           gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorDarkBlue),
 		"progress-default":       gowid.MakeStyledPaletteEntry(gowid.ColorWhite, gowid.ColorBlack, gowid.StyleBold),
 		"progress-complete":      gowid.MakeStyleMod(gowid.MakePaletteRef("progress-default"), gowid.MakeBackground(gowid.ColorMagenta)),
@@ -81,6 +81,7 @@ var (
 	//
 
 	//                                                       256 color   < 256 color
+	ButtonBg                  *modeswap.Color = modeswap.New(LightGray, gowid.ColorWhite)
 	PktListRowSelectedFgDark  *modeswap.Color = modeswap.New(gowid.ColorWhite, gowid.ColorBlack)
 	PktListRowSelectedBgDark  *modeswap.Color = modeswap.New(DarkGray, gowid.ColorWhite)
 	PktListRowFocusBgDark     *modeswap.Color = modeswap.New(BrightBlue, gowid.ColorBlue)
@@ -107,6 +108,7 @@ var (
 	DarkModePalette gowid.Palette = gowid.Palette{
 		"default":                gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorBlack),
 		"title":                  gowid.MakeForeground(gowid.ColorRed),
+		"current-capture":        gowid.MakeForeground(gowid.ColorWhite),
 		"pkt-list-row-focus":     gowid.MakePaletteEntry(gowid.ColorWhite, PktListRowFocusBgDark),
 		"pkt-list-cell-focus":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorPurple),
 		"pkt-list-row-selected":  gowid.MakePaletteEntry(PktListRowSelectedFgDark, PktListRowSelectedBgDark),
@@ -119,7 +121,7 @@ var (
 		"filter-intermediate":    gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorOrange),
 		"dialog":                 gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
 		"dialog-buttons":         gowid.MakePaletteEntry(gowid.ColorYellow, gowid.ColorBlack),
-		"button":                 gowid.MakePaletteEntry(gowid.ColorMagenta, ButtonBgDark),
+		"button":                 gowid.MakePaletteEntry(gowid.ColorBlack, ButtonBgDark),
 		"button-focus":           gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorMagenta),
 		"progress-default":       gowid.MakeStyledPaletteEntry(gowid.ColorWhite, gowid.ColorBlack, gowid.StyleBold),
 		"progress-complete":      gowid.MakeStyleMod(gowid.MakePaletteRef("progress-default"), gowid.MakeBackground(gowid.ColorMagenta)),
