@@ -341,10 +341,7 @@ func cmain() int {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				return 1
 			}
-			defer func() {
-				system.CloseDescriptor(newinputfd)
-			}()
-			psrc = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd)}
+			psrc = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd), Fd: newinputfd}
 		} else {
 			fmt.Fprintf(os.Stderr, "Sorry, termshark does not yet support piped input on Windows.\n")
 			return 1

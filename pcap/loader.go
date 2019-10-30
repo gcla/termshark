@@ -1865,6 +1865,15 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 		}
 	}, Goroutinewg)
 
+	defer func() {
+		// if psrc is a PipeSource, then we open /dev/fd/3 in termshark, and reroute descriptor
+		// stdin to number 3 when termshark starts. So to kill the process writing in, we need
+		// to close our side of the pipe.
+		if cl, ok := c.psrc.(io.Closer); ok {
+			cl.Close()
+		}
+	}()
+
 	err = c.ifaceCmd.Wait() // it definitely started, so we must wait
 	if !c.suppressErrors && err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
