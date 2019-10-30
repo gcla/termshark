@@ -699,6 +699,7 @@ func cmain() int {
 				pcap.HandlerList{
 					ui.MakeSaveRecents("", displayFilter, app),
 					ui.MakePacketViewUpdater(app),
+					ui.MakeUpdateCurrentCaptureInTitle(app),
 				},
 			)
 		}

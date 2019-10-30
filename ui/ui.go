@@ -112,6 +112,10 @@ var progressHolder *holder.Widget
 var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
 
+var currentCapture *text.Widget
+var currentCaptureWidget *columns.Widget
+var currentCaptureWidgetHolder *holder.Widget
+
 var savedListBoxWidgetHolder *holder.Widget
 
 var nullw *null.Widget                       // empty
@@ -881,6 +885,38 @@ type NoHandlers struct{}
 
 //======================================================================
 
+type updateCurrentCaptureInTitle struct {
+	Ld  *pcap.Scheduler
+	App gowid.IApp
+}
+
+var _ pcap.INewSource = updateCurrentCaptureInTitle{}
+var _ pcap.IClear = updateCurrentCaptureInTitle{}
+
+func MakeUpdateCurrentCaptureInTitle(app gowid.IApp) updateCurrentCaptureInTitle {
+	return updateCurrentCaptureInTitle{
+		Ld:  PcapScheduler,
+		App: app,
+	}
+}
+
+func (t updateCurrentCaptureInTitle) OnNewSource(closeMe chan<- struct{}) {
+	close(closeMe)
+	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
+		currentCapture.SetText(t.Ld.String(), app)
+		currentCaptureWidgetHolder.SetSubWidget(currentCaptureWidget, app)
+	}))
+}
+
+func (t updateCurrentCaptureInTitle) OnClear(closeMe chan<- struct{}) {
+	close(closeMe)
+	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
+		currentCaptureWidgetHolder.SetSubWidget(nullw, app)
+	}))
+}
+
+//======================================================================
+
 type updatePacketViews struct {
 	Ld  *pcap.Scheduler
 	App gowid.IApp
@@ -987,7 +1023,12 @@ func reallyClear(app gowid.IApp) {
 					Msg: "Ok",
 					Action: func(app gowid.IApp, w gowid.IWidget) {
 						YesNo.Close(app)
-						PcapScheduler.RequestClearPcap(MakePacketViewUpdater(app))
+						PcapScheduler.RequestClearPcap(
+							pcap.HandlerList{
+								MakePacketViewUpdater(app),
+								MakeUpdateCurrentCaptureInTitle(app),
+							},
+						)
 					},
 				},
 				dialog.Cancel,
@@ -1825,6 +1866,7 @@ func RequestLoadPcapWithCheck(pcapf string, displayFilter string, app gowid.IApp
 			pcap.HandlerList{
 				MakeSaveRecents(pcapf, displayFilter, app),
 				MakePacketViewUpdater(app),
+				MakeUpdateCurrentCaptureInTitle(app),
 			},
 		)
 	}
@@ -2093,6 +2135,25 @@ func Build() (*gowid.App, error) {
 
 	title := styled.New(text.New(termshark.TemplateToString(Templates, "NameVer", TemplateData)), gowid.MakePaletteRef("title"))
 
+	currentCapture = text.New("")
+	currentCaptureStyled := styled.New(
+		currentCapture,
+		gowid.MakePaletteRef("current-capture"),
+	)
+
+	sp := text.New("  ")
+
+	currentCaptureWidget = columns.NewFixed(
+		sp,
+		&gowid.ContainerWidget{
+			IWidget: fill.New('|'),
+			D:       gowid.MakeRenderBox(1, 1),
+		},
+		sp,
+		currentCaptureStyled,
+	)
+	currentCaptureWidgetHolder = holder.New(nullw)
+
 	CopyModePredicate = func() bool {
 		return app != nil && app.InCopyMode()
 	}
@@ -2281,9 +2342,15 @@ func Build() (*gowid.App, error) {
 		},
 	})
 
+	// If anything gets added or removed here, see [[generalmenu1]]
+	// and [[generalmenu2]]
 	titleView := columns.New([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
 			IWidget: title,
+			D:       fixed,
+		},
+		&gowid.ContainerWidget{
+			IWidget: currentCaptureWidgetHolder,
 			D:       fixed,
 		},
 		&gowid.ContainerWidget{
@@ -2317,17 +2384,19 @@ func Build() (*gowid.App, error) {
 	})
 
 	// Fill this in once generalMenu is defined and titleView is defined
+	// <<generalmenu1>>
 	generalNext.Cur = generalMenu
 	generalNext.Next = analysisMenu
 	generalNext.Site = openAnalysisSite
 	generalNext.Container = titleView
-	generalNext.Focus = 5 // gcla later todo - find by id!
+	generalNext.Focus = 6 // gcla later todo - find by id!
 
+	// <<generalmenu2>>
 	analysisNext.Cur = analysisMenu
 	analysisNext.Next = generalMenu
 	analysisNext.Site = openMenuSite
 	analysisNext.Container = titleView
-	analysisNext.Focus = 7 // gcla later todo - find by id!
+	analysisNext.Focus = 8 // gcla later todo - find by id!
 
 	packetListViewHolder = holder.New(nullw)
 	packetStructureViewHolder = holder.New(nullw)
