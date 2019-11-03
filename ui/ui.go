@@ -2321,44 +2321,26 @@ func Build() (*gowid.App, error) {
 
 	// If anything gets added or removed here, see [[generalmenu1]]
 	// and [[generalmenu2]]
-	titleView := columns.New([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{
-			IWidget: title,
-			D:       fixed,
-		},
+	titleView := columns.NewFixed(
+		title,
 		&gowid.ContainerWidget{
 			IWidget: currentCaptureWidgetHolder,
-			D:       fixed,
+			D:       weight(10), // give it priority when the window isn't wide enough
 		},
 		&gowid.ContainerWidget{
 			IWidget: fill.New(' '),
 			D:       weight(1),
 		},
-		&gowid.ContainerWidget{
-			IWidget: CopyModeWidget,
-			D:       fixed,
-		},
+		CopyModeWidget,
 		&gowid.ContainerWidget{
 			IWidget: fill.New(' '),
 			D:       weight(1),
 		},
-		&gowid.ContainerWidget{
-			IWidget: openAnalysisSite,
-			D:       fixed,
-		},
-		&gowid.ContainerWidget{
-			IWidget: openAnalysis2,
-			D:       fixed,
-		},
-		&gowid.ContainerWidget{
-			IWidget: openMenuSite,
-			D:       fixed,
-		},
-		&gowid.ContainerWidget{
-			IWidget: openMenu2,
-			D:       fixed,
-		},
-	})
+		openAnalysisSite,
+		openAnalysis2,
+		openMenuSite,
+		openMenu2,
+	)
 
 	// Fill this in once generalMenu is defined and titleView is defined
 	// <<generalmenu1>>
