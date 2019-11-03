@@ -43,6 +43,7 @@ import (
 	"github.com/gcla/termshark/pdmltree"
 	"github.com/gcla/termshark/psmltable"
 	"github.com/gcla/termshark/system"
+	"github.com/gcla/termshark/ui/menuutil"
 	"github.com/gcla/termshark/widgets"
 	"github.com/gcla/termshark/widgets/appkeys"
 	"github.com/gcla/termshark/widgets/copymodetree"
@@ -1888,13 +1889,13 @@ func progMax(x, y Prog) Prog {
 //======================================================================
 
 func makeRecentMenuWidget() gowid.IWidget {
-	savedItems := make([]SimpleMenuItem, 0)
+	savedItems := make([]menuutil.SimpleMenuItem, 0)
 	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
 		for i, s := range cfiles {
 			scopy := s
 			savedItems = append(savedItems,
-				SimpleMenuItem{
+				menuutil.SimpleMenuItem{
 					Txt: s,
 					Key: gowid.MakeKey('a' + rune(i)),
 					CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -1906,7 +1907,7 @@ func makeRecentMenuWidget() gowid.IWidget {
 			)
 		}
 	}
-	savedListBox := MakeMenuWithHotKeys(savedItems)
+	savedListBox := menuutil.MakeMenuWithHotKeys(savedItems)
 
 	return savedListBox
 }
@@ -2160,8 +2161,8 @@ func Build() (*gowid.App, error) {
 
 	//======================================================================
 
-	generalMenuItems := []SimpleMenuItem{
-		SimpleMenuItem{
+	generalMenuItems := []menuutil.SimpleMenuItem{
+		menuutil.SimpleMenuItem{
 			Txt: "Refresh Screen",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlL, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2170,7 +2171,7 @@ func Build() (*gowid.App, error) {
 			},
 		},
 		// Put 2nd so a simple menu click, down, enter without thinking doesn't toggle dark mode (annoying...)
-		SimpleMenuItem{
+		menuutil.SimpleMenuItem{
 			Txt: "Toggle Dark Mode",
 			Key: gowid.MakeKey('d'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2179,8 +2180,8 @@ func Build() (*gowid.App, error) {
 				termshark.SetConf("main.dark-mode", DarkMode)
 			},
 		},
-		MakeMenuDivider(),
-		SimpleMenuItem{
+		menuutil.MakeMenuDivider(),
+		menuutil.SimpleMenuItem{
 			Txt: "Clear Packets",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlW, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2188,8 +2189,8 @@ func Build() (*gowid.App, error) {
 				reallyClear(app)
 			},
 		},
-		MakeMenuDivider(),
-		SimpleMenuItem{
+		menuutil.MakeMenuDivider(),
+		menuutil.SimpleMenuItem{
 			Txt: "Help",
 			Key: gowid.MakeKey('?'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2197,7 +2198,7 @@ func Build() (*gowid.App, error) {
 				OpenTemplatedDialog(appView, "UIHelp", app)
 			},
 		},
-		SimpleMenuItem{
+		menuutil.SimpleMenuItem{
 			Txt: "User Guide",
 			Key: gowid.MakeKey('u'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2208,7 +2209,7 @@ func Build() (*gowid.App, error) {
 				openResultsAfterCopy("UIUserGuide", termshark.UserGuideURL, app)
 			},
 		},
-		SimpleMenuItem{
+		menuutil.SimpleMenuItem{
 			Txt: "FAQ",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2219,8 +2220,8 @@ func Build() (*gowid.App, error) {
 				openResultsAfterCopy("UIFAQ", termshark.FAQURL, app)
 			},
 		},
-		MakeMenuDivider(),
-		SimpleMenuItem{
+		menuutil.MakeMenuDivider(),
+		menuutil.SimpleMenuItem{
 			Txt: "Quit",
 			Key: gowid.MakeKey('q'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2230,13 +2231,13 @@ func Build() (*gowid.App, error) {
 		},
 	}
 
-	generalMenuListBox := MakeMenuWithHotKeys(generalMenuItems)
+	generalMenuListBox := menuutil.MakeMenuWithHotKeys(generalMenuItems)
 
-	var generalNext NextMenu
+	var generalNext menuutil.NextMenu
 
 	generalMenuListBoxWithKeys := appkeys.New(
 		generalMenuListBox,
-		MakeMenuNavigatingKeyPress(
+		menuutil.MakeMenuNavigatingKeyPress(
 			&generalNext,
 			nil,
 		),
@@ -2264,9 +2265,9 @@ func Build() (*gowid.App, error) {
 		analysisMenu.Open(openAnalysisSite, app)
 	}))
 
-	analysisMenuItems := []SimpleMenuItem{
-		SimpleMenuItem{
-			Txt: "Nothing here yet...",
+	analysisMenuItems := []menuutil.SimpleMenuItem{
+		menuutil.SimpleMenuItem{
+			Txt: "Nothing here yet",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				analysisMenu.Close(app)
@@ -2274,13 +2275,13 @@ func Build() (*gowid.App, error) {
 		},
 	}
 
-	analysisMenuListBox := MakeMenuWithHotKeys(analysisMenuItems)
+	analysisMenuListBox := menuutil.MakeMenuWithHotKeys(analysisMenuItems)
 
-	var analysisNext NextMenu
+	var analysisNext menuutil.NextMenu
 
 	analysisMenuListBoxWithKeys := appkeys.New(
 		analysisMenuListBox,
-		MakeMenuNavigatingKeyPress(
+		menuutil.MakeMenuNavigatingKeyPress(
 			nil,
 			&analysisNext,
 		),
