@@ -3,6 +3,7 @@
 ## [Unreleased]
 ### Added
 
+- Termshark supports TCP and UDP stream reassembly. See termshark's "Analysis" menu.
 - By popular demand, termshark now has a dark mode! To turn on, run termshark and open the menu.
 - Termshark can be configured to "auto-scroll" when reading live data (interface, fifo or stdin).
 - Termshark uses less CPU, is less laggy under mouse input, and will use less than half as much RAM on larger pcaps.
@@ -26,6 +27,7 @@ termshark -i eth0 --tty=/dev/pts/5
   see differences between packets more easily.
 - Termshark can now be installed for MacOS from [Homebrew](docs/FAQ#Homebrew). 
 - Termshark now respects job control signals sent via the shell i.e. SIGTSTP and SIGCONT.
+- The current packet capture source (file, interface, pipe, etc) is displayed in the termshark title bar.
 - Termshark can be configured to eagerly load all pcap PDML data, rather than 1000 packets at a time.
 
 ### Changed
