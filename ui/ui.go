@@ -492,6 +492,10 @@ func (t *rowFocusTableWidget) SubWidget() gowid.IWidget {
 	return t.BoundedWidget
 }
 
+func (t *rowFocusTableWidget) InvertedModel() table.IInvertible {
+	return t.Model().(table.IInvertible)
+}
+
 func (t *rowFocusTableWidget) Rows() int {
 	return t.Widget.Model().(table.IBoundedModel).Rows()
 }
