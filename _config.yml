@@ -9,7 +9,7 @@ plugins:
 # configuration
 termshark:
   # an avatar or logo (optional)
-  logo: "/images/termshark.gif"
+  logo: "/images/termsharkv2.gif"
   # author will appear under the avatar (optional)
   author: "Termshark"
   # tagline will appear under the title (optional)
