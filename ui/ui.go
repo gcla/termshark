@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -2048,6 +2049,13 @@ func SetStructViewMissing(app gowid.IApp) {
 func SetHexViewMissing(app gowid.IApp) {
 	singlePacketViewMsgHolder.SetSubWidget(Loadingw, app)
 	packetHexViewHolder.SetSubWidget(MissingMsgw, app)
+}
+
+//======================================================================
+
+func assignTo(wp interface{}, w gowid.IWidget) gowid.IWidget {
+	reflect.ValueOf(wp).Elem().Set(reflect.ValueOf(w))
+	return w
 }
 
 //======================================================================
