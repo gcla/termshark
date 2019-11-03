@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -861,7 +860,7 @@ var _ fmt.Stringer = (*Loader)(nil)
 func (c *Loader) String() string {
 	switch {
 	case c.psrc.IsFile() || c.psrc.IsFifo():
-		return path.Base(c.psrc.Name())
+		return filepath.Base(c.psrc.Name())
 	case c.psrc.IsPipe():
 		return "<stdin>"
 	case c.psrc.IsInterface():
