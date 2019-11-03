@@ -31,6 +31,7 @@ import (
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/menu"
 	"github.com/gcla/gowid/widgets/null"
+	"github.com/gcla/gowid/widgets/overlay"
 	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/progress"
 	"github.com/gcla/gowid/widgets/selectable"
@@ -2339,25 +2340,34 @@ func Build() (*gowid.App, error) {
 
 	// If anything gets added or removed here, see [[generalmenu1]]
 	// and [[generalmenu2]]
-	titleView := columns.NewFixed(
-		title,
-		&gowid.ContainerWidget{
-			IWidget: currentCaptureWidgetHolder,
-			D:       weight(10), // give it priority when the window isn't wide enough
-		},
-		&gowid.ContainerWidget{
-			IWidget: fill.New(' '),
-			D:       weight(1),
-		},
-		CopyModeWidget,
-		&gowid.ContainerWidget{
-			IWidget: fill.New(' '),
-			D:       weight(1),
-		},
-		openAnalysisSite,
-		openAnalysis2,
-		openMenuSite,
-		openMenu2,
+
+	var titleCols *columns.Widget
+
+	titleView := overlay.New(
+		hpadding.New(CopyModeWidget, gowid.HAlignMiddle{}, fixed),
+		assignTo(&titleCols, columns.NewFixed(
+			title,
+			&gowid.ContainerWidget{
+				IWidget: currentCaptureWidgetHolder,
+				D:       weight(10), // give it priority when the window isn't wide enough
+			},
+			&gowid.ContainerWidget{
+				IWidget: fill.New(' '),
+				D:       weight(1),
+			},
+			&gowid.ContainerWidget{
+				IWidget: fill.New(' '),
+				D:       weight(1),
+			},
+			openAnalysisSite,
+			openAnalysis2,
+			openMenuSite,
+			openMenu2,
+		)),
+		gowid.VAlignTop{},
+		gowid.RenderWithRatio{R: 1},
+		gowid.HAlignMiddle{},
+		gowid.RenderWithRatio{R: 1},
 	)
 
 	// Fill this in once generalMenu is defined and titleView is defined
@@ -2365,15 +2375,15 @@ func Build() (*gowid.App, error) {
 	generalNext.Cur = generalMenu
 	generalNext.Next = analysisMenu
 	generalNext.Site = openAnalysisSite
-	generalNext.Container = titleView
-	generalNext.Focus = 6 // gcla later todo - find by id!
+	generalNext.Container = titleCols
+	generalNext.Focus = 6 // should really find by ID
 
 	// <<generalmenu2>>
 	analysisNext.Cur = analysisMenu
 	analysisNext.Next = generalMenu
 	analysisNext.Site = openMenuSite
-	analysisNext.Container = titleView
-	analysisNext.Focus = 8 // gcla later todo - find by id!
+	analysisNext.Container = titleCols
+	analysisNext.Focus = 8 // should really find by ID
 
 	packetListViewHolder = holder.New(nullw)
 	packetStructureViewHolder = holder.New(nullw)
