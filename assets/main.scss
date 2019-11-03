@@ -42,10 +42,22 @@ a:hover {
 	margin: 0.8em 0;
 }
 
+.link-list-item {
+	font-weight: bold;
+	font-size: 1.2em;
+}
+
 /* override the left margin added by font awesome for the main content list,
 since it must be aligned with the content */
 .fa-ul.main-list {
 	margin-left: 0;
+}
+
+.fa-ul.main-list-cols {
+    margin-left: 0;
+    columns: 3;
+    margin-left: 8%;
+    margin-right: 8%;
 }
 
 /* list icons */
