@@ -587,8 +587,10 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 // accepting it triggers the OnCursorSet callback, which re-evaluates the filter value - the user sees
 // it go orange briefly, which is unpleasant.
 func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
-	if evk, ok := ev.(*tcell.EventKey); ok && evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyDown {
-		return false
+	if evk, ok := ev.(*tcell.EventKey); ok {
+		if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyDown {
+			return false
+		}
 	}
 	*w.temporarilyDisabled = false // any input should start the appearance of the drop down again
 	return w.wrapped.UserInput(ev, size, focus, app)
