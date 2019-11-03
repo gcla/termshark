@@ -18,6 +18,7 @@ import (
 	"github.com/gcla/deep"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/button"
+	"github.com/gcla/gowid/widgets/clicktracker"
 	"github.com/gcla/gowid/widgets/columns"
 	"github.com/gcla/gowid/widgets/dialog"
 	"github.com/gcla/gowid/widgets/disable"
@@ -2147,7 +2148,13 @@ func Build() (*gowid.App, error) {
 	//======================================================================
 
 	openMenu := button.NewBare(text.New("  Misc  "))
-	openMenu2 := styled.NewExt(openMenu, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
+	openMenu2 := clicktracker.New(
+		styled.NewExt(
+			openMenu,
+			gowid.MakePaletteRef("button"),
+			gowid.MakePaletteRef("button-focus"),
+		),
+	)
 
 	openMenuSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
 	openMenu.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
@@ -2253,7 +2260,13 @@ func Build() (*gowid.App, error) {
 	//======================================================================
 
 	openAnalysis := button.NewBare(text.New("  Analysis  "))
-	openAnalysis2 := styled.NewExt(openAnalysis, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
+	openAnalysis2 := clicktracker.New(
+		styled.NewExt(
+			openAnalysis,
+			gowid.MakePaletteRef("button"),
+			gowid.MakePaletteRef("button-focus"),
+		),
+	)
 
 	openAnalysisSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
 	openAnalysis.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
@@ -2365,8 +2378,15 @@ func Build() (*gowid.App, error) {
 	progressHolder = holder.New(nullw)
 
 	applyw := button.New(text.New("Apply"))
-	applyWidget2 := styled.NewExt(applyw, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
-	applyWidget := disable.NewEnabled(applyWidget2)
+	applyWidget := disable.NewEnabled(
+		clicktracker.New(
+			styled.NewExt(
+				applyw,
+				gowid.MakePaletteRef("button"),
+				gowid.MakePaletteRef("button-focus"),
+			),
+		),
+	)
 
 	FilterWidget = filter.New(filter.Options{
 		Completer: savedCompleter{def: termshark.NewFields()},
@@ -2395,7 +2415,13 @@ func Build() (*gowid.App, error) {
 	filterLabel := text.New("Filter: ")
 
 	savedw := button.New(text.New("Recent"))
-	savedWidget := styled.NewExt(savedw, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
+	savedWidget := clicktracker.New(
+		styled.NewExt(
+			savedw,
+			gowid.MakePaletteRef("button"),
+			gowid.MakePaletteRef("button-focus"),
+		),
+	)
 	savedBtnSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
 	savedw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		savedMenu.Open(savedBtnSite, app)
