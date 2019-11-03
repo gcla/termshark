@@ -1,6 +1,7 @@
 # general configuration
-url: https://termshark.io
-baseurl: ''
+url: https://gcla.github.io
+# Only for project page on github - not for termshark.io
+baseurl: '/termshark-staging'
 
 plugins:
   - jekyll-redirect-from
@@ -29,9 +30,6 @@ exclude: ["CNAME", "Gemfile", "Gemfile.lock", "LICENSE", "README.md"]
 # Dependencies
 markdown: kramdown
 highlighter: rouge
-
-# Only for project page on github - not for termshark.io
-#baseurl: "/termshark"
 
 # Permalinks
 permalink: pretty
