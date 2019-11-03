@@ -114,19 +114,14 @@ var packetHexViewHolder *holder.Widget
 var progressHolder *holder.Widget
 var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
+var savedListBoxWidgetHolder *holder.Widget
+var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
 
 var currentCapture *text.Widget
 var currentCaptureWidget *columns.Widget
 var currentCaptureWidgetHolder *holder.Widget
 
-var savedListBoxWidgetHolder *holder.Widget
-
-var nullw *null.Widget                       // empty
-var Loadingw gowid.IWidget                   // "loading..."
-var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
-var MissingMsgw gowid.IWidget                // centered, holding singlePacketViewMsgHolder
-var EmptyStructViewTimer *time.Ticker
-var EmptyHexViewTimer *time.Ticker
+var nullw *null.Widget // empty
 var fillSpace *fill.Widget
 var fillVBar *fill.Widget
 var colSpace *gowid.ContainerWidget
@@ -134,6 +129,11 @@ var colSpace *gowid.ContainerWidget
 var curPacketStructWidget *copymodetree.Widget
 var packetHexWidgets *lru.Cache
 var packetListView *rowFocusTableWidget
+
+var Loadingw gowid.IWidget    // "loading..."
+var MissingMsgw gowid.IWidget // centered, holding singlePacketViewMsgHolder
+var EmptyStructViewTimer *time.Ticker
+var EmptyHexViewTimer *time.Ticker
 
 var curExpandedStructNodes pdmltree.ExpandedPaths // a path to each expanded node in the packet, preserved while navigating
 var curStructPosition tree.IPos                   // e.g. [0, 2, 1] -> the indices of the expanded nodes
@@ -1149,16 +1149,6 @@ func copyModeKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool 
 	return handled
 }
 
-func streamKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
-	handled := true
-	if evk.Rune() == 'q' || evk.Rune() == 'Q' || evk.Key() == tcell.KeyEscape {
-		appViewNoKeys.SetSubWidget(mainView, app)
-	} else {
-		handled = false
-	}
-	return handled
-}
-
 func setFocusOnPacketList(app gowid.IApp) {
 	gowid.SetFocusPath(mainview, mainviewPaths[0], app)
 	gowid.SetFocusPath(altview1, altview1Paths[0], app)
@@ -2061,9 +2051,6 @@ func assignTo(wp interface{}, w gowid.IWidget) gowid.IWidget {
 //======================================================================
 
 func Build() (*gowid.App, error) {
-	//======================================================================
-	//
-	// Build the UI
 
 	var err error
 	var app *gowid.App
