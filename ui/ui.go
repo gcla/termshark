@@ -43,6 +43,7 @@ import (
 	"github.com/gcla/termshark/pdmltree"
 	"github.com/gcla/termshark/psmltable"
 	"github.com/gcla/termshark/system"
+	"github.com/gcla/termshark/widgets"
 	"github.com/gcla/termshark/widgets/appkeys"
 	"github.com/gcla/termshark/widgets/copymodetree"
 	"github.com/gcla/termshark/widgets/enableselected"
@@ -338,26 +339,6 @@ func ratio(r float64) gowid.RenderWithRatio {
 }
 
 //======================================================================
-
-func swallowMovementKeys(ev *tcell.EventKey, app gowid.IApp) bool {
-	res := false
-	switch ev.Key() {
-	case tcell.KeyDown, tcell.KeyCtrlN, tcell.KeyUp, tcell.KeyCtrlP, tcell.KeyRight, tcell.KeyCtrlF, tcell.KeyLeft, tcell.KeyCtrlB:
-		res = true
-	}
-	return res
-}
-
-func swallowMouseScroll(ev *tcell.EventMouse, app gowid.IApp) bool {
-	res := false
-	switch ev.Buttons() {
-	case tcell.WheelDown:
-		res = true
-	case tcell.WheelUp:
-		res = true
-	}
-	return res
-}
 
 // run in app goroutine
 func clearPacketViews(app gowid.IApp) {
@@ -2464,9 +2445,9 @@ func Build() (*gowid.App, error) {
 				packetListViewHolder,
 				appKeysResize1,
 			),
-			swallowMovementKeys,
+			widgets.SwallowMovementKeys,
 		),
-		swallowMouseScroll,
+		widgets.SwallowMouseScroll,
 	)
 
 	packetStructureViewWithKeys := appkeys.New(
@@ -2476,9 +2457,9 @@ func Build() (*gowid.App, error) {
 					packetStructureViewHolder,
 					appKeysResize2,
 				),
-				swallowMovementKeys,
+				widgets.SwallowMovementKeys,
 			),
-			swallowMouseScroll,
+			widgets.SwallowMouseScroll,
 		),
 		copyModeKeys, appkeys.Options{
 			ApplyBefore: true,
@@ -2489,9 +2470,9 @@ func Build() (*gowid.App, error) {
 		appkeys.NewMouse(
 			appkeys.New(
 				packetHexViewHolder,
-				swallowMovementKeys,
+				widgets.SwallowMovementKeys,
 			),
-			swallowMouseScroll,
+			widgets.SwallowMouseScroll,
 		),
 		copyModeKeys, appkeys.Options{
 			ApplyBefore: true,
