@@ -2289,6 +2289,7 @@ func Build() (*gowid.App, error) {
 		Modal:             true,
 		CloseKeysProvided: true,
 		CloseKeys: []gowid.IKey{
+			gowid.MakeKey('q'),
 			gowid.MakeKeyExt(tcell.KeyLeft),
 			gowid.MakeKeyExt(tcell.KeyEscape),
 			gowid.MakeKeyExt(tcell.KeyCtrlC),
