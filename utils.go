@@ -246,9 +246,8 @@ func TSharkPath() (string, *gowid.KeyValueError) {
 				errstr += fmt.Sprintf("Try installing with: yum install wireshark")
 			} else if IsCommandInPath("brew") {
 				errstr += fmt.Sprintf("Try installing with: brew install wireshark")
-			} else {
-				errstr += "\n"
 			}
+			errstr += "\n"
 			err := gowid.WithKVs(ConfigErr, map[string]interface{}{
 				"msg": errstr,
 			})
