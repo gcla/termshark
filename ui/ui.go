@@ -2629,47 +2629,53 @@ func Build() (*gowid.App, error) {
 
 	//======================================================================
 
-	altview2Cols = resizable.NewColumns([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{
-			IWidget: packetStructureViewHolder,
-			D:       weight(1),
-		},
-		&gowid.ContainerWidget{
-			IWidget: fillVBar,
-			D:       units(1),
-		},
-		&gowid.ContainerWidget{
-			IWidget: packetHexViewHolder,
-			D:       weight(1),
-		},
-	})
+	altview2ColsAndKeys := appkeys.New(
+		assignTo(&altview2Cols,
+			resizable.NewColumns([]gowid.IContainerWidget{
+				&gowid.ContainerWidget{
+					IWidget: packetStructureViewHolder,
+					D:       weight(1),
+				},
+				&gowid.ContainerWidget{
+					IWidget: fillVBar,
+					D:       units(1),
+				},
+				&gowid.ContainerWidget{
+					IWidget: packetHexViewHolder,
+					D:       weight(1),
+				},
+			}),
+		),
+		altview2ColsKeyPress,
+	)
 
 	altview2Cols.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		termshark.SaveOffsetToConfig("altview2vertical", altview2Cols.GetOffsets())
 	}))
 
-	altview2ColsAndKeys := appkeys.New(altview2Cols, altview2ColsKeyPress)
-
-	altview2Pile = resizable.NewPile([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{
-			IWidget: packetListViewHolder,
-			D:       weight(1),
-		},
-		&gowid.ContainerWidget{
-			IWidget: divider.NewUnicode(),
-			D:       flow,
-		},
-		&gowid.ContainerWidget{
-			IWidget: altview2ColsAndKeys,
-			D:       weight(1),
-		},
-	})
+	altview2PileAndKeys := appkeys.New(
+		assignTo(&altview2Pile,
+			resizable.NewPile([]gowid.IContainerWidget{
+				&gowid.ContainerWidget{
+					IWidget: packetListViewHolder,
+					D:       weight(1),
+				},
+				&gowid.ContainerWidget{
+					IWidget: divider.NewUnicode(),
+					D:       flow,
+				},
+				&gowid.ContainerWidget{
+					IWidget: altview2ColsAndKeys,
+					D:       weight(1),
+				},
+			}),
+		),
+		altview2PileKeyPress,
+	)
 
 	altview2Pile.OnOffsetsSet(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		termshark.SaveOffsetToConfig("altview2horizontal", altview2Pile.GetOffsets())
 	}))
-
-	altview2PileAndKeys := appkeys.New(altview2Pile, altview2PileKeyPress)
 
 	altview2OuterRows = resizable.NewPile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
@@ -2740,9 +2746,10 @@ func Build() (*gowid.App, error) {
 		ChooseOne: &DarkMode,
 	}
 
-	appViewNoKeys = holder.New(mainView)
-
-	appView = appkeys.New(appViewNoKeys, appKeyPress)
+	appView = appkeys.New(
+		assignTo(&appViewNoKeys, holder.New(mainView)),
+		appKeyPress,
+	)
 
 	// Create app, etc, but don't init screen which sets ICANON, etc
 	app, err = gowid.NewApp(gowid.AppArgs{
