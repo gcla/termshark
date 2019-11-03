@@ -1105,16 +1105,16 @@ func altview2PileKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	return handled
 }
 
-func copyModeKeys(evk *tcell.EventKey, app gowid.IApp) bool {
-	return copyModeKeysClipped(evk, 0, app)
+func copyModeExitKeys(evk *tcell.EventKey, app gowid.IApp) bool {
+	return copyModeExitKeysClipped(evk, 0, app)
 }
 
 // Used for limiting samples of reassembled streams
-func copyModeKeys20(evk *tcell.EventKey, app gowid.IApp) bool {
-	return copyModeKeysClipped(evk, 20, app)
+func copyModeExitKeys20(evk *tcell.EventKey, app gowid.IApp) bool {
+	return copyModeExitKeysClipped(evk, 20, app)
 }
 
-func copyModeKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool {
+func copyModeExitKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool {
 	handled := false
 	if app.InCopyMode() {
 		handled = true
@@ -1142,7 +1142,13 @@ func copyModeKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) bool 
 				app.RefreshCopyMode()
 			}
 		}
-	} else {
+	}
+	return handled
+}
+
+func copyModeEnterKeys(evk *tcell.EventKey, app gowid.IApp) bool {
+	handled := false
+	if !app.InCopyMode() {
 		switch evk.Key() {
 		case tcell.KeyRune:
 			switch evk.Rune() {
@@ -2248,9 +2254,6 @@ func Build() (*gowid.App, error) {
 			&generalNext,
 			nil,
 		),
-		appkeys.Options{
-			ApplyBefore: false,
-		},
 	)
 
 	generalMenu = menu.New("main", generalMenuListBoxWithKeys, fixed, menu.Options{
@@ -2298,9 +2301,6 @@ func Build() (*gowid.App, error) {
 			nil,
 			&analysisNext,
 		),
-		appkeys.Options{
-			ApplyBefore: false,
-		},
 	)
 
 	analysisMenu = menu.New("analysis", analysisMenuListBoxWithKeys, fixed, menu.Options{
@@ -2469,34 +2469,50 @@ func Build() (*gowid.App, error) {
 		widgets.SwallowMouseScroll,
 	)
 
-	packetStructureViewWithKeys := appkeys.New(
-		appkeys.NewMouse(
+	packetStructureViewWithKeys :=
+		appkeys.New(
 			appkeys.New(
-				appkeys.New(
-					packetStructureViewHolder,
-					appKeysResize2,
+				appkeys.NewMouse(
+					appkeys.New(
+						appkeys.New(
+							packetStructureViewHolder,
+							appKeysResize2,
+						),
+						widgets.SwallowMovementKeys,
+					),
+					widgets.SwallowMouseScroll,
 				),
-				widgets.SwallowMovementKeys,
+				copyModeEnterKeys,
+				appkeys.Options{
+					ApplyBefore: true,
+				},
 			),
-			widgets.SwallowMouseScroll,
-		),
-		copyModeKeys, appkeys.Options{
-			ApplyBefore: true,
-		},
-	)
+			copyModeExitKeys,
+			appkeys.Options{
+				ApplyBefore: true,
+			},
+		)
 
-	packetHexViewHolderWithKeys := appkeys.New(
-		appkeys.NewMouse(
+	packetHexViewHolderWithKeys :=
+		appkeys.New(
 			appkeys.New(
-				packetHexViewHolder,
-				widgets.SwallowMovementKeys,
+				appkeys.NewMouse(
+					appkeys.New(
+						packetHexViewHolder,
+						widgets.SwallowMovementKeys,
+					),
+					widgets.SwallowMouseScroll,
+				),
+				copyModeEnterKeys,
+				appkeys.Options{
+					ApplyBefore: true,
+				},
 			),
-			widgets.SwallowMouseScroll,
-		),
-		copyModeKeys, appkeys.Options{
-			ApplyBefore: true,
-		},
-	)
+			copyModeExitKeys,
+			appkeys.Options{
+				ApplyBefore: true,
+			},
+		)
 
 	mainviewRows = resizable.NewPile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
