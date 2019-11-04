@@ -132,6 +132,16 @@ func cmain() int {
 		}
 	}
 
+	if tsopts.Tail != "" {
+		err = termshark.TailFile(string(tsopts.Tail))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v", err)
+			return 1
+		} else {
+			return 0
+		}
+	}
+
 	// Run after accessing the config so I can use the configured tshark binary, if there is one. I need that
 	// binary in the case that termshark is run where stdout is not a tty, in which case I exec tshark - but
 	// it makes sense to use the one in termshark.toml

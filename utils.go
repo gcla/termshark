@@ -311,7 +311,7 @@ func DumpcapBin() string {
 func TailCommand() []string {
 	def := []string{"tail", "-f", "-c", "+0"}
 	if runtime.GOOS == "windows" {
-		def[0] = "c:\\cygwin64\\bin\\tail.exe"
+		def = []string{os.Args[0], "--tail"}
 	}
 	return ConfStringSlice("main.tail-command", def)
 }

@@ -11,8 +11,9 @@ import "github.com/jessevdk/go-flags"
 
 // Used to determine if we should run tshark instead e.g. stdout is not a tty
 type Tshark struct {
-	PassThru    string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
-	PrintIfaces bool   `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
+	PassThru    string         `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
+	PrintIfaces bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
+	Tail        flags.Filename `value-name:"<tail-file>" long:"tail" hidden:"true" description:"Tail a file (private)."`
 }
 
 // Termshark's own command line arguments. Used if we don't pass through to tshark.
@@ -37,7 +38,7 @@ type Termshark struct {
 
 // If args are passed through to tshark (e.g. stdout not a tty), then
 // strip these out so tshark doesn't fail.
-var TermsharkOnly = []string{"--pass-thru", "--log-tty", "--debug"}
+var TermsharkOnly = []string{"--pass-thru", "--log-tty", "--debug", "--tail"}
 
 func FlagIsTrue(val string) bool {
 	return val == "true" || val == "yes"
