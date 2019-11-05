@@ -115,7 +115,7 @@ termshark -G fields
 ```
 then parsing the output into a nested collection of Go maps, and serializing it to ```$XDG_CONFIG_CACHE/tsharkfieldsv2.gob.gz```.
 
-## termshark is laggy or using a lot of RAM
+## Termshark is laggy or using a lot of RAM
 
 Try running termshark with the ```--debug``` flag e.g.
 
