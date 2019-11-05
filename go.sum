@@ -25,8 +25,8 @@ github.com/gcla/gowid v1.0.1-0.20191103220125-26d856e441b7 h1:AhbyobOCKHHCpo8MDo
 github.com/gcla/gowid v1.0.1-0.20191103220125-26d856e441b7/go.mod h1:0ho5JHTdYdJWIWNoFPcsao5CzvWUq4uqCXmMK7kBLn8=
 github.com/gcla/tail v1.0.1-0.20191105001453-2a7e4c24a6b5 h1:x0blofu02F4FRkJaXz5prwMJQtwhTpk0Tvgd/ZDc58U=
 github.com/gcla/tail v1.0.1-0.20191105001453-2a7e4c24a6b5/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
-github.com/gcla/tcell v1.1.2-0.20190930013645-5e4b40606ce2 h1:YRo0647PI3lwZ0XnXKCLZkjRNt/mHJULrtBvREf5N7g=
-github.com/gcla/tcell v1.1.2-0.20190930013645-5e4b40606ce2/go.mod h1:Hjvr+Ofd+gLglo7RYKxxnzCBmev3BzsS67MebKS4zMM=
+github.com/gcla/tcell v1.1.2-0.20191105032631-bdf184f0c937 h1:n7MlLGilok8bWfjitwyBDtBYWK2lz4LoXAjAbTzfE4I=
+github.com/gcla/tcell v1.1.2-0.20191105032631-bdf184f0c937/go.mod h1:Hjvr+Ofd+gLglo7RYKxxnzCBmev3BzsS67MebKS4zMM=
 github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402 h1:d8cpYNgYjXDjvrdnSaFy4+o1D3BpPUKTBIcijrBKv4c=
 github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402/go.mod h1:YCPU+G35BFc/575HWMl8oeqq+dTbunufWbWaV0Y2sqY=
 github.com/gdamore/encoding v1.0.0 h1:+7OoQ1Bc6eTm5niUzBa0Ctsh6JbMW6Ra+YNuAtDBdko=

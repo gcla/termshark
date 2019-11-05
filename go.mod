@@ -30,6 +30,6 @@ require (
 
 replace github.com/hpcloud/tail => github.com/gcla/tail v1.0.1-0.20191105001453-2a7e4c24a6b5
 
-replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20190930013645-5e4b40606ce2
+replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20191105032631-bdf184f0c937
 
 replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
