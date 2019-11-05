@@ -2016,11 +2016,11 @@ func (s SetStructWidgets) OnError(err error, closeMe chan<- struct{}) {
 //======================================================================
 
 func startEmptyStructViewTimer() {
-	EmptyStructViewTimer = time.NewTicker(time.Duration(500) * time.Millisecond)
+	EmptyStructViewTimer = time.NewTicker(time.Duration(1000) * time.Millisecond)
 }
 
 func startEmptyHexViewTimer() {
-	EmptyHexViewTimer = time.NewTicker(time.Duration(500) * time.Millisecond)
+	EmptyHexViewTimer = time.NewTicker(time.Duration(1000) * time.Millisecond)
 }
 
 func StopEmptyStructViewTimer() {
