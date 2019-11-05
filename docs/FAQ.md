@@ -81,6 +81,12 @@ If you run termshark under tmux or screen and always have ```TERM``` set in a wa
   term = "screen-256color"
 ```
 
+## The console is too narrow on Windows
+
+Unfortunately, the standard console window won't let you increase its size beyond its initial bounds using the mouse. To work around this, after termshark starts, right-click on the window title and select "Properties". Click "Layout" and then adjust the "Window Size" settings. When you quit termshark, your console window will be restored to its original size.
+
+![winconsole](https://drive.google.com/uc?export=view&id=1tYTiSdcQtsSRFmw0nw7awmL9MOZiUinM)
+
 ## How does termshark use tshark?
 
 Termshark uses tshark to provide all the data it displays, and to validate display filter expressions. When you give termshark a pcap file, it will run
