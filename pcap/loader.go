@@ -329,6 +329,16 @@ func (c *Scheduler) RequestClearPcap(cb interface{}) {
 	}
 }
 
+func (c *Scheduler) RequestStopLoadStage1(cb interface{}) {
+	log.Infof("Scheduler requested stop psml + iface")
+	c.OperationsChan <- func() {
+		c.Disable()
+		c.doStopLoadStage1Operation(cb, func() {
+			c.Enable()
+		})
+	}
+}
+
 func (c *Scheduler) RequestStopLoad(cb interface{}) {
 	log.Infof("Scheduler requested stop pcap load")
 	c.OperationsChan <- func() {
@@ -427,6 +437,31 @@ func (c *Loader) doStopLoadOperation(cb interface{}, fn RunFn) {
 
 		c.When(c.IdleState, func() {
 			c.doStopLoadOperation(cb, fn)
+		})
+	} else {
+		fn()
+		HandleEnd(cb)
+	}
+}
+
+func (c *Loader) doStopLoadStage1Operation(cb interface{}, fn RunFn) {
+	c.LoadWasCancelled = true
+
+	HandleBegin(cb)
+
+	if c.State()&(LoadingPsml|LoadingIface) != 0 {
+
+		if c.State()&LoadingPsml != 0 {
+			c.stopLoadPsml()
+		}
+		if c.State()&LoadingIface != 0 {
+			c.stopLoadIface()
+		}
+
+		c.When(func() bool {
+			return c.State()&(LoadingIface|LoadingPsml) == 0
+		}, func() {
+			c.doStopLoadStage1Operation(cb, fn)
 		})
 	} else {
 		fn()
@@ -1357,7 +1392,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	}, &c.stage2Wg, Goroutinewg)
 
 	//
-	// Goroutine to track an external shutdown - kills processes i case the external
+	// Goroutine to track an external shutdown - kills processes in case the external
 	// shutdown comes first. If it's an internal shutdown, no need to kill because
 	// that would only be triggered once processes are dead
 	//

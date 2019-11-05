@@ -1199,7 +1199,7 @@ func setFocusOnDisplayFilter(app gowid.IApp) {
 func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	if evk.Key() == tcell.KeyCtrlC && Loader.State()&pcap.LoadingPsml != 0 {
-		PcapScheduler.RequestStopLoad(NoHandlers{}) // iface and psml
+		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // iface and psml
 	} else if evk.Key() == tcell.KeyTAB {
 		if mainViewNoKeys.SubWidget() == viewOnlyPacketList {
 			mainViewNoKeys.SetSubWidget(viewOnlyPacketStructure, app)
@@ -1352,7 +1352,7 @@ func setProgressWidget(app gowid.IApp) {
 	stop2 := styled.NewExt(stop, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
 
 	stop.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		PcapScheduler.RequestStopLoad(NoHandlers{})
+		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // psml and iface
 	}))
 
 	prog := vpadding.New(progressHolder, gowid.VAlignTop{}, flow)
