@@ -104,6 +104,17 @@ termshark -G fields
 ```
 then parsing the output into a nested collection of Go maps, and serializing it to ```$XDG_CONFIG_CACHE/tsharkfields.gob.gz```.
 
+## How much memory does termshark use?
+
+It's hard to be precise, but I can provide some rough numbers. Termshark uses memory for two things:
+
+- for each packet in the whole pcap, a subsection of the PSML (XML) for that packet
+- in groups of 1000 (by default), loaded on demand, a subsection of the PDML (XML) for each packet in the group.
+
+See [this question](FAQ.md#if-i-load-a-big-pcap-termshark-doesnt-load-all-the-packets-at-once---why) for more information on the on-demand loading.
+
+Using a sequence of pcaps with respectively 100000, 200000, 300000 and 400000 packets, I can see termshark (on linux) adds about 120 MB of VM space and about 50MB of RSS (resident set size) per 100000 packets - with only PSML loaded. As you scroll through the pcap, each 1000 packet boundary causes a load of 1000 PDML elements from tshark. Each extra 1000 packets can increase RSS by as much as 200MB(!) This is more than I'd like - but termshark v2, coming soon, reduces the RSS per PDML load by up to 90% (at which point I will update this FAQ).
+
 ## What is the oldest supported version of tshark?
 
 As much as possible, I want termshark to work "right out of the box", and to me that meant not requiring the user to have to update tshark. On Linux I have successfully tested termshark with tshark versions back to git tag v1.11.0; but v1.10.0 failed to display the hex view. I didn't debug further. So v1.11.0 is the oldest supported version of tshark. Wireshark v1.11.0 was released in October 2013.
