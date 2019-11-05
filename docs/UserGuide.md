@@ -149,13 +149,13 @@ Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/
 Termshark supports reading packets from a Unix fifo or from standard input - for example
 
 ```bash
-tcpdump -i eth0 -w - icmp | termshark -i -
+tcpdump -i eth0 -w - icmp | termshark
 ```
 
 On some machines, packet capture commands might require sudo or root access. To facilitate this, termshark's UI will not launch until it detects that it has received some packet data on its input. This makes it easier for the user to type in his or her root password on the tty before termshark takes over:
 
 ```bash
-$ sudo tcpdump -i eth0 -w - icmp | termshark -i -
+$ sudo tcpdump -i eth0 -w - icmp | termshark
 (The termshark UI will start when packets are detected...)
 [sudo] password for gcla: 
 ```
