@@ -4,7 +4,9 @@
 # Termshark
 A terminal user-interface for tshark, inspired by Wireshark.
 
-![demo1](https://drive.google.com/uc?export=view&id=1vDecxjqwJrtMGJjOObL-LLvi-1pBVByt)
+**V2 is out now with stream reassembly, dark-mode and more! Here's the [ChangeLog](CHANGELOG.md#changelog).**
+
+![demo2](https://drive.google.com/uc?export=view&id=1EmqYrOPwLXanoi7o74PQMOX1KSgOqhNr)
 
 If you're debugging on a remote machine with a large pcap and no desire to scp it back to your desktop, termshark can help!
 
