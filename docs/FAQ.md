@@ -42,6 +42,10 @@ tshark is able to seek through the pcap much more quickly when it doesn't have t
 
 If you start to page up quickly, you will likely approach a range of packets that termshark hasn't loaded, and it will have to issue another tshark command to fetch the data. Termshark launches the tshark command before those unloaded packets come into view but there's room here for more sophistication. One problem with this approach is that if you sort the packet list by a field like source IP, then moving up or down one packet may result in needing to display the structure and bytes for a packet many thousands of packets away from the current one ordered by time - so termshark might kick off a new  ```-T pdml``` command for each up or down movement, meaning termshark will continually display "Loading..."
 
+## Termshark is too bright!
+
+Termshark v2 supports dark-mode! Hit Esc to bring up the main menu then "Toggle Dark Mode". See the [User Guide](UserGuide.md#dark-mode).
+
 ## Termshark's colors are limited...
 
 By default, termshark respects the ```TERM``` environment variable and chooses a color scheme based on what it thinks the terminal is capable of, via the excellent [tcell](https://github.com/gdamore/tcell) package. You might be running on a terminal that can display more colors than ```TERM``` reports - so you can try adjusting your ```TERM``` variable e.g. if ```TERM``` is ```xterm```, try
