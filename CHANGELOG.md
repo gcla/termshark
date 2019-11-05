@@ -25,7 +25,7 @@ termshark -i eth0 --tty=/dev/pts/5
 ```
 - Like Wireshark, termshark will now preserve the opened and closed structure of a packet as you move from one packet to the next. This lets the user
   see differences between packets more easily.
-- Termshark can now be installed for MacOS from [Homebrew](docs/FAQ#Homebrew). 
+- Termshark can now be installed for MacOS from [Homebrew](docs/FAQ.md#homebrew). 
 - Termshark now respects job control signals sent via the shell i.e. SIGTSTP and SIGCONT.
 - Termshark on Windows no longer depends on the Cywgin tail command (and thus a Cygwin installation).
 - The current packet capture source (file, interface, pipe, etc) is displayed in the termshark title bar.
