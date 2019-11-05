@@ -150,7 +150,7 @@ It's hard to be precise, but I can provide some rough numbers. Termshark uses me
 
 See [this question](FAQ.md#if-i-load-a-big-pcap-termshark-doesnt-load-all-the-packets-at-once---why) for more information on the on-demand loading.
 
-Using a sequence of pcaps with respectively 100000, 200000, 300000 and 400000 packets, I can see termshark (on linux) adds about 120 MB of VM space and about 50MB of RSS (resident set size) per 100000 packets - with only PSML loaded. As you scroll through the pcap, each 1000 packet boundary causes a load of 1000 PDML elements from tshark. Each extra 1000 packets can increase RSS by as much as 200MB(!) This is more than I'd like - but termshark v2, coming soon, reduces the RSS per PDML load by up to 90% (at which point I will update this FAQ).
+Using a sequence of pcaps with respectively 100000, 200000, 300000 and 400000 packets, I can see termshark v2 (on linux) adds about 100 MB of VM space and about 50MB of RSS (resident set size) per 100000 packets - with only PSML loaded. As you scroll through the pcap, each 1000 packet boundary causes a load of 1000 PDML elements from tshark. Each extra 1000 packets increases RSS by about 30MB. This is about an 80% improvement over termshark v1 - accomplished by simply compressing the serialized representation in RAM.
 
 ## What is the oldest supported version of tshark?
 
