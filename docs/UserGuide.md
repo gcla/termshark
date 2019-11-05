@@ -195,7 +195,7 @@ You can hit the `left` and `right` arrow keys to expand or contract the selected
 
 Select the format you want and hit `enter` (or click). Copy mode is available in the packet structure and packet hex views.
 
-This feature comes with a caveat! If you are connected to a remote machine e.g. via ssh, then you should use the `-X` flag to forward X11. On Linux, the default copy command is `xsel`. If you forward X11 with ssh, then the packet data will be copied to your desktop machine's clipboard. You can customize the copy command using termshark's config file e.g.
+This feature comes with a caveat! If you are connected to a remote machine e.g. via ssh, then you should use the `-X` flag to forward X11. On Linux, the default copy command is `xsel`. If you forward X11 with ssh, then the packet data will be copied to your desktop machine's clipboard. You can customize the copy command using termshark's [config file](UserGuide.md#config-file) e.g.
 ```toml
 [main]
   copy-command = ["xsel", "-i", "-p"]
@@ -203,6 +203,14 @@ This feature comes with a caveat! If you are connected to a remote machine e.g. 
 to instead set the primary selection. If forwarding X11 is not an option, you could instead upload the data (received via stdin) to a service like pastebin, and print the URL on stdout - termshark will display the copy command's output in a dialog when the command completes. See the [FAQ](FAQ.md).
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
+
+## Dark Mode
+
+If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to open the main menu and select "Toggle Dark Mode". 
+
+![darkmode](https://drive.google.com/uc?export=view&id=1bkwdKL2pHwJYpiwvyazEQ1ACtG50ZHI7)
+
+Your choice is stored in the termshark [config file](UserGuide.md#config-file). Dark-mode is supported throughout the termshark user-interface.
 
 ## Problems
 
