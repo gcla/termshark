@@ -2,26 +2,19 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-package termshark
+package system
 
 //======================================================================
 
-type TerminalSignals struct {
-	set bool
+type NotImplementedError struct{}
+
+var _ error = NotImplementedError{}
+
+func (e NotImplementedError) Error() string {
+	return "Feature not implemented"
 }
 
-func (t *TerminalSignals) IsSet() bool {
-	return t.set
-}
-
-func (t *TerminalSignals) Restore() {
-	t.set = false
-}
-
-func (t *TerminalSignals) Set() error {
-	t.set = true
-	return nil
-}
+var NotImplemented = NotImplementedError{}
 
 //======================================================================
 // Local Variables:

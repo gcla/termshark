@@ -6,14 +6,11 @@ package pcap
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -126,7 +123,7 @@ type Loader struct {
 
 	state LoaderState // which pieces are currently loading
 
-	userInitiatedOp bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
+	suppressErrors bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
 
 	psrc          IPacketSource // The canonical struct for the loader's current packet source.
 	ifaceFile     string        // The temp pcap file that is created by reading from the interface
@@ -137,14 +134,16 @@ type Loader struct {
 	PcapPdml string      // Pcap file source for the pdml reader - tmpfile if iface; pcap otherwise
 	PcapPcap string      // Pcap file source for the pcap reader - tmpfile if iface; pcap otherwise
 
-	mainCtx        context.Context // cancelling this cancels the dependent contexts
-	mainCancelFn   context.CancelFunc
-	psmlCtx        context.Context // cancels the psml loading process
-	psmlCancelFn   context.CancelFunc
-	stage2Ctx      context.Context // cancels the pcap/pdml loading process
-	stage2CancelFn context.CancelFunc
-	ifaceCtx       context.Context // cancels the iface reader process
-	ifaceCancelFn  context.CancelFunc
+	mainCtx         context.Context // cancelling this cancels the dependent contexts - used to close whole loader.
+	mainCancelFn    context.CancelFunc
+	thisSrcCtx      context.Context // cancelling this cancels the dependent contexts - used to stop current load.
+	thisSrcCancelFn context.CancelFunc
+	psmlCtx         context.Context // cancels the psml loading process
+	psmlCancelFn    context.CancelFunc
+	stage2Ctx       context.Context // cancels the pcap/pdml loading process
+	stage2CancelFn  context.CancelFunc
+	ifaceCtx        context.Context // cancels the iface reader process
+	ifaceCancelFn   context.CancelFunc
 
 	//psmlDecodingProcessChan chan struct{} // signalled by psml load stage when the XML decoding is complete - signals rest of stage 1 to shut down
 	stage2GoroutineDoneChan chan struct{} // signalled by a goroutine in stage 2 for pcap/pdml - always signalled at end. When x2, signals rest of stage 2 to shut down
@@ -194,7 +193,8 @@ type Loader struct {
 }
 
 type Options struct {
-	CacheSize int
+	CacheSize      int
+	PacketsPerLoad int
 }
 
 func NewPcapLoader(cmds ILoaderCmds, opts ...Options) *Loader {
@@ -205,6 +205,11 @@ func NewPcapLoader(cmds ILoaderCmds, opts ...Options) *Loader {
 
 	if opt.CacheSize == 0 {
 		opt.CacheSize = 32
+	}
+	if opt.PacketsPerLoad == 0 {
+		opt.PacketsPerLoad = 1000 // default
+	} else if opt.PacketsPerLoad < 100 {
+		opt.PacketsPerLoad = 100 // minimum
 	}
 
 	res := &Loader{
@@ -237,6 +242,12 @@ func (c *Loader) resetData() {
 	c.PacketCache = packetCache
 }
 
+func (c *Loader) PacketsPerLoad() int {
+	c.Lock()
+	defer c.Unlock()
+	return c.opt.PacketsPerLoad
+}
+
 // Close shuts down the whole loader, including progress monitoring goroutines. Use this only
 // when about to load a new pcap (use a new loader)
 func (c *Loader) Close() error {
@@ -244,6 +255,14 @@ func (c *Loader) Close() error {
 		c.mainCancelFn()
 	}
 	return nil
+}
+
+func (c *Loader) MainContext() context.Context {
+	return c.mainCtx
+}
+
+func (c *Loader) SourceContext() context.Context {
+	return c.thisSrcCtx
 }
 
 func (c *Loader) stopLoadIface() {
@@ -261,6 +280,12 @@ func (c *Loader) stopLoadPsml() {
 func (c *Loader) stopLoadPdml() {
 	if c.stage2CancelFn != nil {
 		c.stage2CancelFn()
+	}
+}
+
+func (c *Loader) stopLoadCurrentSource() {
+	if c.thisSrcCancelFn != nil {
+		c.thisSrcCancelFn()
 	}
 }
 
@@ -285,12 +310,12 @@ func (c *Scheduler) IsEnabled() bool {
 
 func (c *Scheduler) Enable() {
 	c.disabled = false
-	c.userInitiatedOp = false
+	c.suppressErrors = false
 }
 
 func (c *Scheduler) Disable() {
 	c.disabled = true
-	c.userInitiatedOp = true
+	c.suppressErrors = true
 }
 
 func (c *Scheduler) RequestClearPcap(cb interface{}) {
@@ -301,6 +326,16 @@ func (c *Scheduler) RequestClearPcap(cb interface{}) {
 			c.Enable()
 		})
 
+	}
+}
+
+func (c *Scheduler) RequestStopLoadStage1(cb interface{}) {
+	log.Infof("Scheduler requested stop psml + iface")
+	c.OperationsChan <- func() {
+		c.Disable()
+		c.doStopLoadStage1Operation(cb, func() {
+			c.Enable()
+		})
 	}
 }
 
@@ -348,21 +383,10 @@ func (c *Scheduler) RequestLoadPcap(pcap string, displayFilter string, cb interf
 // interface, the loading continues after the current data has been discarded. If
 // the loader is currently reading from a file, the loading *stops*.
 func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
-	//var res EnableOperationsWhen
-
-	// if bb, ok := cb.(IBeforeBegin); ok {
-	// 	ch := make(chan struct{})
-	// 	bb.BeforeBegin(ch)
-	// }
-
 	if c.State() == 0 {
 		c.resetData()
 
-		if oc, ok := cb.(IClear); ok {
-			ch := make(chan struct{})
-			oc.OnClear(ch)
-		}
-		//cb.OnClear()
+		handleClear(cb)
 
 		fn()
 	} else {
@@ -373,12 +397,9 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 
 		if c.State()&LoadingIface != 0 {
 			startIfaceAgain = CanRestart(c.psrc) // Only try to restart if the packet source allows
-			c.stopLoadIface()
 		}
 
-		if c.State()&LoadingPsml != 0 {
-			c.stopLoadPsml()
-		}
+		c.stopLoadCurrentSource()
 
 		c.When(c.IdleState, func() {
 			// Document why this needs to be delayed again, since runWhenReadyFn
@@ -409,25 +430,42 @@ func (c *Loader) When(pred whenFn, doit RunFn) {
 func (c *Loader) doStopLoadOperation(cb interface{}, fn RunFn) {
 	c.LoadWasCancelled = true
 
-	if bb, ok := cb.(IBeforeBegin); ok {
-		ch := make(chan struct{})
-		bb.BeforeBegin(ch)
-	}
+	HandleBegin(cb)
 
 	if c.State() != 0 {
-		c.stopLoadPsml()
-		c.stopLoadPdml()
-		c.stopLoadIface()
+		c.stopLoadCurrentSource()
 
 		c.When(c.IdleState, func() {
 			c.doStopLoadOperation(cb, fn)
 		})
 	} else {
 		fn()
-		if aa, ok := cb.(IAfterEnd); ok {
-			ch := make(chan struct{})
-			aa.AfterEnd(ch)
+		HandleEnd(cb)
+	}
+}
+
+func (c *Loader) doStopLoadStage1Operation(cb interface{}, fn RunFn) {
+	c.LoadWasCancelled = true
+
+	HandleBegin(cb)
+
+	if c.State()&(LoadingPsml|LoadingIface) != 0 {
+
+		if c.State()&LoadingPsml != 0 {
+			c.stopLoadPsml()
 		}
+		if c.State()&LoadingIface != 0 {
+			c.stopLoadIface()
+		}
+
+		c.When(func() bool {
+			return c.State()&(LoadingIface|LoadingPsml) == 0
+		}, func() {
+			c.doStopLoadStage1Operation(cb, fn)
+		})
+	} else {
+		fn()
+		HandleEnd(cb)
 	}
 }
 
@@ -450,6 +488,7 @@ func (c *Loader) doNewFilterOperation(newfilt string, cb interface{}, fn RunFn) 
 
 	if c.DisplayFilter() == newfilt {
 		log.Infof("No operation - same filter applied.")
+		fn()
 	} else if c.State() == 0 || c.State() == LoadingIface {
 		handleClear(cb)
 
@@ -481,6 +520,10 @@ type IClear interface {
 	OnClear(closeMe chan<- struct{})
 }
 
+type INewSource interface {
+	OnNewSource(closeMe chan<- struct{})
+}
+
 type IOnError interface {
 	OnError(err error, closeMe chan<- struct{})
 }
@@ -491,6 +534,16 @@ type IBeforeBegin interface {
 
 type IAfterEnd interface {
 	AfterEnd(closeMe chan<- struct{})
+}
+
+type IUnpack interface {
+	Unpack() []interface{}
+}
+
+type HandlerList []interface{}
+
+func (h HandlerList) Unpack() []interface{} {
+	return h
 }
 
 func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}, fn RunFn) {
@@ -504,11 +557,10 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 	// are stopped)
 	if c.State()&LoadingPsml != 0 && c.Interface() == psrc.Name() && c.DisplayFilter() == displayFilter && c.CaptureFilter() == captureFilter {
 		log.Infof("No operation - same interface and filters.")
+		fn()
 	} else if c.State() == 0 {
-		if oc, ok := cb.(IClear); ok {
-			ch := make(chan struct{})
-			oc.OnClear(ch)
-		}
+		handleClear(cb)
+		handleNewSource(cb)
 
 		if err := c.startLoadInterfaceNew(psrc, captureFilter, displayFilter, tmpfile, cb); err == nil {
 			c.When(func() bool {
@@ -552,8 +604,10 @@ func (c *Loader) doLoadPcapOperation(pcap string, displayFilter string, cb inter
 
 	if c.Pcap() == pcap && c.DisplayFilter() == curDisplayFilter {
 		log.Infof("No operation - same pcap and filter.")
+		fn()
 	} else if c.State() == 0 {
 		handleClear(cb)
+		handleNewSource(cb)
 
 		c.startLoadNewFile(pcap, curDisplayFilter, cb)
 
@@ -578,36 +632,105 @@ func (c *Loader) ReadingFromFifo() bool {
 	return !ok
 }
 
-func HandleBegin(cb interface{}) {
-	if c, ok := cb.(IBeforeBegin); ok {
-		ch := make(chan struct{})
-		c.BeforeBegin(ch)
+type unpackedHandlerFunc func(interface{}, ...chan struct{}) bool
+
+func HandleUnpack(cb interface{}, handler unpackedHandlerFunc, chs ...chan struct{}) bool {
+	if c, ok := cb.(IUnpack); ok {
+		ch := getCbChan(chs...)
+		var wg sync.WaitGroup
+		handlers := c.Unpack()
+		wg.Add(len(handlers))
+		for _, cb := range handlers {
+			cbcopy := cb // don't fall into loop variable non-capture trap
+			termshark.TrackedGo(func() {
+				ch2 := make(chan struct{})
+				handler(cbcopy, ch2) // will wait on channel if it has to, doesn't matter if not
+				wg.Done()
+			}, Goroutinewg)
+		}
+		termshark.TrackedGo(func() {
+			wg.Wait()
+			close(ch)
+		}, Goroutinewg)
 		<-ch
+		return true
+	}
+	return false
+}
+
+func getCbChan(chs ...chan struct{}) chan struct{} {
+	if len(chs) > 0 {
+		return chs[0]
+	} else {
+		return make(chan struct{})
 	}
 }
 
-func HandleEnd(cb interface{}) {
-	if c, ok := cb.(IAfterEnd); ok {
-		ch := make(chan struct{})
-		c.AfterEnd(ch)
-		<-ch
+func HandleBegin(cb interface{}, chs ...chan struct{}) bool {
+	res := false
+	if !HandleUnpack(cb, HandleBegin) {
+		if c, ok := cb.(IBeforeBegin); ok {
+			ch := getCbChan(chs...)
+			c.BeforeBegin(ch)
+			<-ch
+			res = true
+		}
 	}
+	return res
 }
 
-func HandleError(err error, cb interface{}) {
-	if ec, ok := cb.(IOnError); ok {
-		ch := make(chan struct{})
-		ec.OnError(err, ch)
-		<-ch
+func HandleEnd(cb interface{}, chs ...chan struct{}) bool {
+	res := false
+	if !HandleUnpack(cb, HandleEnd, chs...) {
+		if c, ok := cb.(IAfterEnd); ok {
+			ch := getCbChan(chs...)
+			c.AfterEnd(ch)
+			<-ch
+			res = true
+		}
 	}
+	return res
 }
 
-func handleClear(cb interface{}) {
-	if c, ok := cb.(IClear); ok {
-		ch := make(chan struct{})
-		c.OnClear(ch)
-		<-ch
+func HandleError(err error, cb interface{}, chs ...chan struct{}) bool {
+	res := false
+	if !HandleUnpack(cb, func(cb2 interface{}, chs2 ...chan struct{}) bool {
+		return HandleError(err, cb2, chs2...)
+	}, chs...) {
+		if ec, ok := cb.(IOnError); ok {
+			ch := getCbChan(chs...)
+			ec.OnError(err, ch)
+			<-ch
+			res = true
+		}
 	}
+	return res
+}
+
+func handleClear(cb interface{}, chs ...chan struct{}) bool {
+	res := false
+	if !HandleUnpack(cb, handleClear) {
+		if c, ok := cb.(IClear); ok {
+			ch := getCbChan(chs...)
+			c.OnClear(ch)
+			<-ch
+			res = true
+		}
+	}
+	return res
+}
+
+func handleNewSource(cb interface{}, chs ...chan struct{}) bool {
+	res := false
+	if !HandleUnpack(cb, handleNewSource) {
+		if c, ok := cb.(INewSource); ok {
+			ch := getCbChan(chs...)
+			c.OnNewSource(ch)
+			<-ch
+			res = true
+		}
+	}
+	return res
 }
 
 // https://stackoverflow.com/a/28005931/784226
@@ -615,9 +738,14 @@ func TempPcapFile(token string) string {
 	re := regexp.MustCompile(`[^a-zA-Z0-9.-]`)
 	tokenClean := re.ReplaceAllString(token, "_")
 
-	randBytes := make([]byte, 2)
-	rand.Read(randBytes)
-	return filepath.Join(termshark.PcapDir(), fmt.Sprintf("%s-%s-%s.pcap", tokenClean, time.Now().Format("20060102150405"), hex.EncodeToString(randBytes)))
+	return filepath.Join(termshark.PcapDir(), fmt.Sprintf("%s--%s.pcap",
+		tokenClean,
+		termshark.DateStringForFilename(),
+	))
+}
+
+func (c *Loader) makeNewSourceContext() {
+	c.thisSrcCtx, c.thisSrcCancelFn = context.WithCancel(c.mainCtx)
 }
 
 // Save the file first
@@ -633,6 +761,8 @@ func (c *Loader) startLoadInterfaceNew(psrc IPacketSource, captureFilter string,
 	c.ifaceFile = tmpfile
 	c.displayFilter = displayFilter
 	c.captureFilter = captureFilter
+
+	c.makeNewSourceContext()
 
 	// It's a temporary unique file, and no processes are started yet, so either
 	// (a) it doesn't exist, OR
@@ -656,6 +786,8 @@ func (c *Loader) startLoadInterfaceNew(psrc IPacketSource, captureFilter string,
 func (c *Loader) startLoadNewFilter(displayFilter string, cb interface{}) {
 	c.displayFilter = displayFilter
 
+	c.makeNewSourceContext()
+
 	log.Infof("Applying new display filter '%s'", displayFilter)
 	c.startLoadPsml(cb)
 }
@@ -668,6 +800,8 @@ func (c *Loader) startLoadNewFile(pcap string, displayFilter string, cb interfac
 	c.PcapPdml = pcap
 	c.PcapPcap = pcap
 	c.displayFilter = displayFilter
+
+	c.makeNewSourceContext()
 
 	log.Infof("Starting new pcap file load '%s'", pcap)
 	c.startLoadPsml(cb)
@@ -685,7 +819,9 @@ func (c *Loader) startLoadPsml(cb interface{}) {
 
 // assumes no pcap is being loaded
 func (c *Loader) startLoadPdml(row int, cb interface{}) {
+	c.Lock()
 	c.RowCurrentlyLoading = row
+	c.Unlock()
 
 	termshark.TrackedGo(func() {
 		c.loadPcapAsync(row, cb)
@@ -693,7 +829,7 @@ func (c *Loader) startLoadPdml(row int, cb interface{}) {
 }
 
 // if done==true, then this cache entry is complete
-func (c *Loader) updateCacheEntryWithPdml(row int, pdml []*PdmlPacket, done bool) {
+func (c *Loader) updateCacheEntryWithPdml(row int, pdml []IPdmlPacket, done bool) {
 	var ce CacheEntry
 	c.Lock()
 	defer c.Unlock()
@@ -759,7 +895,7 @@ var _ fmt.Stringer = (*Loader)(nil)
 func (c *Loader) String() string {
 	switch {
 	case c.psrc.IsFile() || c.psrc.IsFifo():
-		return path.Base(c.psrc.Name())
+		return filepath.Base(c.psrc.Name())
 	case c.psrc.IsPipe():
 		return "<stdin>"
 	case c.psrc.IsInterface():
@@ -807,6 +943,12 @@ func (c *Loader) NumLoaded() int {
 	return len(c.PacketPsmlData)
 }
 
+func (c *Loader) LoadingRow() int {
+	c.Lock()
+	defer c.Unlock()
+	return c.RowCurrentlyLoading
+}
+
 func (c *Loader) CacheAt(row int) (ISimpleCache, bool) {
 	if ce, ok := c.PacketCache.Get(row); ok {
 		return ce.(CacheEntry), ok
@@ -814,15 +956,11 @@ func (c *Loader) CacheAt(row int) (ISimpleCache, bool) {
 	return CacheEntry{}, false
 }
 
-func (c *Loader) LoadingRow() int {
-	return c.RowCurrentlyLoading
-}
-
 func (c *Loader) loadIsNecessary(ev LoadPcapSlice) bool {
 	res := true
 	if ev.Row > c.NumLoaded() {
 		res = false
-	} else if ce, ok := c.CacheAt((ev.Row / 1000) * 1000); ok && ce.Complete() {
+	} else if ce, ok := c.CacheAt((ev.Row / c.opt.PacketsPerLoad) * c.opt.PacketsPerLoad); ok && ce.Complete() {
 		// Might be less because a cache load might've been interrupted - if it's not truncated then
 		// we're set
 		res = false
@@ -833,12 +971,11 @@ func (c *Loader) loadIsNecessary(ev LoadPcapSlice) bool {
 }
 
 func (c *Loader) signalStage2Done(cb interface{}) {
+	c.Lock()
 	ch := c.Stage2FinishedChan
 	c.Stage2FinishedChan = make(chan struct{})
-	if a, ok := cb.(IAfterEnd); ok {
-		a.AfterEnd(ch)
-		<-ch
-	}
+	c.Unlock()
+	HandleEnd(cb, ch)
 }
 
 func (c *Loader) signalStage2Starting(cb interface{}) {
@@ -870,7 +1007,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	// too. When the 2/3 data loading processes are done, a goroutine will then run uiCtxCancel()
 	// to stop the UI updates.
 
-	c.stage2Ctx, c.stage2CancelFn = context.WithCancel(c.mainCtx)
+	c.Lock()
+	c.stage2Ctx, c.stage2CancelFn = context.WithCancel(c.thisSrcCtx)
+	c.Unlock()
 
 	intStage2Ctx, intStage2CancelFn := context.WithCancel(context.Background())
 
@@ -936,8 +1075,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		// Wait for all other goroutines to complete
 		c.stage2Wg.Wait()
 
-		// Safe, in goroutine thread
+		c.Lock()
 		c.RowCurrentlyLoading = -1
+		c.Unlock()
 
 		c.signalStage2Done(cb)
 	}()
@@ -974,13 +1114,13 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		// don't know how large the psml will be. So we set numToRead to 1000. This might be too high, but
 		// we only use this to determine when we can kill the reading processes early. The result will be
 		// correct if we don't kill the processes, it just might load for longer.
-		c.KillAfterReadingThisMany = 1000
+		c.KillAfterReadingThisMany = c.opt.PacketsPerLoad
 		var err error
 		if c.displayFilter == "" {
 			sidx = row + 1
 			// +1 for frame.number being 1-based; +1 to read past the end so that
-			// the XML decoder doesn't stall and I can kill after 1000
-			eidx = row + 1000 + 1 + 1
+			// the XML decoder doesn't stall and I can kill after abcdex
+			eidx = row + c.opt.PacketsPerLoad + 1 + 1
 		} else {
 			c.Lock()
 			if len(c.PacketPsmlData) > row {
@@ -988,12 +1128,12 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 				if err != nil {
 					log.Fatal(err)
 				}
-				if len(c.PacketPsmlData) > row+1000+1 {
+				if len(c.PacketPsmlData) > row+c.opt.PacketsPerLoad+1 {
 					// If we have enough packets to request one more than the amount to
 					// cache, then requesting one more will mean the XML decoder won't
 					// block at packet 999 waiting for </pdml> - so this is a hack to
 					// let me promptly kill tshark when I've read enough.
-					eidx, err = strconv.Atoi(c.PacketPsmlData[row+1000+1][0])
+					eidx, err = strconv.Atoi(c.PacketPsmlData[row+c.opt.PacketsPerLoad+1][0])
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -1038,7 +1178,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			return
 		}
 
+		c.Lock()
 		c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
+		c.Unlock()
 
 		pdmlOut, err := c.PdmlCmd.StdoutReader()
 		if err != nil {
@@ -1060,8 +1202,10 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		}()
 
 		d := xml.NewDecoder(pdmlOut)
-		packets := make([]*PdmlPacket, 0, 1000)
+		packets := make([]IPdmlPacket, 0, c.opt.PacketsPerLoad)
 		issuedKill := false
+		var packet PdmlPacket
+		var cpacket IPdmlPacket
 	Loop:
 		for {
 			tok, err := d.Token()
@@ -1076,7 +1220,6 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			case xml.StartElement:
 				switch tok.Name.Local {
 				case "packet":
-					var packet PdmlPacket
 					err := d.DecodeElement(&packet, &tok)
 					if err != nil {
 						if !issuedKill && unexpectedError(err) {
@@ -1085,11 +1228,17 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 						}
 						break Loop
 					}
-					packets = append(packets, &packet)
+					// Enabled for now - do something more subtle perhaps in the future
+					if true {
+						cpacket = SnappyPdmlPacket(packet)
+					} else {
+						cpacket = packet
+					}
+					packets = append(packets, cpacket)
 					c.updateCacheEntryWithPdml(row, packets, false)
-					//if len(pdml2) == 1000 {
+					//if len(pdml2) == abcdex {
 					if len(packets) == c.KillAfterReadingThisMany {
-						// Shortcut - we never take more than 1000 - so just kill here
+						// Shortcut - we never take more than abcdex - so just kill here
 						issuedKill = true
 						err = termshark.KillIfPossible(c.PdmlCmd)
 						if err != nil {
@@ -1108,10 +1257,12 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		if cancelled == 0 {
 			// never evict row 0
 			c.PacketCache.Get(0)
+			c.Lock()
 			if c.highestCachedRow != -1 {
 				// try not to evict "end"
 				c.PacketCache.Get(c.highestCachedRow)
 			}
+			c.Unlock()
 
 			// the cache entry is marked complete if we are not reading from a fifo, which implies
 			// the source of packets will not grow larger. If it could grow larger, we want to ensure
@@ -1119,7 +1270,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			// in the cache from a previous request - now there might be 950 packets.
 			c.updateCacheEntryWithPdml(row, packets, !c.ReadingFromFifo())
 			if row > c.highestCachedRow {
+				c.Lock()
 				c.highestCachedRow = row
+				c.Unlock()
 			}
 		}
 	}, &c.stage2Wg, Goroutinewg)
@@ -1145,7 +1298,9 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			return
 		}
 
+		c.Lock()
 		c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
+		c.Unlock()
 
 		pcapOut, err := c.PcapCmd.StdoutReader()
 		if err != nil {
@@ -1167,7 +1322,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			c.PcapCmd.Wait()
 		}()
 
-		packets := make([][]byte, 0, 1000)
+		packets := make([][]byte, 0, c.opt.PacketsPerLoad)
 
 		globalHdr := [24]byte{}
 		pktHdr := [16]byte{}
@@ -1213,7 +1368,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			c.updateCacheEntryWithPcap(row, packets, false)
 
 			if readEnough {
-				// Shortcut - we never take more than 1000 - so just kill here
+				// Shortcut - we never take more than abcdex - so just kill here
 				issuedKill = true
 				err = termshark.KillIfPossible(c.PcapCmd)
 				if err != nil {
@@ -1237,7 +1392,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	}, &c.stage2Wg, Goroutinewg)
 
 	//
-	// Goroutine to track an external shutdown - kills processes i case the external
+	// Goroutine to track an external shutdown - kills processes in case the external
 	// shutdown comes first. If it's an internal shutdown, no need to kill because
 	// that would only be triggered once processes are dead
 	//
@@ -1275,10 +1430,7 @@ func (c *Loader) signalPsmlStarting(cb interface{}) {
 func (c *Loader) signalPsmlDone(cb interface{}) {
 	ch := c.PsmlFinishedChan
 	c.PsmlFinishedChan = make(chan struct{})
-	if ae, ok := cb.(IAfterEnd); ok {
-		ae.AfterEnd(ch)
-		<-ch // wait for the channel to close, which AfterEnd should do
-	}
+	HandleEnd(cb, ch)
 }
 
 // Holds a reference to the loader, and wraps Read() around the tail process's
@@ -1298,7 +1450,10 @@ func (r *tailReadTracker) Read(p []byte) (int, error) {
 	} else {
 		r.loader.totalFifoBytesRead = gwutil.SomeInt64(int64(n) + r.loader.totalFifoBytesRead.Val())
 	}
-	if err != nil && r.loader.fifoError == nil && err != io.EOF {
+	// err == ErrClosed if the pipe (tailReader) that is wrapped in this tracker is closed.
+	// This can happen because this call to Read() and the deferred closepipe() function run
+	// at the same time.
+	if err != nil && r.loader.fifoError == nil && err != io.EOF && !errIsAlreadyClosed(err) {
 		r.loader.fifoError = err
 	}
 
@@ -1307,7 +1462,17 @@ func (r *tailReadTracker) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// checkReadAllBytes is called (a) when the tshark -i process is finished
+func errIsAlreadyClosed(err error) bool {
+	if err == os.ErrClosed {
+		return true
+	} else if err, ok := err.(*os.PathError); ok {
+		return errIsAlreadyClosed(err.Err)
+	} else {
+		return false
+	}
+}
+
+// checkAllBytesRead is called (a) when the tshark -i process is finished
 // writing to the tmp file and (b) every time the tmpfile tail process reads
 // bytes. totalFifoBytesWrite is set to non-nil only when the tail process
 // completes. totalFifoBytesRead is updated every read. If they are every
@@ -1361,7 +1526,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	// too. When the 2/3 data loading processes are done, a goroutine will then run uiCtxCancel()
 	// to stop the UI updates.
 
-	c.psmlCtx, c.psmlCancelFn = context.WithCancel(c.mainCtx)
+	c.psmlCtx, c.psmlCancelFn = context.WithCancel(c.thisSrcCtx)
 
 	intPsmlCtx, intPsmlCancelFn := context.WithCancel(context.Background())
 
@@ -1374,11 +1539,10 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	c.Lock()
 	c.PacketPsmlData = make([][]string, 0)
 	c.PacketPsmlHeaders = make([]string, 0, 10)
-	c.Unlock()
-
 	c.PacketCache.Purge()
 	c.LoadWasCancelled = false
 	c.StartStage2Chan = make(chan struct{}) // do this before signalling start
+	c.Unlock()
 
 	// signal to updater that we're about to start. This will block until cb completes
 	c.signalPsmlStarting(cb)
@@ -1512,7 +1676,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// PsmlCmd.Wait() below completes.
 		closePipe()
 		err := c.PsmlCmd.Wait()
-		if !c.userInitiatedOp {
+		if !c.suppressErrors {
 			if err != nil {
 				if _, ok := err.(*exec.ExitError); ok {
 					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
@@ -1702,9 +1866,10 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 }
 
 // dumpcap -i eth0 -w /tmp/foo.pcap
+// dumpcap -i /dev/fd/3 -w /tmp/foo.pcap
 func (c *Loader) loadIfaceAsync(cb interface{}) {
 	c.totalFifoBytesWritten = gwutil.NoneInt64()
-	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.mainCtx)
+	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.thisSrcCtx)
 
 	defer func() {
 		ch := c.IfaceFinishedChan
@@ -1734,9 +1899,21 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 		}
 	}, Goroutinewg)
 
+	defer func() {
+		// if psrc is a PipeSource, then we open /dev/fd/3 in termshark, and reroute descriptor
+		// stdin to number 3 when termshark starts. So to kill the process writing in, we need
+		// to close our side of the pipe.
+		if cl, ok := c.psrc.(io.Closer); ok {
+			cl.Close()
+		}
+	}()
+
 	err = c.ifaceCmd.Wait() // it definitely started, so we must wait
-	if !c.userInitiatedOp && err != nil {
+	if !c.suppressErrors && err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
+			// This could be if termshark is started like this: cat nosuchfile.pcap | termshark -i -
+			// Then dumpcap will be started with /dev/fd/3 as its stdin, but will fail with EOF and
+			// exit status 1.
 			cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
 				"command": c.ifaceCmd.String(),
 				"error":   err,
@@ -1755,7 +1932,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 	// termshark will get EOF when the cat terminates (if there are no more writers).
 	//
 
-	// Calculate the final size of the tmp file we wrote it with packets read from the
+	// Calculate the final size of the tmp file we wrote with packets read from the
 	// interface/pipe. This runs after the dumpcap command finishes.
 	fi, err := os.Stat(c.ifaceFile)
 	if err != nil {
@@ -1780,13 +1957,8 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 
 //======================================================================
 
-type PdmlPacket struct {
-	XMLName xml.Name `xml:"packet"`
-	Content []byte   `xml:",innerxml"`
-}
-
 type CacheEntry struct {
-	Pdml         []*PdmlPacket
+	Pdml         []IPdmlPacket
 	Pcap         [][]byte
 	PdmlComplete bool
 	PcapComplete bool

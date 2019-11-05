@@ -2,31 +2,25 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-package termshark
-
-import (
-	"os"
-	"os/signal"
-
-	"github.com/gcla/gowid"
-)
+package tty
 
 //======================================================================
 
-func RegisterForSignals(ch chan<- os.Signal) {
-	signal.Notify(ch, os.Interrupt)
+type TerminalSignals struct {
+	set bool
 }
 
-func IsSigTSTP(sig os.Signal) bool {
-	return false
+func (t *TerminalSignals) IsSet() bool {
+	return t.set
 }
 
-func IsSigCont(sig os.Signal) bool {
-	return false
+func (t *TerminalSignals) Restore() {
+	t.set = false
 }
 
-func StopMyself() error {
-	return gowid.WithKVs(NotImplemented, map[string]interface{}{"feature": "SIGSTOP"})
+func (t *TerminalSignals) Set() error {
+	t.set = true
+	return nil
 }
 
 //======================================================================

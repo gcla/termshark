@@ -300,7 +300,7 @@ func (d privateId) ID() interface{} {
 
 func (d privateId) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
 	// Skip the embedded Widget to avoid a loop
-	return gowid.Render(d.w, size, focus, app)
+	return d.w.Render(size, focus, app)
 }
 
 func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
@@ -317,9 +317,9 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 			}
 			wa = palettemap.New(privateId{w}, layerConv, layerConv)
 		}
-		return gowid.Render(wa, size, focus, app)
+		return wa.Render(size, focus, app)
 	} else {
-		return gowid.Render(w.w, size, focus, app)
+		return w.w.Render(size, focus, app)
 	}
 }
 
@@ -369,7 +369,7 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 		} else {
 			cl := app.CopyLevel()
 			app.CopyLevel(cl + len(w.Layers()) + 1) // this is how many levels hexdumper will support
-			res = gowid.UserInput(w.w, ev, size, focus, app)
+			res = w.w.UserInput(ev, size, focus, app)
 			app.CopyLevel(cl)
 
 			if !res {
@@ -382,7 +382,7 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 		res = true
 	} else {
 		cur := w.Position()
-		res = gowid.UserInput(w.w, ev, size, focus, app)
+		res = w.w.UserInput(ev, size, focus, app)
 
 		if res {
 			newpos := w.Position()

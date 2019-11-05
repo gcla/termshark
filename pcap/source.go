@@ -4,6 +4,8 @@
 
 package pcap
 
+import "github.com/gcla/termshark/system"
+
 //======================================================================
 
 type IPacketSource interface {
@@ -116,6 +118,7 @@ func (p FifoSource) IsPipe() bool {
 
 type PipeSource struct {
 	Descriptor string
+	Fd         int
 }
 
 var _ IPacketSource = PipeSource{}
@@ -138,6 +141,11 @@ func (p PipeSource) IsFifo() bool {
 
 func (p PipeSource) IsPipe() bool {
 	return true
+}
+
+func (p PipeSource) Close() error {
+	system.CloseDescriptor(p.Fd)
+	return nil
 }
 
 //======================================================================

@@ -4,7 +4,7 @@
 
 // +build !linux,!android
 
-package termshark
+package system
 
 const HaveFdinfo = false
 

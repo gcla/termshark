@@ -25,11 +25,11 @@ type ITableCopier interface {
 }
 
 type Widget struct {
-	*table.Widget                          // Wrap a regular bounded table
-	RowClip       IRowCopier               // Knows how to make a clip result set given a row
-	AllClip       ITableCopier             // Knows how to make a clip result set from the whole table
-	name          string                   // for widget "id"
-	clip          gowid.IClipboardSelected // function to modify selected widget for copying
+	table.BoundedWidget                          // Wrap a regular bounded table
+	RowClip             IRowCopier               // Knows how to make a clip result set given a row
+	AllClip             ITableCopier             // Knows how to make a clip result set from the whole table
+	name                string                   // for widget "id"
+	clip                gowid.IClipboardSelected // function to modify selected widget for copying
 }
 
 type idstring string
@@ -39,13 +39,13 @@ func (i idstring) ID() interface{} {
 	return i
 }
 
-func New(wrapped *table.Widget, rowClip IRowCopier, allClip ITableCopier, name string, clip gowid.IClipboardSelected) *Widget {
+func New(wrapped table.BoundedWidget, rowClip IRowCopier, allClip ITableCopier, name string, clip gowid.IClipboardSelected) *Widget {
 	return &Widget{
-		Widget:  wrapped,
-		RowClip: rowClip,
-		AllClip: allClip,
-		name:    name,
-		clip:    clip,
+		BoundedWidget: wrapped,
+		RowClip:       rowClip,
+		AllClip:       allClip,
+		name:          name,
+		clip:          clip,
 	}
 }
 
@@ -66,12 +66,12 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 		}
 
 		w.SetModel(model, app)
-		res := gowid.Render(w.Widget, size, focus, app)
+		res := w.Widget.Render(size, focus, app)
 		w.SetModel(origModel, app)
 
 		return res
 	} else {
-		return gowid.Render(w.Widget, size, focus, app)
+		return w.Widget.Render(size, focus, app)
 	}
 }
 

@@ -2,12 +2,23 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-package termshark
+// +build windows
 
-const HaveFdinfo = true
+package system
+
+import (
+	"fmt"
+)
+
+func MoveStdin() (int, error) {
+	return -1, fmt.Errorf("MoveStdin not implemented on Windows")
+}
+
+func CloseDescriptor(fd int) {
+}
 
 //======================================================================
 // Local Variables:
 // mode: Go
-// fill-column: 110
+// fill-column: 78
 // End:

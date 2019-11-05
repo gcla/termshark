@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -30,12 +31,14 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/termshark/widgets/resizable"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/tevino/abool"
 )
 
 //======================================================================
@@ -64,18 +67,6 @@ var BadCommand = BadCommandError{}
 
 //======================================================================
 
-type NotImplementedError struct{}
-
-var _ error = NotImplementedError{}
-
-func (e NotImplementedError) Error() string {
-	return "Feature not implemented"
-}
-
-var NotImplemented = NotImplementedError{}
-
-//======================================================================
-
 type ConfigError struct{}
 
 var _ error = ConfigError{}
@@ -85,6 +76,18 @@ func (e ConfigError) Error() string {
 }
 
 var ConfigErr = ConfigError{}
+
+//======================================================================
+
+type InternalError struct{}
+
+var _ error = InternalError{}
+
+func (e InternalError) Error() string {
+	return "Internal error"
+}
+
+var InternalErr = InternalError{}
 
 //======================================================================
 
@@ -112,23 +115,16 @@ func DirOfPathCommand(bin string) (string, error) {
 	return exec.LookPath(bin)
 }
 
-func TSharkBin() string {
-	return ConfString("main.tshark", "tshark")
-}
+//======================================================================
 
-func DumpcapBin() string {
-	return ConfString("main.dumpcap", "dumpcap")
-}
-
-func TailCommand() []string {
-	def := []string{"tail", "-f", "-c", "+0"}
-	if runtime.GOOS == "windows" {
-		def[0] = "c:\\cygwin64\\bin\\tail.exe"
-	}
-	return ConfStringSlice("main.tail-command", def)
-}
+// The config is accessed by the main goroutine and pcap loading goroutines. So this
+// is an attempt to prevent warnings with the -race flag (though they are very likely
+// harmless)
+var confMutex sync.Mutex
 
 func ConfString(name string, def string) string {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	if viper.Get(name) != nil {
 		return viper.GetString(name)
 	} else {
@@ -137,20 +133,28 @@ func ConfString(name string, def string) string {
 }
 
 func SetConf(name string, val interface{}) {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	viper.Set(name, val)
 	viper.WriteConfig()
 }
 
 func ConfStrings(name string) []string {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	return viper.GetStringSlice(name)
 }
 
 func DeleteConf(name string) {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	delete(viper.Get("main").(map[string]interface{}), name)
 	viper.WriteConfig()
 }
 
 func ConfInt(name string, def int) int {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	if viper.Get(name) != nil {
 		return viper.GetInt(name)
 	} else {
@@ -159,6 +163,8 @@ func ConfInt(name string, def int) int {
 }
 
 func ConfBool(name string, def ...bool) bool {
+	confMutex.Lock()
+	defer confMutex.Unlock()
 	if viper.Get(name) != nil {
 		return viper.GetBool(name)
 	} else {
@@ -169,6 +175,18 @@ func ConfBool(name string, def ...bool) bool {
 		}
 	}
 }
+
+func ConfStringSlice(name string, def []string) []string {
+	confMutex.Lock()
+	defer confMutex.Unlock()
+	res := viper.GetStringSlice(name)
+	if res == nil {
+		res = def
+	}
+	return res
+}
+
+//======================================================================
 
 var TSharkVersionUnknown = fmt.Errorf("Could not determine version of tshark")
 
@@ -228,9 +246,8 @@ func TSharkPath() (string, *gowid.KeyValueError) {
 				errstr += fmt.Sprintf("Try installing with: yum install wireshark")
 			} else if IsCommandInPath("brew") {
 				errstr += fmt.Sprintf("Try installing with: brew install wireshark")
-			} else {
-				errstr += "\n"
 			}
+			errstr += "\n"
 			err := gowid.WithKVs(ConfigErr, map[string]interface{}{
 				"msg": errstr,
 			})
@@ -260,14 +277,6 @@ func RunForExitCode(prog string, args ...string) (int, error) {
 	return exitCode, err
 }
 
-func ConfStringSlice(name string, def []string) []string {
-	res := viper.GetStringSlice(name)
-	if res == nil {
-		res = def
-	}
-	return res
-}
-
 func ConfFile(file string) string {
 	stdConf := configdir.New("", "termshark")
 	dirs := stdConf.QueryFolders(configdir.Global)
@@ -289,6 +298,22 @@ func CacheDir() string {
 // and I don't want to be constantly triggered by log file updates.
 func PcapDir() string {
 	return path.Join(CacheDir(), "pcaps")
+}
+
+func TSharkBin() string {
+	return ConfString("main.tshark", "tshark")
+}
+
+func DumpcapBin() string {
+	return ConfString("main.dumpcap", "dumpcap")
+}
+
+func TailCommand() []string {
+	def := []string{"tail", "-f", "-c", "+0"}
+	if runtime.GOOS == "windows" {
+		def = []string{os.Args[0], "--tail"}
+	}
+	return ConfStringSlice("main.tail-command", def)
 }
 
 func RemoveFromStringSlice(pcap string, comps []string) []string {
@@ -514,6 +539,57 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 	}
 	// Hack to make viper save if I only deleted from the map
 	SetConf("main.lastupdate", time.Now().String())
+}
+
+//======================================================================
+
+var cpuProfileRunning *abool.AtomicBool
+
+func init() {
+	cpuProfileRunning = abool.New()
+}
+
+// Down to the second for profiling, etc
+func DateStringForFilename() string {
+	return time.Now().Format("2006-01-02--15-04-05")
+}
+
+func ProfileCPUFor(secs int) bool {
+	if !cpuProfileRunning.SetToIf(false, true) {
+		log.Infof("CPU profile already running.")
+		return false
+	}
+	file := filepath.Join(CacheDir(), fmt.Sprintf("cpu-%s.prof", DateStringForFilename()))
+	log.Infof("Starting CPU profile for %d seconds in %s", secs, file)
+	gwutil.StartProfilingCPU(file)
+	go func() {
+		time.Sleep(time.Duration(secs) * time.Second)
+		log.Infof("Stopping CPU profile")
+		gwutil.StopProfilingCPU()
+		cpuProfileRunning.UnSet()
+	}()
+
+	return true
+}
+
+func ProfileHeap() {
+	file := filepath.Join(CacheDir(), fmt.Sprintf("mem-%s.prof", DateStringForFilename()))
+	log.Infof("Creating memory profile in %s", file)
+	gwutil.ProfileHeap(file)
+}
+
+func LocalIPs() []string {
+	res := make([]string, 0)
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return res
+	}
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			res = append(res, ipnet.IP.String())
+		}
+	}
+	return res
 }
 
 //======================================================================

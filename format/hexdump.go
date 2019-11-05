@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 type Options struct {
@@ -37,7 +38,7 @@ func HexDump(data []byte, opts ...Options) string {
 	res := hex.Dump(data)
 	res = re.ReplaceAllString(res, fmt.Sprintf(`${1}%s${2}%s`, opt.LeftAsciiDelimiter, opt.RightAsciiDelimiter))
 
-	return res
+	return strings.TrimRight(res, "\n")
 }
 
 //======================================================================

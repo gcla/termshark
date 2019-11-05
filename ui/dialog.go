@@ -13,6 +13,7 @@ import (
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/text"
+	"github.com/gcla/termshark"
 	"github.com/gcla/termshark/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
@@ -20,11 +21,12 @@ import (
 //======================================================================
 
 var (
-	fixed   gowid.RenderFixed
-	flow    gowid.RenderFlow
-	hmiddle gowid.HAlignMiddle
-	vmiddle gowid.VAlignMiddle
-	yesno   *dialog.Widget
+	fixed      gowid.RenderFixed
+	flow       gowid.RenderFlow
+	hmiddle    gowid.HAlignMiddle
+	vmiddle    gowid.VAlignMiddle
+	YesNo      *dialog.Widget
+	PleaseWait *dialog.Widget
 )
 
 func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
@@ -52,9 +54,9 @@ func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp)
 		func(ev *tcell.EventKey, app gowid.IApp) bool {
 			if ev.Rune() == 'z' { // maximize/unmaximize
 				if maximizer.Maxed {
-					maximizer.Unmaximize(yesno, app)
+					maximizer.Unmaximize(YesNo, app)
 				} else {
-					maximizer.Maximize(yesno, app)
+					maximizer.Maximize(YesNo, app)
 				}
 				return true
 			}
@@ -65,7 +67,7 @@ func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp)
 		},
 	)
 
-	yesno = dialog.New(
+	YesNo = dialog.New(
 		view,
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
@@ -76,7 +78,28 @@ func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp)
 		},
 	)
 
-	dialog.OpenExt(yesno, openOver, fixed, fixed, app)
+	dialog.OpenExt(YesNo, openOver, fixed, fixed, app)
+}
+
+func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) {
+	YesNo = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(Templates, tmplName, TemplateData))),
+		dialog.Options{
+			Buttons:         dialog.CloseOnly,
+			NoShadow:        true,
+			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+		},
+	)
+	YesNo.Open(container, ratio(0.5), app)
+}
+
+func OpenPleaseWait(container gowid.ISettableComposite, app gowid.IApp) {
+	PleaseWait.Open(container, fixed, app)
+}
+
+func ClosePleaseWait(app gowid.IApp) {
+	PleaseWait.Close(app)
 }
 
 //======================================================================

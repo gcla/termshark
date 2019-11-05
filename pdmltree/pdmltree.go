@@ -2,7 +2,8 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-// A demonstration of gowid's tree widget.
+// Package pdmltree contains a type used as the model for a PDML document for a
+// packet, and associated functions.
 package pdmltree
 
 import (
@@ -13,7 +14,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/antchfx/xmlquery"
 	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/widgets/tree"
 	"github.com/gcla/termshark/widgets/hexdumper2"
 	"github.com/pkg/errors"
@@ -66,6 +69,7 @@ type Model struct {
 	Content        []byte            `xml:",innerxml"` // needed for copying PDML to clipboard
 	NodeName       string            `xml:"-"`
 	Attrs          map[string]string `xml:"-"`
+	QueryModel     *xmlquery.Node    `xml:"-"`
 	Parent         *Model            `xml:"-"`
 	ExpandedFields *ExpandedPaths    `xml:"-"`
 }
@@ -139,12 +143,13 @@ func (n *Model) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 	type pt Model
 	res := d.DecodeElement((*pt)(n), &start)
+
 	return res
 }
 
 // Make a *Model from the slice of bytes, and expand nodes according
 // to the map parameter.
-func DecodePacket(data []byte, exp *ExpandedPaths) *Model { // nil if failure
+func DecodePacket(data []byte) *Model { // nil if failure
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	var n Model
@@ -155,12 +160,44 @@ func DecodePacket(data []byte, exp *ExpandedPaths) *Model { // nil if failure
 	}
 
 	tr := n.removeUnneeded()
-	tr.makeParentLinks(exp) // TODO - fixup
-	tr.expandAllPaths(*exp)
+
+	// Have to make this here because this is when I have access to the data...
+	n.QueryModel, err = xmlquery.Parse(strings.NewReader(string(data)))
+	if err != nil {
+		log.Error(err)
+	}
+
 	return tr
 }
 
-//type pathMap map[string]pathMap
+func (p *Model) TCPStreamIndex() gwutil.IntOption {
+	return p.streamIndex("tcp")
+}
+
+func (p *Model) UDPStreamIndex() gwutil.IntOption {
+	return p.streamIndex("udp")
+}
+
+// Return None if not TCP
+func (p *Model) streamIndex(proto string) gwutil.IntOption {
+	var res gwutil.IntOption
+	if showNode := xmlquery.FindOne(p.QueryModel, fmt.Sprintf("//field[@name='%s.stream']/@show", proto)); showNode != nil {
+		idx, err := strconv.Atoi(showNode.InnerText())
+		if err != nil {
+			log.Warnf("Unexpected %s node innertext value %s", proto, showNode.InnerText())
+		} else {
+			res = gwutil.SomeInt(idx)
+		}
+	}
+	return res
+}
+
+func (p *Model) ApplyExpandedPaths(exp *ExpandedPaths) {
+	if exp != nil {
+		p.makeParentLinks(exp) // TODO - fixup
+		p.expandAllPaths(*exp)
+	}
+}
 
 func (p *Model) expandAllPaths(exp ExpandedPaths) {
 	for _, path := range exp {

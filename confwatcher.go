@@ -17,9 +17,10 @@ import (
 var Goroutinewg *sync.WaitGroup
 
 type ConfigWatcher struct {
-	watcher *fsnotify.Watcher
-	change  chan struct{}
-	close   chan struct{}
+	watcher   *fsnotify.Watcher
+	change    chan struct{}
+	closech   chan struct{}
+	closeWait sync.WaitGroup
 }
 
 func NewConfigWatcher() (*ConfigWatcher, error) {
@@ -29,25 +30,31 @@ func NewConfigWatcher() (*ConfigWatcher, error) {
 	}
 
 	change := make(chan struct{})
-	close := make(chan struct{})
+	closech := make(chan struct{})
 
 	res := &ConfigWatcher{
-		change: change,
-		close:  close,
+		change:  change,
+		closech: closech,
 	}
 
+	res.closeWait.Add(1)
+
 	TrackedGo(func() {
+		defer func() {
+			res.watcher.Close()
+			close(change)
+			res.closeWait.Done()
+		}()
 	Loop:
 		for {
 			select {
-			// watch for events
 			case <-watcher.Events:
 				res.change <- struct{}{}
 
 			case err := <-watcher.Errors:
 				log.Debugf("Error from config watcher: %v", err)
 
-			case <-close:
+			case <-closech:
 				break Loop
 			}
 		}
@@ -62,9 +69,21 @@ func NewConfigWatcher() (*ConfigWatcher, error) {
 	return res, nil
 }
 
-func (c *ConfigWatcher) Close() error {
-	c.close <- struct{}{}
-	return c.watcher.Close()
+func (c *ConfigWatcher) Close() {
+	// drain the change channel to ensure the goroutine above can process the close. This
+	// is safe because I know, at this point, there are no other readers because termshark
+	// has exited its select loop.
+	TrackedGo(func() {
+		// This might block because the goroutine above might not be blocked sending
+		// to c.change. But then that means the goroutine's for loop above will terminate,
+		// c.change will be closed, and then this goroutine will end. If the above
+		// goroutine is blocked sending to c.change, then this will drain that value,
+		// and again the goroutine above will end.
+		<-c.change
+	}, Goroutinewg)
+
+	c.closech <- struct{}{}
+	c.closeWait.Wait()
 }
 
 func (c *ConfigWatcher) ConfigChanged() <-chan struct{} {

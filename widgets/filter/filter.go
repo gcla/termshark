@@ -58,6 +58,7 @@ type Widget struct {
 	intermediate         gowid.IWidget    // what to display when the filter value's validity is being determined
 	edCtx                context.Context
 	edCancelFn           context.CancelFunc
+	edCtxLock            sync.Mutex
 	fields               termshark.IPrefixCompleter // provides completions, given a prefix
 	completionsList      *list.Widget               // the filter widget replaces the list walker when new completions are generated
 	completionsActivator *activatorWidget           // used to disable focus going to drop down
@@ -454,10 +455,17 @@ func makeCompletions(comp termshark.IPrefixCompleter, txt string, max int, app g
 // options. Runs on a small delay so it can be cancelled and restarted if the
 // user is typing quickly.
 func (w *Widget) UpdateCompletions(app gowid.IApp) {
-	if w.ed.Text() != "" {
-		w.validitySite.SetSubWidget(w.intermediate, app)
-		gowid.RunWidgetCallbacks(w.Callbacks, IntermediateCB{}, app, w)
-	}
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		if w.ed.Text() != "" {
+			w.validitySite.SetSubWidget(w.intermediate, app)
+			gowid.RunWidgetCallbacks(w.Callbacks, IntermediateCB{}, app, w)
+		}
+	}))
+
+	// UpdateCompletions can be called outside of the app goroutine, so we
+	// need to protect the context
+	w.edCtxLock.Lock()
+	defer w.edCtxLock.Unlock()
 
 	if w.edCancelFn != nil {
 		w.edCancelFn()
@@ -473,6 +481,7 @@ func (w *Widget) UpdateCompletions(app gowid.IApp) {
 			break
 		}
 
+		// Send the value to be run by tshark. This will kill any other one in progress.
 		w.filterchangedchan <- &filtStruct{w.ed.Text(), app}
 
 		app.Run(gowid.RunFunction(func(app gowid.IApp) {
@@ -578,11 +587,13 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 // accepting it triggers the OnCursorSet callback, which re-evaluates the filter value - the user sees
 // it go orange briefly, which is unpleasant.
 func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
-	if evk, ok := ev.(*tcell.EventKey); ok && evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyDown {
-		return false
+	if evk, ok := ev.(*tcell.EventKey); ok {
+		if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyDown {
+			return false
+		}
 	}
 	*w.temporarilyDisabled = false // any input should start the appearance of the drop down again
-	return gowid.UserInput(w.wrapped, ev, size, focus, app)
+	return w.wrapped.UserInput(ev, size, focus, app)
 }
 
 //======================================================================
@@ -607,7 +618,7 @@ func (w *activatorWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 			return false
 		}
 	}
-	res := gowid.UserInput(w.IWidget, ev, size, focus, app)
+	res := w.IWidget.UserInput(ev, size, focus, app)
 	if !res {
 		if ev, ok := ev.(*tcell.EventKey); ok && w.active {
 			if ev.Key() == tcell.KeyUp {
@@ -626,7 +637,7 @@ func (w *activatorWidget) Render(size gowid.IRenderSize, focus gowid.Selector, a
 	if !w.active {
 		newf = gowid.NotSelected
 	}
-	return gowid.Render(w.IWidget, size, newf, app)
+	return w.IWidget.Render(size, newf, app)
 }
 
 //======================================================================
