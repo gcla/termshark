@@ -970,6 +970,8 @@ func (t updatePacketViews) AfterEnd(closeMe chan<- struct{}) {
 	close(closeMe)
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		updatePacketListWithData(t.Ld.PacketPsmlHeaders, t.Ld.PacketPsmlData, app)
+		StopEmptyStructViewTimer()
+		StopEmptyHexViewTimer()
 	}))
 }
 
@@ -995,6 +997,8 @@ func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
 
 		t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 			OpenError(errstr, app)
+			StopEmptyStructViewTimer()
+			StopEmptyHexViewTimer()
 		}))
 	}
 }
@@ -1394,7 +1398,7 @@ func setLowerWidgets(app gowid.IApp) {
 	}
 	if sw1 != nil {
 		packetHexViewHolder.SetSubWidget(sw1, app)
-		EmptyHexViewTimer = nil
+		StopEmptyHexViewTimer()
 	} else {
 		if EmptyHexViewTimer == nil {
 			startEmptyHexViewTimer()
@@ -1402,7 +1406,7 @@ func setLowerWidgets(app gowid.IApp) {
 	}
 	if sw2 != nil {
 		packetStructureViewHolder.SetSubWidget(sw2, app)
-		EmptyStructViewTimer = nil
+		StopEmptyStructViewTimer()
 	} else {
 		if EmptyStructViewTimer == nil {
 			startEmptyStructViewTimer()
@@ -2017,6 +2021,20 @@ func startEmptyStructViewTimer() {
 
 func startEmptyHexViewTimer() {
 	EmptyHexViewTimer = time.NewTicker(time.Duration(500) * time.Millisecond)
+}
+
+func StopEmptyStructViewTimer() {
+	if EmptyStructViewTimer != nil {
+		EmptyStructViewTimer.Stop()
+		EmptyStructViewTimer = nil
+	}
+}
+
+func StopEmptyHexViewTimer() {
+	if EmptyHexViewTimer != nil {
+		EmptyHexViewTimer.Stop()
+		EmptyHexViewTimer = nil
+	}
 }
 
 //======================================================================

@@ -1018,13 +1018,13 @@ Loop:
 		case <-emptyStructViewChan:
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				ui.SetStructViewMissing(app)
-				ui.EmptyStructViewTimer = nil
+				ui.StopEmptyStructViewTimer()
 			}))
 
 		case <-emptyHexViewChan:
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				ui.SetHexViewMissing(app)
-				ui.EmptyHexViewTimer = nil
+				ui.StopEmptyHexViewTimer()
 			}))
 
 		case ev := <-tcellEvents:
