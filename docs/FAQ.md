@@ -125,6 +125,36 @@ tshark -Y '<expression from ui>' -r empty.pcap
 ```
 and checks the return code of the process. If it's zero, termshark assumes the filter expression is valid, and turns the widget green. If the return code is non-zero, termshark assumes the expression is invalid and turns the widget red. The file `empty.pcap` is generated once on startup and cached in ```$XDG_CONFIG_CACHE/empty.pcap``` (on Linux, ```~/.cache/termshark/empty.pcap```) On slower systems like the Raspberry Pi, you might see this widget go orange for a couple of seconds while termshark waits for tshark to finish.
 
+If the user selects the "Analysis -> Reassemble stream" menu option, termshark starts two more tshark processes to gather the data to display. First, tshark is invoked with the '-z' option to generate the reassembled stream information. Termshark knows the protocol and stream index to supply to tshark because it saves this information when processing the PDML to populate the packet structure view:
+
+```console
+tshark -r my.pcap -q -z follow,tcp,raw,15
+```
+
+This means "follow TCP stream number 15". The output will look something like:
+
+```console
+===================================================================
+Follow: tcp,raw
+Filter: tcp.stream eq 15
+Node 0: 192.168.0.114:1137
+Node 1: 192.168.0.193:21
+        3232302043687269732053616e6465727320465450205365727665720d0a
+55534552206373616e646572730d0a
+        3333312050617373776f726420726571756972656420666f72206373616e646572732e0d0a
+...
+```
+
+A second tshark process is started concurrently:
+
+```console
+tshark -T pdml -r my.pcap -Y "tcp.stream eq 15"
+```
+
+The output of that is parsed to build an array mapping the index of each "chunk" of the stream (e.g. above, 0 is "3232", 1 is "5553", 2 is "3333") to the index of the corresponding packet. This is not always x->x because the stream payloads for some packets are of zero length and are not represented in the output from the first tshark '-z' process. The mapping is used when the user clicks on a chunk of the reassembled stream in the UI - termshark will then change focus behind the scenes to the corresponding packet in the packet list view. If you exit the stream reassembly UI, you can see the newly selected packet. 
+
+When termshark starts these stream reassembly processes, it also sets a display filter in the main UI e.g. "tcp.stream eq 15". This causes termshark to invoke the PSML and PDML processes again - in addition to the two stream-reassembly-specific processes that I've just described.
+
 Finally, termshark uses tshark in one more way - to generate the possible completions for prefixes of display filter terms. If you type ```tcp.``` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
 
 ```bash
@@ -134,7 +164,7 @@ then parsing the output into a nested collection of Go maps, and serializing it 
 
 ## Termshark is laggy or using a lot of RAM
 
-Try running termshark with the ```--debug``` flag e.g.
+I hope this is much-improved with v2. If you still experience problems, try running termshark with the ```--debug``` flag e.g.
 
 ```bash
 termshark --debug -r foo.pcap
@@ -179,13 +209,12 @@ As much as possible, I want termshark to work "right out of the box", and to me 
 
 ## What's next?
 
-There are many obvious ways to extend termshark, just based on the long list of tshark capabilities. I'd like to be able to:
+Termshark v2 implemented stream reassembly, a "What's next" feature from v1. For Termshark v3, some possibilities are:
 
-- Select a packet and display the reassembled stream
 - Show pcap statistics, conversation statics, etc - expose all tshark's ```-z``` options
 - Colorize the packets in the packet list view using Wireshark's coloring rules
+- Better navigation of the UI with the keyboard e.g. VIM-style commands!
 - Allow the user to start reading from available interfaces once the UI has started
 - And since tshark can be customized via the TOML config file, don't be so trusting of its output - there are surely bugs lurking here
 
-But I drew the line here for v1.0 in order to ship something!
 
