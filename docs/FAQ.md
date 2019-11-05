@@ -19,6 +19,17 @@ Then edit ```~/.config/termshark/termshark.toml``` and set
 
 ![othercopy](https://drive.google.com/uc?export=view&id=11kLyrEhBQL3e50Nrzk_BhhZgCzt1cqDn)
 
+## Can I run termshark on MacOS/OSX?
+
+Yes, you can install it from [Homebrew](Packages.md#homebrew).
+
+```bash
+brew update
+brew install termshark
+```
+
+You can see the formula [here](https://formulae.brew.sh/formula/termshark).
+
 ## Can I run termshark on Android?
 
 Yes, termshark is now packaged for Termux in the `root-repo` repository. Here's how to get it running:
