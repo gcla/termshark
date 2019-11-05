@@ -238,7 +238,9 @@ func TSharkPath() (string, *gowid.KeyValueError) {
 		if !IsCommandInPath(tsharkBin) {
 			// This message is for an unconfigured tshark bin (via PATH) that is invalid
 			errstr := fmt.Sprintf("Could not find tshark in your PATH. The tshark binary is required to run termshark.\n")
-			if IsCommandInPath("apt") {
+			if strings.Contains(os.Getenv("PREFIX"), "com.termux") {
+				errstr += fmt.Sprintf("Try installing with: pkg install root-repo && pkg install tshark")
+			} else if IsCommandInPath("apt") {
 				errstr += fmt.Sprintf("Try installing with: apt install tshark")
 			} else if IsCommandInPath("apt-get") {
 				errstr += fmt.Sprintf("Try installing with: apt-get install tshark")
