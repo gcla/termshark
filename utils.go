@@ -472,7 +472,19 @@ func KillIfPossible(p IProcess) error {
 		return nil
 	}
 	err := p.Kill()
-	return err
+	if !errProcessAlreadyFinished(err) {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func errProcessAlreadyFinished(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Terrible hack - but the error isn't published
+	return err.Error() == "os: process already finished"
 }
 
 func SafePid(p IProcess) int {
