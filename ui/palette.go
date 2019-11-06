@@ -18,6 +18,10 @@ var (
 	DarkGray    gowid.GrayColor = gowid.MakeGrayColor("g35")
 	BrightBlue  gowid.RGBColor  = gowid.MakeRGBColor("#08f")
 	BrightGreen gowid.RGBColor  = gowid.MakeRGBColor("#6f2")
+	LightRed    gowid.RGBColor  = gowid.MakeRGBColor("#ebb")
+	LightBlue   gowid.RGBColor  = gowid.MakeRGBColor("#abf")
+	DarkRed     gowid.RGBColor  = gowid.MakeRGBColor("#311")
+	DarkBlue    gowid.RGBColor  = gowid.MakeRGBColor("#01f")
 
 	//======================================================================
 	// Regular mode
@@ -43,6 +47,10 @@ var (
 	HexLineFgReg             *modeswap.Color = modeswap.New(gowid.ColorBlack, gowid.ColorWhite)
 	HexLineBgReg             *modeswap.Color = modeswap.New(LightGray, gowid.ColorBlack)
 	FilterValidBgReg         *modeswap.Color = modeswap.New(BrightGreen, gowid.ColorGreen)
+	StreamClientFg           *modeswap.Color = modeswap.New(DarkRed, gowid.ColorWhite)
+	StreamClientBg           *modeswap.Color = modeswap.New(LightRed, gowid.ColorDarkRed)
+	StreamServerFg           *modeswap.Color = modeswap.New(DarkBlue, gowid.ColorWhite)
+	StreamServerBg           *modeswap.Color = modeswap.New(LightBlue, gowid.ColorBlue)
 
 	RegularPalette gowid.Palette = gowid.Palette{
 		"default":                gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorWhite),
@@ -74,6 +82,10 @@ var (
 		"hexln-unselected":       gowid.MakePaletteEntry(HexLineFgReg, HexLineBgReg),
 		"copy-mode-indicator":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorDarkRed),
 		"copy-mode":              gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
+		"stream-client":          gowid.MakePaletteEntry(StreamClientFg, StreamClientBg),
+		"stream-server":          gowid.MakePaletteEntry(StreamServerFg, StreamServerBg),
+		"stream-match":           gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
+		"stream-search":          gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorBlack),
 	}
 
 	//======================================================================
@@ -104,6 +116,10 @@ var (
 	HexLineBgDark             *modeswap.Color = modeswap.New(DarkGray, gowid.ColorBlack)
 	FilterValidBgDark         *modeswap.Color = modeswap.New(BrightGreen, gowid.ColorGreen)
 	ButtonBgDark              *modeswap.Color = modeswap.New(MediumGray, gowid.ColorWhite)
+	StreamClientFgDark        *modeswap.Color = modeswap.New(LightRed, gowid.ColorWhite)
+	StreamClientBgDark        *modeswap.Color = modeswap.New(DarkRed, gowid.ColorDarkRed)
+	StreamServerFgDark        *modeswap.Color = modeswap.New(LightBlue, gowid.ColorWhite)
+	StreamServerBgDark        *modeswap.Color = modeswap.New(DarkBlue, gowid.ColorBlue)
 
 	DarkModePalette gowid.Palette = gowid.Palette{
 		"default":                gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorBlack),
@@ -136,6 +152,10 @@ var (
 		"hexln-unselected":       gowid.MakePaletteEntry(HexLineFgDark, HexLineBgDark),
 		"copy-mode-indicator":    gowid.MakePaletteEntry(gowid.ColorWhite, gowid.ColorDarkRed),
 		"copy-mode":              gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
+		"stream-client":          gowid.MakePaletteEntry(StreamClientFgDark, StreamClientBgDark),
+		"stream-server":          gowid.MakePaletteEntry(StreamServerFgDark, StreamServerBgDark),
+		"stream-match":           gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorYellow),
+		"stream-search":          gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorWhite),
 	}
 )
 
