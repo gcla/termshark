@@ -21,6 +21,7 @@ import (
 	"github.com/gcla/termshark"
 	"github.com/gcla/termshark/cli"
 	"github.com/gcla/termshark/pcap"
+	"github.com/gcla/termshark/streams"
 	"github.com/gcla/termshark/system"
 	"github.com/gcla/termshark/tty"
 	"github.com/gcla/termshark/ui"
@@ -51,6 +52,7 @@ func main() {
 	filter.Goroutinewg = &ensureGoroutinesStopWG
 	termshark.Goroutinewg = &ensureGoroutinesStopWG
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
+	streams.Goroutinewg = &ensureGoroutinesStopWG
 	ui.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
@@ -710,6 +712,7 @@ func cmain() int {
 					ui.MakeSaveRecents("", displayFilter, app),
 					ui.MakePacketViewUpdater(app),
 					ui.MakeUpdateCurrentCaptureInTitle(app),
+					ui.ManageStreamCache{},
 				},
 			)
 		}
@@ -865,6 +868,9 @@ Loop:
 				// is called, the main select{} loop will be broken, and nothing will listen
 				// to that channel. As a result, nothing stops a pcap load. This calls the
 				// context cancellation function right away
+				if ui.StreamLoader != nil {
+					ui.StreamLoader.SuppressErrors = true
+				}
 				ui.Loader.Close()
 
 				appRunner.Stop()
