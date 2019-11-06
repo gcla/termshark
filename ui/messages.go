@@ -51,7 +51,7 @@ $ termshark -r file.pcap -T psml -n | less{{end}}
 
 A wireshark-inspired tui for tshark. Analyze network traffic interactively from your terminal.
 
-'/'   - Go to display filter
+'/'   - Go to display filter/stream search
 'q'   - Quit
 'tab' - Switch panes
 'c'   - Switch to copy-mode
