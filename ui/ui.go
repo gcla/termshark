@@ -1316,6 +1316,8 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		}
 	} else if evk.Rune() == '/' {
 		setFocusOnDisplayFilter(app)
+	} else if evk.Key() == tcell.KeyCtrlW {
+		reallyClear(app)
 	} else {
 		handled = false
 	}
@@ -2819,7 +2821,6 @@ func Build() (*gowid.App, error) {
 	menuPathAlt = []interface{}{0, 6}
 	menuPathMax = []interface{}{0, 6}
 
-	mainView = appkeys.New(mainViewNoKeys, mainKeyPress)
 	mainView = appkeys.New(mainViewNoKeys, mainKeyPress)
 
 	//======================================================================
