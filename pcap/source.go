@@ -4,7 +4,11 @@
 
 package pcap
 
-import "github.com/gcla/termshark/system"
+import (
+	"os"
+
+	"github.com/gcla/termshark/system"
+)
 
 //======================================================================
 
@@ -56,6 +60,20 @@ func (p FileSource) IsFifo() bool {
 
 func (p FileSource) IsPipe() bool {
 	return false
+}
+
+//======================================================================
+
+type TemporaryFileSource struct {
+	FileSource
+}
+
+type ISourceRemover interface {
+	Remove() error
+}
+
+func (p TemporaryFileSource) Remove() error {
+	return os.Remove(p.Filename)
 }
 
 //======================================================================
