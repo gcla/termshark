@@ -260,6 +260,14 @@ func cmain() int {
 
 	var psrc pcap.IPacketSource
 
+	defer func() {
+		if psrc != nil {
+			if remover, ok := psrc.(pcap.ISourceRemover); ok {
+				remover.Remove()
+			}
+		}
+	}()
+
 	pcapf := string(opts.Pcap)
 
 	// If no interface specified, and no pcap specified via -r, then we assume the first
