@@ -277,10 +277,28 @@ func cmain() int {
 		// `termshark` => `termshark -i 1` (livecapture on default interface if no args)
 		if pcapf == "" {
 			if termshark.IsTerminal(os.Stdin.Fd()) {
-				// $ termshark
-				// # use network interface 1 - maps to
-				// # termshark -i 1
-				psrc = pcap.InterfaceSource{Iface: "1"}
+				pfile, err := system.PickFile()
+				switch err {
+				case nil:
+					// We're on termux/android, and we were given a file. Not that termux
+					// makes a copy, so we ought to clean that up when termshark terminates.
+					psrc = pcap.TemporaryFileSource{pcap.FileSource{Filename: pfile}}
+				case system.NoPicker:
+					// We're not on termux/android. Treat like this:
+					// $ termshark
+					// # use network interface 1 - maps to
+					// # termshark -i 1
+					psrc = pcap.InterfaceSource{Iface: "1"}
+				default:
+					// We're on termux/android, but got an unexpected error.
+					//if err != termshark.NoPicker {
+					// !NoPicker means we could be on android/termux, but something else went wrong
+					if err = system.PickFileError(err.Error()); err != nil {
+						// Termux's toast ran into an error...! Maybe not installed?
+						fmt.Fprintf(os.Stderr, err.Error())
+					}
+					return 1
+				}
 			} else {
 				// $ cat foo.pcap | termshark
 				// # use stdin - maps to
