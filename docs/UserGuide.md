@@ -106,7 +106,7 @@ You can hit `home` to jump to the top of the list or `end` to jump to the bottom
 
 ## Packet Structure View
 
-Termshark's middle view shows the structure of the packet selected in the list view. You can expand and contract the structure using the `[+]` and `[-]` buttons:
+Termshark's middle view shows the structure of the packet selected in the list view. You can expand and contract the structure using the `[+]` and `[-]` buttons, the 'enter' key, or the right and left cursor keys:
 
 ![structure](https://drive.google.com/uc?export=view&id=1Tv7kvLxXe5a2tbsvkWR6U8K6nhEBqk8D)
 
@@ -114,7 +114,7 @@ As you navigate the packet structure, different sections of the bottom view - a 
 
 ## Packet Hex View
 
-Termshark's bottom view shows the bytes that the packet comprises. Like Wireshark, they are displayed in a hexdump-like format. Hit the `t` key to switch from the hex bytes to the printable bytes and vice versa. As you move around the bytes, the middle (structure) view will update to show you where you are in the packet's structure.
+Termshark's bottom view shows the bytes that the packet comprises. Like Wireshark, they are displayed in a hexdump-like format. As you move around the bytes, the middle (structure) view will update to show you where you are in the packet's structure.
 
 ## Reading from an Interface
 
