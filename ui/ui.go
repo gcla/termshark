@@ -17,6 +17,7 @@ import (
 
 	"github.com/gcla/deep"
 	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/widgets/button"
 	"github.com/gcla/gowid/widgets/clicktracker"
 	"github.com/gcla/gowid/widgets/columns"
@@ -118,6 +119,9 @@ var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
 var savedListBoxWidgetHolder *holder.Widget
 var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
+
+var tabViewsForward map[gowid.IWidget]gowid.IWidget
+var tabViewsBackward map[gowid.IWidget]gowid.IWidget
 
 var currentCapture *text.Widget
 var currentCaptureWidget *columns.Widget
@@ -411,9 +415,29 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 			}))
 		}))
 
+		expandContractKeys := appkeys.New(
+			bn,
+			func(ev *tcell.EventKey, app gowid.IApp) bool {
+				handled := false
+				switch ev.Key() {
+				case tcell.KeyLeft:
+					if !ct.IsCollapsed() {
+						ct.SetCollapsed(app, true)
+						handled = true
+					}
+				case tcell.KeyRight:
+					if ct.IsCollapsed() {
+						ct.SetCollapsed(app, false)
+						handled = true
+					}
+				}
+				return handled
+			},
+		)
+
 		cwidgets = append(cwidgets,
 			&gowid.ContainerWidget{
-				IWidget: bn,
+				IWidget: expandContractKeys,
 				D:       fixed,
 			},
 			&gowid.ContainerWidget{
@@ -1200,13 +1224,17 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	if evk.Key() == tcell.KeyCtrlC && Loader.State()&pcap.LoadingPsml != 0 {
 		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // iface and psml
-	} else if evk.Key() == tcell.KeyTAB {
-		if mainViewNoKeys.SubWidget() == viewOnlyPacketList {
-			mainViewNoKeys.SetSubWidget(viewOnlyPacketStructure, app)
-		} else if mainViewNoKeys.SubWidget() == viewOnlyPacketStructure {
-			mainViewNoKeys.SetSubWidget(viewOnlyPacketHex, app)
-		} else if mainViewNoKeys.SubWidget() == viewOnlyPacketHex {
-			mainViewNoKeys.SetSubWidget(viewOnlyPacketList, app)
+	} else if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyBacktab {
+		isTab := (evk.Key() == tcell.KeyTab)
+		var tabMap map[gowid.IWidget]gowid.IWidget
+		if isTab {
+			tabMap = tabViewsForward
+		} else {
+			tabMap = tabViewsBackward
+		}
+
+		if v, ok := tabMap[mainViewNoKeys.SubWidget()]; ok {
+			mainViewNoKeys.SetSubWidget(v, app)
 		}
 
 		gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
@@ -1220,29 +1248,29 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			if mainViewNoKeys.SubWidget() == mainview {
 				v1p := gowid.FocusPath(mainview)
 				if deep.Equal(v1p, mainviewPaths[0]) == nil {
-					newidx = 1
+					newidx = gwutil.If(isTab, 1, 2).(int)
 				} else if deep.Equal(v1p, mainviewPaths[1]) == nil {
-					newidx = 2
+					newidx = gwutil.If(isTab, 2, 0).(int)
 				} else {
-					newidx = 0
+					newidx = gwutil.If(isTab, 0, 1).(int)
 				}
 			} else if mainViewNoKeys.SubWidget() == altview1 {
 				v2p := gowid.FocusPath(altview1)
 				if deep.Equal(v2p, altview1Paths[0]) == nil {
-					newidx = 1
+					newidx = gwutil.If(isTab, 1, 2).(int)
 				} else if deep.Equal(v2p, altview1Paths[1]) == nil {
-					newidx = 2
+					newidx = gwutil.If(isTab, 2, 0).(int)
 				} else {
-					newidx = 0
+					newidx = gwutil.If(isTab, 0, 1).(int)
 				}
 			} else if mainViewNoKeys.SubWidget() == altview2 {
 				v3p := gowid.FocusPath(altview2)
 				if deep.Equal(v3p, altview2Paths[0]) == nil {
-					newidx = 1
+					newidx = gwutil.If(isTab, 1, 2).(int)
 				} else if deep.Equal(v3p, altview2Paths[1]) == nil {
-					newidx = 2
+					newidx = gwutil.If(isTab, 2, 0).(int)
 				} else {
-					newidx = 0
+					newidx = gwutil.If(isTab, 0, 1).(int)
 				}
 			}
 
@@ -2614,6 +2642,17 @@ func Build() (*gowid.App, error) {
 			D:       weight(1),
 		},
 	})
+
+	tabViewsForward = make(map[gowid.IWidget]gowid.IWidget)
+	tabViewsBackward = make(map[gowid.IWidget]gowid.IWidget)
+
+	tabViewsForward[viewOnlyPacketList] = viewOnlyPacketStructure
+	tabViewsForward[viewOnlyPacketStructure] = viewOnlyPacketHex
+	tabViewsForward[viewOnlyPacketHex] = viewOnlyPacketList
+
+	tabViewsBackward[viewOnlyPacketList] = viewOnlyPacketHex
+	tabViewsBackward[viewOnlyPacketStructure] = viewOnlyPacketList
+	tabViewsBackward[viewOnlyPacketHex] = viewOnlyPacketStructure
 
 	//======================================================================
 
