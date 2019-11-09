@@ -24,9 +24,29 @@ func New(w gowid.IWidget) *Widget {
 	h := holder.New(w)
 	return &Widget{
 		Widget: isselected.New(
-			framed.NewSpace(h),
+			framed.New(h, framed.Options{
+				Frame: framed.FrameRunes{Tl: ' ', Tr: ' ', Bl: ' ', Br: ' ', T: 0, B: 0, L: ' ', R: ' '},
+			}),
 			framed.NewUnicodeAlt2(h),
 			framed.NewUnicode(h),
+		),
+		h: h,
+	}
+}
+
+func NewSlim(w gowid.IWidget) *Widget {
+	h := holder.New(w)
+	return &Widget{
+		Widget: isselected.New(
+			framed.New(h, framed.Options{
+				Frame: framed.FrameRunes{Tl: ' ', Tr: ' ', Bl: ' ', Br: ' ', T: 0, B: 0, L: ' ', R: ' '},
+			}),
+			framed.New(h, framed.Options{
+				Frame: framed.FrameRunes{Tl: '╔', Tr: '╗', Bl: '╚', Br: '╝', T: 0, B: 0, L: '║', R: '║'},
+			}),
+			framed.New(h, framed.Options{
+				Frame: framed.FrameRunes{Tl: '┏', Tr: '┓', Bl: '┗', Br: '┛', T: 0, B: 0, L: '┃', R: '┃'},
+			}),
 		),
 		h: h,
 	}

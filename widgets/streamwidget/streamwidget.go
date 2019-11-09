@@ -1099,7 +1099,7 @@ func (c asciiChunkList) CellWidgets(row table.RowId) []gowid.IWidget {
 
 	hl := c.clicker.highlightThis(table.Position(row))
 
-	str := framefocus.New(
+	str := framefocus.NewSlim(
 		selectable.New(
 			regexstyle.New(
 				text.New(strings.TrimSuffix(format.MakePrintableStringWithNewlines((*c.chunkList).chunks[row].StreamData()), "\n")),
