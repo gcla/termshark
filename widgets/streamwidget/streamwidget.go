@@ -796,6 +796,11 @@ func streamViewKeyPressAfter(sections *pile.Widget, evk *tcell.EventKey, app gow
 			sections.SetFocus(app, next)
 			handled = true
 		}
+	} else if evk.Key() == tcell.KeyBacktab {
+		if next, ok := sections.FindNextSelectable(gowid.Backwards, true); ok {
+			sections.SetFocus(app, next)
+			handled = true
+		}
 	} else if evk.Rune() == '/' {
 		setFocusOnSearchBox(app, sections)
 		handled = true
