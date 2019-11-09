@@ -28,7 +28,7 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
 
-replace github.com/hpcloud/tail => github.com/gcla/tail v1.0.1-0.20191105001453-2a7e4c24a6b5
+replace github.com/hpcloud/tail => github.com/gcla/tail v1.0.1-0.20191109025401-655d0f46553d
 
 replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20191105032631-bdf184f0c937
 
