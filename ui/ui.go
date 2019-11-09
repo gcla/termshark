@@ -415,9 +415,29 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 			}))
 		}))
 
+		expandContractKeys := appkeys.New(
+			bn,
+			func(ev *tcell.EventKey, app gowid.IApp) bool {
+				handled := false
+				switch ev.Key() {
+				case tcell.KeyLeft:
+					if !ct.IsCollapsed() {
+						ct.SetCollapsed(app, true)
+						handled = true
+					}
+				case tcell.KeyRight:
+					if ct.IsCollapsed() {
+						ct.SetCollapsed(app, false)
+						handled = true
+					}
+				}
+				return handled
+			},
+		)
+
 		cwidgets = append(cwidgets,
 			&gowid.ContainerWidget{
-				IWidget: bn,
+				IWidget: expandContractKeys,
 				D:       fixed,
 			},
 			&gowid.ContainerWidget{
