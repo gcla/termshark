@@ -1316,6 +1316,8 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		}
 	} else if evk.Rune() == '/' {
 		setFocusOnDisplayFilter(app)
+	} else if evk.Key() == tcell.KeyCtrlW {
+		reallyClear(app)
 	} else {
 		handled = false
 	}
