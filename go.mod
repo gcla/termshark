@@ -7,10 +7,10 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gcla/deep v1.0.2
 	github.com/gcla/gowid v1.0.1-0.20191109013850-ef2a6ba3a3a6
+	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gdamore/tcell v1.2.1-0.20190805162843-ae1dc54d2c70
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
-	github.com/hpcloud/tail v1.0.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/mattn/go-isatty v0.0.9
 	github.com/mreiferson/go-snappystream v0.2.3
@@ -27,8 +27,6 @@ require (
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
-
-replace github.com/hpcloud/tail => github.com/gcla/tail v1.0.1-0.20191109025401-655d0f46553d
 
 replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20191105032631-bdf184f0c937
 
