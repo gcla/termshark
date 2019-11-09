@@ -7,7 +7,7 @@ package termshark
 import (
 	"os"
 
-	"github.com/hpcloud/tail"
+	"github.com/gcla/tail"
 )
 
 //======================================================================
