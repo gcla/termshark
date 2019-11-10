@@ -32,6 +32,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
+	"github.com/gcla/termshark/system"
 	"github.com/gcla/termshark/widgets/resizable"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
@@ -795,7 +796,7 @@ func ApplyArguments(cmd []string, args []string) ([]string, int) {
 func BrowseUrl(url string) error {
 	urlCmd := ConfStringSlice(
 		"main.browse-command",
-		OpenURL,
+		system.OpenURL,
 	)
 
 	if len(urlCmd) == 0 {
@@ -843,7 +844,7 @@ func CopyCommand(input io.Reader, cb interface{}) error {
 
 	copyCmd := ConfStringSlice(
 		"main.copy-command",
-		CopyToClipboard,
+		system.CopyToClipboard,
 	)
 
 	if len(copyCmd) == 0 {

@@ -751,7 +751,7 @@ func openCopyChoices(copyLen int, app gowid.IApp) {
 
 	copyCmd := termshark.ConfStringSlice(
 		"main.copy-command",
-		termshark.CopyToClipboard,
+		system.CopyToClipboard,
 	)
 
 	if len(copyCmd) == 0 {

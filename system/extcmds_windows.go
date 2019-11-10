@@ -2,10 +2,8 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-// +build !darwin,!android,!windows
+package system
 
-package termshark
+var CopyToClipboard = []string{"clip"}
 
-var CopyToClipboard = []string{"xsel", "-i", "-b"}
-
-var OpenURL = []string{"xdg-open"}
+var OpenURL = []string{"explorer"}
