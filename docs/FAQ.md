@@ -43,6 +43,10 @@ pkg install termux-api
 pkg install termshark
 ```
 
+You can also add a termshark widget to your home screen using the `Termux:Widget` app. If you launch termshark from the widget, termshark will open a file picker to let you select a pcap to inspect (e.g. one you've downloaded). 
+
+![termsharktermux](https://drive.google.com/uc?export=view&id=1Yq-Kx7fNkyw3Y-G0tYeo0dyTH-azvQIQ)
+
 ## If I load a big pcap, termshark doesn't load all the packets at once - why?
 
 Termshark cheats. When you give it a pcap, it generates PSML XML for every packet, but not the complete PDML (packet structure) XML. If you run ```time tshark -T pdml -r huge.pcap > /dev/null```  you'll see it can take many minutes to complete. So rather than generating PDML for the entire pcap file, termshark generates PDML in 1000 packet chunks (by default). It will always prioritize packets that are in view or could soon be in view, so that the user isn't kept waiting. Now, if you open a large pcap, and - once the packet list is complete - hit `end`, you would want to be able to see the structure of packets at the end of the pcap. If termshark generated the PDML in one shot, the user could be kept waiting many minutes to see the end, while tshark chugs through the file emitting data. So to display the data more quickly, termshark runs something like
