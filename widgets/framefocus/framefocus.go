@@ -7,6 +7,8 @@
 package framefocus
 
 import (
+	"runtime"
+
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/holder"
@@ -22,10 +24,15 @@ type Widget struct {
 
 func New(w gowid.IWidget) *Widget {
 	h := holder.New(w)
+
+	noFocusFrame := framed.SpaceFrame
+	noFocusFrame.T = 0
+	noFocusFrame.B = 0
+
 	return &Widget{
 		Widget: isselected.New(
 			framed.New(h, framed.Options{
-				Frame: framed.FrameRunes{Tl: ' ', Tr: ' ', Bl: ' ', Br: ' ', T: 0, B: 0, L: ' ', R: ' '},
+				Frame: noFocusFrame,
 			}),
 			framed.NewUnicodeAlt2(h),
 			framed.NewUnicode(h),
@@ -36,16 +43,31 @@ func New(w gowid.IWidget) *Widget {
 
 func NewSlim(w gowid.IWidget) *Widget {
 	h := holder.New(w)
+
+	noFocusFrame := framed.SpaceFrame
+	selectedFrame := framed.UnicodeAlt2Frame
+	focusFrame := framed.UnicodeFrame
+	if runtime.GOOS == "windows" {
+		selectedFrame = framed.UnicodeFrame
+		focusFrame = framed.UnicodeAlt2Frame
+	}
+	noFocusFrame.T = 0
+	noFocusFrame.B = 0
+	selectedFrame.T = 0
+	selectedFrame.B = 0
+	focusFrame.T = 0
+	focusFrame.B = 0
+
 	return &Widget{
 		Widget: isselected.New(
 			framed.New(h, framed.Options{
-				Frame: framed.FrameRunes{Tl: ' ', Tr: ' ', Bl: ' ', Br: ' ', T: 0, B: 0, L: ' ', R: ' '},
+				Frame: noFocusFrame,
 			}),
 			framed.New(h, framed.Options{
-				Frame: framed.FrameRunes{Tl: '╔', Tr: '╗', Bl: '╚', Br: '╝', T: 0, B: 0, L: '║', R: '║'},
+				Frame: selectedFrame,
 			}),
 			framed.New(h, framed.Options{
-				Frame: framed.FrameRunes{Tl: '┏', Tr: '┓', Bl: '┗', Br: '┛', T: 0, B: 0, L: '┃', R: '┃'},
+				Frame: focusFrame,
 			}),
 		),
 		h: h,
