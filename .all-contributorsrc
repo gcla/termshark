@@ -17,7 +17,8 @@
       "profile": "https://swit.sh",
       "contributions": [
         "code",
-        "bug"
+        "bug",
+        "userTesting"
       ]
     },
     {
@@ -206,7 +207,8 @@
       "avatar_url": "https://avatars0.githubusercontent.com/u/795303?v=4",
       "profile": "https://github.com/RobertLarsen",
       "contributions": [
-        "ideas"
+        "ideas",
+        "userTesting"
       ]
     },
     {
@@ -306,6 +308,15 @@
       "profile": "http://www.mi.fu-berlin.de/en/inf/groups/ilab/members/mosig.html",
       "contributions": [
         "bug"
+      ]
+    },
+    {
+      "login": "mrash",
+      "name": "Michael Rash",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/380228?v=4",
+      "profile": "http://www.cipherdyne.org/",
+      "contributions": [
+        "userTesting"
       ]
     }
   ],
