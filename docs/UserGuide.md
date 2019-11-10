@@ -204,6 +204,39 @@ to instead set the primary selection. If forwarding X11 is not an option, you co
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
 
+## Stream Reassembly
+
+Termshark is able to present reassembled TCP and UDP streams in a similar manner to Wireshark. In the packet list view, select a TCP or UDP packet then go to the "Analysis" menu and choose "Reassemble stream":
+
+![streams1](https://drive.google.com/uc?export=view&id=1ss09_QwHnjONa1wQkhuc34RWJv2ZSbvp)
+
+Termshark shows you:
+
+- A list of each client and server payload, in order, colored accordingly.
+- The number of client and server packets, and times the conversation switched sides.
+- A search box.
+- A button to display the entire conversation, only the client side, or only the server side.
+
+You can type a string in the search box and hit enter - or the Next button - to move through the matches. 
+
+![streams2](https://drive.google.com/uc?export=view&id=1IjD5L0QgBWNpZ_j8KY_AYhELxwoPoSI7)
+
+Select Regex to instead have termshark interpret your search string as a regular expression. Because termshark is written in Golang, the regular expression uses Golang's regex dialect. [regex101](https://regex101.com/) provides a nice online way to experiment with matches. A quick tip - if you want your match to [cross line endings](https://stackoverflow.com/a/58318036/784226), prefix your search with `(?s)`.
+
+You can choose how to view the reassembled data by using the buttons at the bottom of the screen - ASCII, hex or Wireshark's raw format. Termshark will remember your preferred format.
+
+![streams3](https://drive.google.com/uc?export=view&id=1UsVIKEFMqHBRjWqxfobJtWczc1Y7iD09)
+
+Like Wireshark, you can filter the displayed data to show only the client-side or only the server-side of the conversation:
+
+![streams4](https://drive.google.com/uc?export=view&id=1GKE28J0j-OFrAgxqc0yhc8XnEBR3kaAv)
+
+You can use Copy Mode in stream reassembly too. Hit the `c` key to enter Copy Mode. The currently selected "chunk" will be highlighted. Hit `ctrl-c` to copy that data. By default, termshark will copy the data to your clipboard. Hit the left arrow key to widen the data copied to the entire conversation (or filtered by client or server if that is selected). 
+
+![streams5](https://drive.google.com/uc?export=view&id=18rv298lPYiAiXFwVhBjogZ43qfj6DYd4)
+
+Finally, clicking on a reassembled piece of the stream (enter or left mouse click) will cause termshark to select the underlying packet that contributed that payload. If you hit `q` to exit stream reassembly, termshark will set focus on the selected packet.
+
 ## Dark Mode
 
 If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to open the main menu and select "Toggle Dark Mode". 
