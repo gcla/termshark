@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.0.0] - 2019-11-10
 ### Added
 
 - Termshark supports TCP and UDP stream reassembly. See termshark's "Analysis" menu.
