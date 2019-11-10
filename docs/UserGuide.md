@@ -60,7 +60,7 @@ You can also apply a display filter directly from the command-line:
 termshark -r test.pcap icmp
 ```
 
-Note that when reading a file, the filter will be interpreted as a display filter. When reading from an interface, the filter is interpreted as a capture filter. This follows tshark's behavior.
+Note that when reading a file, the filter will be interpreted as a [display filter](https://wiki.wireshark.org/DisplayFilters). When reading from an interface, the filter is interpreted as a [capture filter](https://wiki.wireshark.org/CaptureFilters). This follows tshark's behavior.
 
 Termshark will launch in your terminal. From here, you can press `?` for help:
 
