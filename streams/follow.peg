@@ -1,0 +1,225 @@
+// Copyright 2019 Graham Clark. All rights reserved.  Use of this source
+// code is governed by the MIT license that can be found in the LICENSE
+// file.
+//
+// This peg file should be compiled with something like this:
+//
+// go get github.com/mna/pigeon@f3db42a
+// cd termshark/streams/
+// pigeon follow.peg > follow.go 
+//
+
+{
+package streams
+
+import (
+	"io"
+	"unicode"
+        "strings"
+        "os"
+        "fmt"
+        "strconv"
+        "errors"
+        "io/ioutil"
+        "bytes"
+        "unicode/utf8"
+	log "github.com/sirupsen/logrus"
+)
+
+}
+
+//
+// Parse input that looks roughly like:
+// ===================================================================
+// Follow: tcp,raw
+// Filter: tcp.stream eq 0
+// Node 0: 192.168.0.114:1137
+// Node 1: 192.168.0.193:21
+//         3232302043687269732053616e6465727320465450205365727665720d0a
+// 55534552206373616e646572730d0a
+//         3333312050617373776f726420726571756972656420666f72206373616e646572732e0d0a
+// 50415353206563686f0d0a
+//         3233302055736572206373616e64657273206c6f6767656420696e2e0d0a
+// ...
+
+Input <- _ Separator follow:Follow Separator EOF {
+   return follow, nil
+}
+
+Separator <- '='+ __
+
+// 	00000010  30 61 20 53 65 72 76 65  72 20 28 50 72 6f 46 54  0a Serve r (ProFT
+//	00000086  20 70 61 73 73 77 6f 72  64 2e 0d 0a               passwor d...
+
+// Returns Bytes{}
+DataLines <- dl:( DataLineBackComplete / DataLineForwardComplete ) {
+
+    if cb, ok := c.globalStore["callbacks"]; ok {
+	if cb, ok := cb.(IOnStreamChunk); ok {
+	    ch := make(chan struct{})
+	    cb.OnStreamChunk(dl.(Bytes), ch)
+	    <-ch
+	}
+    }
+	    
+    return dl, nil
+}
+
+ThrowUndefLabel = %{undeflabel}
+
+DataLineBackComplete <- dl:DataLineBack {
+    if ctx, ok := c.globalStore["context"]; ok {
+	ctx := ctx.(parseContext)
+        if ctx.Err() != nil {
+	    panic(StreamParseError{})
+        }
+    }
+    
+   return dl, nil
+}
+
+DataLineForwardComplete <- dl:DataLineForward {
+    if ctx, ok := c.globalStore["context"]; ok {
+	ctx := ctx.(parseContext)
+        if ctx.Err() != nil {
+	    panic(StreamParseError{})
+        }
+    }
+    
+   return dl, nil
+}
+
+//
+//         3232302043687269732053616e6465727320465450205365727665720d0a
+//
+DataLineBack <- [\t] data:Data {
+   return Bytes{Dirn: Server, Data: data.([]byte)}, nil
+}
+
+//
+// 55534552206373616e646572730d0a
+//
+DataLineForward <- data:Data {
+    return Bytes{Dirn: Client, Data: data.([]byte)}, nil
+}
+
+Data <- ds:(Datum+) [\r]? [\n] {
+   data := make([]byte, 0, len(ds.([]interface{})))
+   for _, l := range ds.([]interface{}) {
+      data = append(data, l.(byte))
+   }
+   return data, nil
+}
+
+Datum <- b1:[0-9a-fA-F] b2:[0-9a-fA-F] {
+   byte1, _ := strconv.ParseUint(string(b1.([]byte)[0]), 16, 4)
+   byte2, _ := strconv.ParseUint(string(b2.([]byte)[0]), 16, 4)
+   return byte(byte1 << 4 | byte2), nil
+}
+
+// Returns uint32
+DataIndex <- b0:[0-9a-fA-F] b1:[0-9a-fA-F] b2:[0-9a-fA-F] b3:[0-9a-fA-F] b4:[0-9a-fA-F] b5:[0-9a-fA-F] b6:[0-9a-fA-F] b7:[0-9a-fA-F]  {
+   byte0, _ := strconv.ParseUint(string(b0.([]byte)[0]), 16, 4)
+   byte1, _ := strconv.ParseUint(string(b1.([]byte)[0]), 16, 4)
+   byte2, _ := strconv.ParseUint(string(b2.([]byte)[0]), 16, 4)
+   byte3, _ := strconv.ParseUint(string(b3.([]byte)[0]), 16, 4)
+   byte4, _ := strconv.ParseUint(string(b4.([]byte)[0]), 16, 4)
+   byte5, _ := strconv.ParseUint(string(b5.([]byte)[0]), 16, 4)
+   byte6, _ := strconv.ParseUint(string(b6.([]byte)[0]), 16, 4)
+   byte7, _ := strconv.ParseUint(string(b7.([]byte)[0]), 16, 4)
+   return uint32(byte0 << 28 | byte1 << 24 | byte2 << 20 | byte3 << 16 | byte4 << 12 | byte5 << 8 | byte6 << 4 | byte7), nil
+}
+   
+// Returns []byte
+DataSegment <- ds:( Datum )+ {
+   res := make([]byte, 0)
+   for _, d := range ds.([]interface{}) {
+      res = append(res, d.(byte))
+   }
+   return res, nil
+}
+
+// Returns string e.g. "192.168.1.1:12345"
+Node0Clause <- "Node 0:" _ node:NodeExpr __nl {
+   return node, nil
+}
+
+// Returns string e.g. "192.168.1.1:12345"
+Node1Clause <- "Node 1:" _ node:NodeExpr __nl {
+   return node, nil
+}
+
+// Returns string
+NodeExpr <- [^\n]+ {
+   return string(c.text), nil
+}
+
+FollowClause <- "Follow:" _ fexpr:FollowExpr __nl {
+   return fexpr, nil
+}
+
+FollowExpr <- [a-zA-Z,]+ {
+   return string(c.text), nil
+}
+
+FilterClause <- "Filter:" _ fexpr:FilterExpr __nl {
+   return fexpr, nil
+}
+
+FilterExpr <- [^\n]+ {
+   return string(c.text), nil
+}
+
+// Follow: tcp,raw
+// Filter: tcp.stream eq 0
+// Node 0: 192.168.0.114:1137
+// Node 1: 192.168.0.193:21
+
+Header <- fc:FollowClause fic:FilterClause node0:Node0Clause node1:Node1Clause {
+    fh := FollowHeader{
+   	  Follow: fc.(string),
+	  Filter: fic.(string),
+	  Node0: node0.(string),
+	  Node1: node1.(string),
+    }
+
+    if cb, ok := c.globalStore["callbacks"]; ok {
+	if cb, ok := cb.(IOnStreamHeader); ok {
+	    ch := make(chan struct{})
+	    cb.OnStreamHeader(fh, ch)
+	    <-ch
+	}
+    }
+    
+    return fh, nil
+}
+
+// Follow: tcp,raw
+// Filter: tcp.stream eq 0
+// Node 0: 192.168.0.114:1137
+// Node 1: 192.168.0.193:21
+//         3232302043687269732053616e6465727320465450205365727665720d0a
+// 55534552206373616e646572730d0a
+//         3333312050617373776f726420726571756972656420666f72206373616e646572732e0d0a
+// 50415353206563686f0d0a
+//         3233302055736572206373616e64657273206c6f6767656420696e2e0d0a
+// ...
+
+Follow <- hdr:Header data:DataLines* { 
+   bytes := make([]Bytes, 0, len(data.([]interface{})))
+   for _, dl := range data.([]interface{}) {
+       bytes = append(bytes, dl.(Bytes))
+   }
+    return &FollowStream{
+	FollowHeader: hdr.(FollowHeader),
+	Bytes: bytes,
+   }, nil
+}
+
+_ "whitespace" <- [ \n\t\r]*
+
+__ "mandatory whitespace" <- [ \n\t\r]+
+
+__nl "whitespace and newline" <- [ \t\r]* [\n]
+
+EOF <- !.

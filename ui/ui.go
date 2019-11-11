@@ -1886,6 +1886,7 @@ func RequestLoadPcapWithCheck(pcapf string, displayFilter string, app gowid.IApp
 				MakeSaveRecents(pcapf, displayFilter, app),
 				MakePacketViewUpdater(app),
 				MakeUpdateCurrentCaptureInTitle(app),
+				ManageStreamCache{},
 			},
 		)
 	}
@@ -2331,10 +2332,11 @@ func Build() (*gowid.App, error) {
 
 	analysisMenuItems := []menuutil.SimpleMenuItem{
 		menuutil.SimpleMenuItem{
-			Txt: "Nothing here yet",
+			Txt: "Reassemble stream",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				analysisMenu.Close(app)
+				startStreamReassembly(app)
 			},
 		},
 	}
@@ -2459,6 +2461,7 @@ func Build() (*gowid.App, error) {
 			pcap.HandlerList{
 				MakeSaveRecents("", FilterWidget.Value(), app),
 				MakePacketViewUpdater(app),
+				ManageStreamCache{},
 			},
 		)
 	})
@@ -2821,6 +2824,8 @@ func Build() (*gowid.App, error) {
 	menuPathAlt = []interface{}{0, 6}
 	menuPathMax = []interface{}{0, 6}
 
+	buildStreamUi()
+
 	mainView = appkeys.New(mainViewNoKeys, mainKeyPress)
 
 	//======================================================================
@@ -2854,6 +2859,7 @@ func Build() (*gowid.App, error) {
 	app.RegisterMenu(savedMenu)
 	app.RegisterMenu(analysisMenu)
 	app.RegisterMenu(generalMenu)
+	app.RegisterMenu(conversationMenu)
 
 	gowid.SetFocusPath(mainview, mainviewPaths[0], app)
 	gowid.SetFocusPath(altview1, altview1Paths[0], app)
