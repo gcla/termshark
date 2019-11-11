@@ -21,7 +21,7 @@ import (
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark/widgets/appkeys"
+	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
 

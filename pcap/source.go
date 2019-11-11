@@ -7,7 +7,7 @@ package pcap
 import (
 	"os"
 
-	"github.com/gcla/termshark/system"
+	"github.com/gcla/termshark/v2/system"
 )
 
 //======================================================================

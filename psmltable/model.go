@@ -15,7 +15,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark/widgets/expander"
+	"github.com/gcla/termshark/v2/widgets/expander"
 )
 
 //======================================================================

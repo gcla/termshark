@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gcla/termshark"
+	"github.com/gcla/termshark/v2"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
