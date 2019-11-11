@@ -93,13 +93,20 @@ pkg install termux-api
 
 ## Ubuntu
 
-Thanks to [Nicolai Søberg](https://github.com/NicolaiSoeborg)
+If you are running Ubuntu 19.10 (eoan), termshark can be installed like this:
 
-You can use the PPA *nicolais/termshark* to install termshark:
+```bash
+sudo apt install termshark
+```
+
+For Ubuntu < 19.10, you can use the PPA *nicolais/termshark* to install termshark:
 
 ```bash
 sudo add-apt-repository --update ppa:nicolais/termshark
 sudo apt install termshark
 ```
+
+Thanks to [Nicolai Søberg](https://github.com/NicolaiSoeborg)
+
 
 

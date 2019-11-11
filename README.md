@@ -4,7 +4,9 @@
 # Termshark
 A terminal user-interface for tshark, inspired by Wireshark.
 
-![demo1](https://drive.google.com/uc?export=view&id=1vDecxjqwJrtMGJjOObL-LLvi-1pBVByt)
+**V2 is out now with stream reassembly, dark-mode and more! Here's the [ChangeLog](CHANGELOG.md#changelog).**
+
+![demo2](https://drive.google.com/uc?export=view&id=1EmqYrOPwLXanoi7o74PQMOX1KSgOqhNr)
 
 If you're debugging on a remote machine with a large pcap and no desire to scp it back to your desktop, termshark can help!
 
@@ -13,8 +15,9 @@ If you're debugging on a remote machine with a large pcap and no desire to scp i
 - Read pcap files or sniff live interfaces (where tshark is permitted).
 - Inspect each packet using familiar Wireshark-inspired views
 - Filter pcaps or live captures using Wireshark's display filters
+- Reassemble and inspect TCP and UDP flows
 - Copy ranges of packets to the clipboard from the terminal
-- Written in Golang, compiles to a single executable on each platform - downloads available for Linux (+termux), macOS, FreeBSD, and Windows
+- Written in Golang, compiles to a single executable on each platform - downloads available for Linux, macOS, FreeBSD, Android (termux) and Windows
 
 tshark has many more features that termshark doesn't expose yet! See [What's Next](docs/FAQ.md#whats-next).
 
