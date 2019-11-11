@@ -13,8 +13,8 @@ import (
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark"
-	"github.com/gcla/termshark/widgets/appkeys"
+	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
 

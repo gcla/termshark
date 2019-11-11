@@ -19,7 +19,7 @@ import (
 	_ "net/http"
 	_ "net/http/pprof"
 
-	"github.com/gcla/termshark"
+	"github.com/gcla/termshark/v2"
 	"github.com/stretchr/testify/assert"
 
 	log "github.com/sirupsen/logrus"

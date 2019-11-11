@@ -14,8 +14,8 @@ import (
 	"sync"
 
 	"github.com/gcla/gowid"
-	"github.com/gcla/termshark"
-	"github.com/gcla/termshark/pcap"
+	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/pcap"
 	log "github.com/sirupsen/logrus"
 )
 

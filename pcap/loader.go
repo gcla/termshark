@@ -21,8 +21,8 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
-	"github.com/gcla/termshark"
-	"github.com/gcla/termshark/format"
+	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/format"
 	lru "github.com/hashicorp/golang-lru"
 	log "github.com/sirupsen/logrus"
 	fsnotify "gopkg.in/fsnotify/fsnotify.v1"

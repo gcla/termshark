@@ -16,7 +16,7 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/widgets/styled"
-	"github.com/gcla/termshark/format"
+	"github.com/gcla/termshark/v2/format"
 	"github.com/gdamore/tcell"
 )
 

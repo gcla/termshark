@@ -7,7 +7,7 @@ package ui
 
 import (
 	"github.com/gcla/gowid"
-	"github.com/gcla/termshark/modeswap"
+	"github.com/gcla/termshark/v2/modeswap"
 )
 
 //======================================================================

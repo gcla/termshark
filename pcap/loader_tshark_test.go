@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gcla/termshark"
+	"github.com/gcla/termshark/v2"
 
 	"github.com/stretchr/testify/assert"
 )

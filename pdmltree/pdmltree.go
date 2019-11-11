@@ -18,7 +18,7 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/widgets/tree"
-	"github.com/gcla/termshark/widgets/hexdumper2"
+	"github.com/gcla/termshark/v2/widgets/hexdumper2"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
