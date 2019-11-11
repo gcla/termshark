@@ -22,8 +22,6 @@ builds:
       goarch: arm
     - goos: windows
       goarch: arm
-  ldflags:
-    - -X github.com/gcla/termshark.Version={{.Env.TERMSHARK_GIT_DESCRIBE}}
 archives:
 - replacements:
     darwin: macOS
