@@ -7,6 +7,7 @@ export TERMSHARK_GIT_DESCRIBE="$(git describe --tags HEAD)"
 
 curl -sL https://git.io/goreleaser > /tmp/goreleaser.sh
 # testing
-# bash /tmp/goreleaser.sh --snapshot --skip-sign --rm-dist
+bash /tmp/goreleaser.sh --snapshot --skip-sign --rm-dist
 # release
-bash /tmp/goreleaser.sh --skip-sign --rm-dist
+# bash /tmp/goreleaser.sh --skip-sign --rm-dist
+
