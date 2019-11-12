@@ -43,7 +43,13 @@ pkg install termux-api
 pkg install termshark
 ```
 
-You can also add a termshark widget to your home screen using the `Termux:Widget` app. If you launch termshark from the widget, termshark will open a file picker to let you select a pcap to inspect (e.g. one you've downloaded). 
+You can also add a termshark widget to your home screen using the `Termux:Widget` app. If you launch termshark from the widget, termshark will open a file picker to let you select a pcap to inspect (e.g. one you've downloaded). To make termshark available via a termux widget, do something like this in your termux home directory after installing termshark:
+
+```console
+mkdir .shortcuts
+cd .shortcuts
+ln -s $(which termshark)
+```
 
 ![termsharktermux](https://drive.google.com/uc?export=view&id=1Yq-Kx7fNkyw3Y-G0tYeo0dyTH-azvQIQ)
 
