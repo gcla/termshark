@@ -318,6 +318,15 @@
       "contributions": [
         "userTesting"
       ]
+    },
+    {
+      "login": "joelparker",
+      "name": "joelparker",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/136451?v=4",
+      "profile": "https://github.com/joelparker",
+      "contributions": [
+        "userTesting"
+      ]
     }
   ],
   "contributorsPerLine": 7
