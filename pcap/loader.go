@@ -172,6 +172,7 @@ type Loader struct {
 
 	sync.Mutex
 	PacketPsmlData    [][]string
+	PacketPsmlColors  []PacketColors
 	PacketPsmlHeaders []string
 	PacketCache       *lru.Cache // i -> [pdml(i * 1000)..pdml(i+1*1000)]
 
@@ -190,6 +191,11 @@ type Loader struct {
 	fifoError             error
 
 	opt Options
+}
+
+type PacketColors struct {
+	FG gowid.IColor
+	BG gowid.IColor
 }
 
 type Options struct {
@@ -234,6 +240,7 @@ func (c *Loader) resetData() {
 	c.Lock()
 	defer c.Unlock()
 	c.PacketPsmlData = make([][]string, 0)
+	c.PacketPsmlColors = make([]PacketColors, 0)
 	c.PacketPsmlHeaders = make([]string, 0, 10)
 	packetCache, err := lru.New(c.opt.CacheSize)
 	if err != nil {
@@ -295,6 +302,10 @@ func (c *Loader) PsmlData() [][]string {
 
 func (c *Loader) PsmlHeaders() []string {
 	return c.PacketPsmlHeaders
+}
+
+func (c *Loader) PsmlColors() []PacketColors {
+	return c.PacketPsmlColors
 }
 
 //======================================================================
@@ -1546,6 +1557,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	// view, not the old view of a loader with old data.
 	c.Lock()
 	c.PacketPsmlData = make([][]string, 0)
+	c.PacketPsmlColors = make([]PacketColors, 0)
 	c.PacketPsmlHeaders = make([]string, 0, 10)
 	c.PacketCache.Purge()
 	c.LoadWasCancelled = false
@@ -1816,6 +1828,8 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	// </packet>
 
 	var curPsml []string
+	var fg string
+	var bg string
 	ready := false
 	empty := true
 	structure := false
@@ -1839,6 +1853,10 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 			case "packet":
 				c.Lock()
 				c.PacketPsmlData = append(c.PacketPsmlData, curPsml)
+				c.PacketPsmlColors = append(c.PacketPsmlColors, PacketColors{
+					FG: psmlColorToIColor(fg),
+					BG: psmlColorToIColor(bg),
+				})
 				c.Unlock()
 
 			case "section":
@@ -1854,6 +1872,16 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 				structure = true
 			case "packet":
 				curPsml = make([]string, 0, 10)
+				fg = ""
+				bg = ""
+				for _, attr := range tok.Attr {
+					switch attr.Name.Local {
+					case "foreground":
+						fg = attr.Value
+					case "background":
+						bg = attr.Value
+					}
+				}
 			case "section":
 				ready = true
 				empty = true
@@ -2033,6 +2061,16 @@ Loop:
 		}
 	}
 	return requests
+}
+
+//======================================================================
+
+func psmlColorToIColor(col string) gowid.IColor {
+	if res, err := gowid.MakeRGBColorSafe(col); err != nil {
+		return nil
+	} else {
+		return res
+	}
 }
 
 //======================================================================
