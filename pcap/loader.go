@@ -289,6 +289,14 @@ func (c *Loader) stopLoadCurrentSource() {
 	}
 }
 
+func (c *Loader) PsmlData() [][]string {
+	return c.PacketPsmlData
+}
+
+func (c *Loader) PsmlHeaders() []string {
+	return c.PacketPsmlHeaders
+}
+
 //======================================================================
 
 type Scheduler struct {

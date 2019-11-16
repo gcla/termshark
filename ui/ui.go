@@ -965,18 +965,14 @@ func (t updatePacketViews) BeforeBegin(ch chan<- struct{}) {
 		clearPacketViews(app)
 		t.Ld.Lock()
 		defer t.Ld.Unlock()
-		setPacketListWidgets(t.Ld.PacketPsmlHeaders, t.Ld.PacketPsmlData, app)
+		setPacketListWidgets(t.Ld, app)
 		setProgressWidget(app)
 
 		// Start this after widgets have been cleared, to get focus change
 		termshark.TrackedGo(func() {
 			fn2 := func() {
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					t.Ld.Lock()
-					curHeaders := Loader.PacketPsmlHeaders
-					curData := Loader.PacketPsmlData
-					t.Ld.Unlock()
-					updatePacketListWithData(curHeaders, curData, app)
+					updatePacketListWithData(Loader, app)
 				}))
 			}
 
@@ -993,7 +989,7 @@ func (t updatePacketViews) BeforeBegin(ch chan<- struct{}) {
 func (t updatePacketViews) AfterEnd(closeMe chan<- struct{}) {
 	close(closeMe)
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		updatePacketListWithData(t.Ld.PacketPsmlHeaders, t.Ld.PacketPsmlData, app)
+		updatePacketListWithData(t.Ld, app)
 		StopEmptyStructViewTimer()
 		StopEmptyHexViewTimer()
 	}))
@@ -1445,10 +1441,10 @@ func setLowerWidgets(app gowid.IApp) {
 
 }
 
-func makePacketListModel(packetPsmlHeaders []string, packetPsmlData [][]string, app gowid.IApp) *psmltable.Model {
+func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmltable.Model {
 	packetPsmlTableModel := table.NewSimpleModel(
-		packetPsmlHeaders,
-		packetPsmlData,
+		psml.PsmlHeaders(),
+		psml.PsmlData(),
 		table.SimpleOptions{
 			Style: table.StyleOptions{
 				VerticalSeparator:   fill.New(' '),
@@ -1481,8 +1477,8 @@ func makePacketListModel(packetPsmlHeaders []string, packetPsmlData [][]string, 
 	return expandingModel
 }
 
-func updatePacketListWithData(packetPsmlHeaders []string, packetPsmlData [][]string, app gowid.IApp) {
-	model := makePacketListModel(packetPsmlHeaders, packetPsmlData, app)
+func updatePacketListWithData(psml psmlInfo, app gowid.IApp) {
+	model := makePacketListModel(psml, app)
 	newPacketsArrived = true
 	packetListTable.SetModel(model, app)
 	newPacketsArrived = false
@@ -1499,17 +1495,24 @@ func updatePacketListWithData(packetPsmlHeaders []string, packetPsmlData [][]str
 		packetListTable.GoToBottom(app)
 	}
 	// Only do this once, the first time.
-	if !packetListView.didFirstAutoFocus && len(packetPsmlData) > 0 {
+	if !packetListView.didFirstAutoFocus && len(psml.PsmlData()) > 0 {
 		packetListView.SetFocusOnData(app)
 		packetListView.didFirstAutoFocus = true
 	}
 }
 
-func setPacketListWidgets(packetPsmlHeaders []string, packetPsmlData [][]string, app gowid.IApp) {
-	expandingModel := makePacketListModel(packetPsmlHeaders, packetPsmlData, app)
+type psmlInfo interface {
+	PsmlData() [][]string
+	PsmlHeaders() []string
+}
+
+func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
+	expandingModel := makePacketListModel(psml, app)
 
 	packetListTable = &table.BoundedWidget{Widget: table.New(expandingModel)}
-	packetListView = &rowFocusTableWidget{BoundedWidget: packetListTable}
+	packetListView = &rowFocusTableWidget{
+		BoundedWidget: packetListTable,
+	}
 
 	packetListView.Lower().IWidget = list.NewBounded(packetListView)
 	packetListView.OnFocusChanged(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
