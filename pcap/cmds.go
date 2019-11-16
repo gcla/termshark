@@ -107,14 +107,16 @@ type Commands struct {
 	Args     []string
 	PdmlArgs []string
 	PsmlArgs []string
+	Color    bool
 }
 
-func MakeCommands(decodeAs []string, args []string, pdml []string, psml []string) Commands {
+func MakeCommands(decodeAs []string, args []string, pdml []string, psml []string, color bool) Commands {
 	return Commands{
 		DecodeAs: decodeAs,
 		Args:     args,
 		PdmlArgs: pdml,
 		PsmlArgs: psml,
+		Color:    color,
 	}
 }
 
@@ -166,6 +168,9 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 	for _, arg := range c.DecodeAs {
 		args = append(args, "-d", arg)
 	}
+	if c.Color {
+		args = append(args, "--color")
+	}
 	args = append(args, c.PsmlArgs...)
 	args = append(args, c.Args...)
 
@@ -190,6 +195,9 @@ func (c Commands) Pcap(pcap string, displayFilter string) IPcapCommand {
 
 func (c Commands) Pdml(pcap string, displayFilter string) IPcapCommand {
 	args := []string{"-T", "pdml", "-r", pcap}
+	if c.Color {
+		args = append(args, "--color")
+	}
 	if displayFilter != "" {
 		args = append(args, "-Y", displayFilter)
 	}

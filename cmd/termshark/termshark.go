@@ -441,6 +441,26 @@ func cmain() int {
 		}()
 	}
 
+	for _, dir := range []string{termshark.CacheDir(), termshark.PcapDir()} {
+		if _, err = os.Stat(dir); os.IsNotExist(err) {
+			err = os.Mkdir(dir, 0777)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unexpected error making dir %s: %v", dir, err)
+				return 1
+			}
+		}
+	}
+
+	// Write this pcap out here because the color validation code later depends on empty.pcap
+	emptyPcap := termshark.CacheFile("empty.pcap")
+	if _, err := os.Stat(emptyPcap); os.IsNotExist(err) {
+		err = termshark.WriteEmptyPcap(emptyPcap)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not create dummy pcap %s: %v", emptyPcap, err)
+			return 1
+		}
+	}
+
 	tsharkBin, kverr := termshark.TSharkPath()
 	if kverr != nil {
 		fmt.Fprintf(os.Stderr, kverr.KeyVals["msg"].(string))
@@ -480,22 +500,19 @@ func cmain() int {
 	// with the tshark binary we're using.
 	termshark.SetConf("main.last-used-tshark", tsharkBin)
 
-	for _, dir := range []string{termshark.CacheDir(), termshark.PcapDir()} {
-		if _, err = os.Stat(dir); os.IsNotExist(err) {
-			err = os.Mkdir(dir, 0777)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unexpected error making dir %s: %v", dir, err)
-				return 1
-			}
-		}
-	}
+	// Determine if the current binary supports color. Tshark will fail with an error if it's too old
+	// and you supply the --color flag. Assume true, and check if our current binary is not in the
+	// validate list.
+	binSupportsColor := true
+	colorTsharks := termshark.ConfStrings("main.color-tsharks")
 
-	emptyPcap := termshark.CacheFile("empty.pcap")
-	if _, err := os.Stat(emptyPcap); os.IsNotExist(err) {
-		err = termshark.WriteEmptyPcap(emptyPcap)
+	if !termshark.StringInSlice(tsharkBin, colorTsharks) {
+		binSupportsColor, err = termshark.TSharkSupportsColor(tsharkBin)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not create dummy pcap %s: %v", emptyPcap, err)
-			return 1
+			binSupportsColor = false
+		} else {
+			colorTsharks = append(colorTsharks, tsharkBin)
+			termshark.SetConf("main.color-tsharks", colorTsharks)
 		}
 	}
 
@@ -600,6 +617,11 @@ func cmain() int {
 	pdmlArgs := termshark.ConfStringSlice("main.pdml-args", []string{})
 	psmlArgs := termshark.ConfStringSlice("main.psml-args", []string{})
 	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
+	enableColor := termshark.ConfBool("main.packet-colors", true)
+	if enableColor && !binSupportsColor {
+		log.Warnf("Packet coloring is enabled, but %s does not support --color", tsharkBin)
+		enableColor = false
+	}
 	cacheSize := termshark.ConfInt("main.pcap-cache-size", 64)
 	bundleSize := termshark.ConfInt("main.pcap-bundle-size", 1000)
 	if bundleSize <= 0 {
@@ -608,7 +630,7 @@ func cmain() int {
 		bundleSize = maxBundleSize
 	}
 	ui.PcapScheduler = pcap.NewScheduler(
-		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs),
+		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs, enableColor),
 		pcap.Options{
 			CacheSize:      cacheSize,
 			PacketsPerLoad: bundleSize,
