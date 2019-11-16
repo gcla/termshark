@@ -216,6 +216,12 @@ func TSharkVersion(tshark string) (semver.Version, error) {
 	return TSharkVersionFromOutput(string(output))
 }
 
+// Depends on empty.pcap being present
+func TSharkSupportsColor(tshark string) (bool, error) {
+	exitCode, err := RunForExitCode(tshark, "-r", CacheFile("empty.pcap"), "-T", "psml", "-w", os.DevNull, "--color")
+	return exitCode == 0, err
+}
+
 // TSharkPath will return the full path of the tshark binary, if it's found in the path, otherwise an error
 func TSharkPath() (string, *gowid.KeyValueError) {
 	tsharkBin := ConfString("main.tshark", "")
