@@ -508,6 +508,7 @@ type rowFocusTableWidget struct {
 	// table header manually, and it would be strange if the table keeps jumping back to the data...
 	didFirstAutoFocus bool
 	*table.BoundedWidget
+	colors []pcap.PacketColors
 }
 
 var _ gowid.IWidget = (*rowFocusTableWidget)(nil)
@@ -568,12 +569,20 @@ func (t *rowFocusTableWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
 	}
 
 	// Composite so it passes through prefered column
-	return &selectedComposite{
+	var res gowid.IWidget = &selectedComposite{
 		Widget: isselected.New(w,
 			styled.New(w, gowid.MakePaletteRef("pkt-list-row-selected")),
 			styled.New(w, gowid.MakePaletteRef("pkt-list-row-focus")),
 		),
 	}
+
+	if pos >= 0 {
+		res = styled.New(res,
+			gowid.MakePaletteEntry(t.colors[pos].FG, t.colors[pos].BG),
+		)
+	}
+
+	return res
 }
 
 // Needed for WidgetAt above to work - otherwise t.Table.Focus() is called, table is the receiver,
@@ -1468,7 +1477,10 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmltable.Model {
 		},
 	)
 
-	expandingModel := psmltable.New(packetPsmlTableModel, gowid.MakePaletteRef("pkt-list-row-focus"))
+	expandingModel := psmltable.New(
+		packetPsmlTableModel,
+		gowid.MakePaletteRef("pkt-list-row-focus"),
+	)
 	if len(expandingModel.Comparators) > 0 {
 		expandingModel.Comparators[0] = table.IntCompare{}
 		expandingModel.Comparators[5] = table.IntCompare{}
@@ -1478,6 +1490,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmltable.Model {
 }
 
 func updatePacketListWithData(psml psmlInfo, app gowid.IApp) {
+	packetListView.colors = psml.PsmlColors() // otherwise this isn't updated
 	model := makePacketListModel(psml, app)
 	newPacketsArrived = true
 	packetListTable.SetModel(model, app)
@@ -1504,6 +1517,7 @@ func updatePacketListWithData(psml psmlInfo, app gowid.IApp) {
 type psmlInfo interface {
 	PsmlData() [][]string
 	PsmlHeaders() []string
+	PsmlColors() []pcap.PacketColors
 }
 
 func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
@@ -1512,6 +1526,7 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 	packetListTable = &table.BoundedWidget{Widget: table.New(expandingModel)}
 	packetListView = &rowFocusTableWidget{
 		BoundedWidget: packetListTable,
+		colors:        psml.PsmlColors(),
 	}
 
 	packetListView.Lower().IWidget = list.NewBounded(packetListView)
