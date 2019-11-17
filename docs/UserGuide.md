@@ -263,7 +263,8 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 ```toml
 [main]
   browse-command = ["firefox", "$1"]
-```  
+```
+- ```color-tsharks``` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
 - ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 ```toml
 [main]
@@ -272,6 +273,7 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 - ```copy-command-timeout``` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
 - ```dark-mode``` (bool) - if true, termshark will run in dark-mode. 
 - ```dumpcap``` (string) - make termshark use this specific ```dumpcap``` (used when reading from an interface).
+- ```packet-colors``` (bool) - if true (or missing), termshark will colorize packets according to Wireshark's rules.
 - ```pcap-bundle-size``` - (int) - load tshark PDML this many packets at a time. Termshark will lazily load PDML because it's a slow process and uses a lot of RAM. For example, if `pcap-bundle-size`=1000, then on first loading a pcap, termshark will load PDML for packets 1-1000. If you scroll past packet 500, termshark will optimistically load PDML for packets 1001-2000. A higher value will make termshark load more packets at a time; a value of 0 means load the entire pcap's worth of PDML. Termshark stores the data compressed in RAM, but expect approximately 10MB per 1000 packets loaded. If you have the memory, can wait a minute or two for the entire pcap to load, and e.g. plan to use the packet list header to sort the packets in various ways, setting `pcap-bundle-size` to 0 will provide the best experience.
 - ```pcap-cache-size``` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of `pcap-bundle-size`. This setting determines how many such bundles termshark will keep cached. The default is 32.
 - ```pdml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PDML.
