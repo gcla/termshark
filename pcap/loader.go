@@ -1207,14 +1207,14 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			return
 		}
 
-		log.Infof("Starting PDML command: %v", c.PdmlCmd)
-
 		err = c.PdmlCmd.Start()
 		if err != nil {
 			err = fmt.Errorf("Error starting PDML process %v: %v", c.PdmlCmd, err)
 			HandleError(err, cb)
 			return
 		}
+
+		log.Infof("Started PDML command %v with pid %d", c.PdmlCmd, c.PdmlCmd.Pid())
 
 		defer func() {
 			c.PdmlCmd.Wait()
@@ -1327,8 +1327,6 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			return
 		}
 
-		log.Infof("Starting pcap command: %v", c.PcapCmd)
-
 		err = c.PcapCmd.Start()
 		if err != nil {
 			// e.g. on the pi
@@ -1336,6 +1334,8 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			HandleError(err, cb)
 			return
 		}
+
+		log.Infof("Started pcap command %v with pid %d", c.PcapCmd, c.PcapCmd.Pid())
 
 		defer func() {
 			c.PcapCmd.Wait()
@@ -1681,8 +1681,6 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		return
 	}
 
-	log.Infof("Starting PSML command: %v", c.PsmlCmd)
-
 	err = c.PsmlCmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Error starting PSML command %v: %v", c.PsmlCmd, err)
@@ -1690,6 +1688,8 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		intPsmlCancelFn()
 		return
 	}
+
+	log.Infof("Started PSML command %v with pid %d", c.PsmlCmd, c.PsmlCmd.Pid())
 
 	defer func() {
 		// These need to close so the tailreader Read() terminates so that the

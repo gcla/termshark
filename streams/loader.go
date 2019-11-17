@@ -120,8 +120,6 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 
 	c.streamCmd = c.cmds.Stream(pcapf, proto, idx)
 
-	log.Infof("Starting stream reassembly command: %v", c.streamCmd)
-
 	streamOut, err := c.streamCmd.StdoutReader()
 	if err != nil {
 		pcap.HandleError(err, cb)
@@ -139,6 +137,8 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 		pcap.HandleError(err, cb)
 		return
 	}
+
+	log.Infof("Started stream reassembly command %v with pid %d", c.streamCmd, c.streamCmd.Pid())
 
 	defer func() {
 		err = c.streamCmd.Wait() // it definitely started, so we must wait
@@ -188,8 +188,6 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 
 	c.indexerCmd = c.cmds.Indexer(pcapf, proto, idx)
 
-	log.Infof("Starting stream indexer command: %v", c.indexerCmd)
-
 	streamOut, err := c.indexerCmd.StdoutReader()
 	if err != nil {
 		pcap.HandleError(err, cb)
@@ -208,6 +206,8 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 		pcap.HandleError(err, cb)
 		return
 	}
+
+	log.Infof("Started stream indexer command %v with pid %d", c.indexerCmd, c.indexerCmd.Pid())
 
 	defer func() {
 		err = c.indexerCmd.Wait() // it definitely started, so we must wait
