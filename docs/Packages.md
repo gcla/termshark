@@ -64,16 +64,7 @@ Termshark can be easily installed on almost all major distros just by issuing:
 snap install termshark
 ```
 
-After installation, it requires some additional permissions:
-
-```bash
-snap connect termshark:network-control
-snap connect termshark:bluetooth-control
-snap connect termshark:firewall-control
-snap connect termshark:ppp
-snap connect termshark:raw-usb
-snap connect termshark:removable-media
-```
+Note there is a big caveat with Snap and the architecture of Wireshark that prevents termshark being able to read network interfaces. If installed via Snap, termshark will only be able to work with pcap files. See [this explanation](https://forum.snapcraft.io/t/wireshark-and-setcap/9629/6).
 
 ## Termux (Android)
 
