@@ -153,6 +153,8 @@ type streamParseHandler struct {
 	app              gowid.IApp
 	tick             *time.Ticker // for updating the spinner
 	stop             chan struct{}
+	chunks           chan streams.IChunk
+	pktIndices       chan int
 	name             string
 	proto            streams.Protocol
 	idx              int
@@ -165,6 +167,29 @@ type streamParseHandler struct {
 var _ streams.IOnStreamChunk = (*streamParseHandler)(nil)
 var _ streams.IOnStreamHeader = (*streamParseHandler)(nil)
 
+// Run from the app goroutine
+func (t *streamParseHandler) drainChunks() {
+	curLen := len(t.chunks)
+	for i := 0; i < curLen; i++ {
+		chunk := <-t.chunks
+		if !t.pleaseWaitClosed {
+			t.pleaseWaitClosed = true
+			ClosePleaseWait(t.app)
+		}
+
+		t.wid.AddChunkEntire(chunk, t.app)
+	}
+}
+
+// Run from the app goroutine
+func (t *streamParseHandler) drainPacketIndices() {
+	curLen := len(t.pktIndices)
+	for i := 0; i < curLen; i++ {
+		packet := <-t.pktIndices
+		t.wid.TrackPayloadPacket(packet)
+	}
+}
+
 func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 	close(closeMe)
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
@@ -173,6 +198,29 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 
 	t.tick = time.NewTicker(time.Duration(200) * time.Millisecond)
 	t.stop = make(chan struct{})
+	t.chunks = make(chan streams.IChunk, 1000)
+	t.pktIndices = make(chan int, 1000)
+
+	// Start this after widgets have been cleared, to get focus change
+	termshark.TrackedGo(func() {
+		fn := func() {
+			t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				t.drainChunks()
+				t.drainPacketIndices()
+
+				if !t.openedStreams {
+					appViewNoKeys.SetSubWidget(streamView, app)
+					openStreamUi(t.wid, app)
+					t.openedStreams = true
+				}
+			}))
+		}
+
+		termshark.RunOnDoubleTicker(t.stop, fn,
+			time.Duration(200)*time.Millisecond,
+			time.Duration(200)*time.Millisecond,
+			10)
+	}, Goroutinewg)
 
 	termshark.TrackedGo(func() {
 	Loop:
@@ -206,6 +254,10 @@ func (t *streamParseHandler) AfterEnd(closeMe chan<- struct{}) {
 			t.openedStreams = true
 		}
 
+		// Clear out anything lingering from last ticker run to now
+		t.drainChunks()
+		t.drainPacketIndices()
+
 		if t.wid.NumChunks() == 0 {
 			OpenMessage("No stream payloads found.", appView, app)
 		}
@@ -214,9 +266,7 @@ func (t *streamParseHandler) AfterEnd(closeMe chan<- struct{}) {
 }
 
 func (t *streamParseHandler) TrackPayloadPacket(packet int) {
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		t.wid.TrackPayloadPacket(packet)
-	}))
+	t.pktIndices <- packet
 }
 
 func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader, ch chan struct{}) {
@@ -229,29 +279,7 @@ func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader, ch chan st
 // Handle a line/chunk of input - one piece of reassembled data, which comes with
 // a client/server direction.
 func (t *streamParseHandler) OnStreamChunk(chunk streams.IChunk, ch chan struct{}) {
-	t.Lock()
-	defer t.Unlock()
-
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		if !t.pleaseWaitClosed {
-			t.pleaseWaitClosed = true
-			ClosePleaseWait(t.app)
-		}
-	}))
-
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		t.wid.AddChunkEntire(chunk, app)
-	}))
-
-	// Do after adding chunk so I can set focus on chunks correctly
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		if !t.openedStreams {
-			appViewNoKeys.SetSubWidget(streamView, app)
-			openStreamUi(t.wid, app)
-			t.openedStreams = true
-		}
-	}))
-
+	t.chunks <- chunk
 	close(ch)
 }
 
