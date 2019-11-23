@@ -77,7 +77,7 @@ func NewLoader(cmds ILoaderCmds, ctx context.Context) *Loader {
 	return res
 }
 
-func (c *Loader) stopLoad() {
+func (c *Loader) StopLoad() {
 	if c.streamCancelFn != nil {
 		c.streamCancelFn()
 	}
@@ -173,7 +173,7 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 		}
 	}()
 
-	c.streamCancelFn()
+	c.StopLoad()
 }
 
 func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, app gowid.IApp, cb IIndexerCallbacks) {
