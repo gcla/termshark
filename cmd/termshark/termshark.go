@@ -616,6 +616,9 @@ func cmain() int {
 	// need to be passed to the tshark commands used
 	pdmlArgs := termshark.ConfStringSlice("main.pdml-args", []string{})
 	psmlArgs := termshark.ConfStringSlice("main.psml-args", []string{})
+	if opts.TimestampFormat != "" {
+		psmlArgs = append(psmlArgs, "-t", opts.TimestampFormat)
+	}
 	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
 	enableColor := termshark.ConfBool("main.packet-colors", true)
 	if enableColor && !binSupportsColor {

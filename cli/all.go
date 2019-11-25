@@ -18,12 +18,13 @@ type Tshark struct {
 
 // Termshark's own command line arguments. Used if we don't pass through to tshark.
 type Termshark struct {
-	Iface         string         `value-name:"<interface>" short:"i" description:"Interface to read."`
-	Pcap          flags.Filename `value-name:"<file>" short:"r" description:"Pcap file to read."`
-	DecodeAs      []string       `short:"d" description:"Specify dissection of layer type." value-name:"<layer type>==<selector>,<decode-as protocol>"`
-	PrintIfaces   bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
-	DisplayFilter string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
-	CaptureFilter string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
+	Iface           string         `value-name:"<interface>" short:"i" description:"Interface to read."`
+	Pcap            flags.Filename `value-name:"<file>" short:"r" description:"Pcap file to read."`
+	DecodeAs        []string       `short:"d" description:"Specify dissection of layer type." value-name:"<layer type>==<selector>,<decode-as protocol>"`
+	PrintIfaces     bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
+	DisplayFilter   string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
+	CaptureFilter   string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
+	TimestampFormat string         `short:"t" description:"Set the format of the packet timestamp printed in summary lines." choice:"a" choice:"ad" choice:"adoy" choice:"d" choice:"dd" choice:"e" choice:"r" choice:"u" choice:"ud" choice:"udoy" value-name:"<timestamp format>"`
 	PlatformSpecific
 	PassThru string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
 	LogTty   bool   `long:"log-tty" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Log to the terminal."`

@@ -1466,7 +1466,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmltable.Model {
 			Layout: table.LayoutOptions{
 				Widths: []gowid.IWidgetDimension{
 					weightupto(6, 10),
-					weightupto(10, 14),
+					weightupto(8, 24),
 					weightupto(14, 32),
 					weightupto(14, 32),
 					weightupto(12, 32),
