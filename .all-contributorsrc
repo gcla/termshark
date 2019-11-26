@@ -327,6 +327,15 @@
       "contributions": [
         "userTesting"
       ]
+    },
+    {
+      "login": "dragosmaftei",
+      "name": "Dragos Maftei",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/15351028?v=4",
+      "profile": "https://github.com/dragosmaftei",
+      "contributions": [
+        "ideas"
+      ]
     }
   ],
   "contributorsPerLine": 7
