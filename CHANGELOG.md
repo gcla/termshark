@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+### Added
+
+- Termshark now colorizes its packet list view by default, using the current Wireshark `colorfilter` rules.
+- Termshark now supports tshark's `-t` option to specify the timestamp format in the packet list view.
+
+### Changed
+
+- Fixed a potential deadlock when reassembling very long streams.
+
 ## [2.0.0] - 2019-11-10
 ### Added
 
