@@ -503,13 +503,13 @@ func cmain() int {
 	// Determine if the current binary supports color. Tshark will fail with an error if it's too old
 	// and you supply the --color flag. Assume true, and check if our current binary is not in the
 	// validate list.
-	binSupportsColor := true
+	ui.PacketColorsSupported = true
 	colorTsharks := termshark.ConfStrings("main.color-tsharks")
 
 	if !termshark.StringInSlice(tsharkBin, colorTsharks) {
-		binSupportsColor, err = termshark.TSharkSupportsColor(tsharkBin)
+		ui.PacketColorsSupported, err = termshark.TSharkSupportsColor(tsharkBin)
 		if err != nil {
-			binSupportsColor = false
+			ui.PacketColorsSupported = false
 		} else {
 			colorTsharks = append(colorTsharks, tsharkBin)
 			termshark.SetConf("main.color-tsharks", colorTsharks)
@@ -611,6 +611,7 @@ func cmain() int {
 	// Initialize application state for dark mode and auto-scroll
 	ui.DarkMode = termshark.ConfBool("main.dark-mode", false)
 	ui.AutoScroll = termshark.ConfBool("main.auto-scroll", true)
+	ui.PacketColors = termshark.ConfBool("main.packet-colors", true)
 
 	// Set them up here so they have access to any command-line flags that
 	// need to be passed to the tshark commands used
@@ -620,10 +621,9 @@ func cmain() int {
 		psmlArgs = append(psmlArgs, "-t", opts.TimestampFormat)
 	}
 	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
-	enableColor := termshark.ConfBool("main.packet-colors", true)
-	if enableColor && !binSupportsColor {
+	if ui.PacketColors && !ui.PacketColorsSupported {
 		log.Warnf("Packet coloring is enabled, but %s does not support --color", tsharkBin)
-		enableColor = false
+		ui.PacketColors = false
 	}
 	cacheSize := termshark.ConfInt("main.pcap-cache-size", 64)
 	bundleSize := termshark.ConfInt("main.pcap-bundle-size", 1000)
@@ -633,7 +633,7 @@ func cmain() int {
 		bundleSize = maxBundleSize
 	}
 	ui.PcapScheduler = pcap.NewScheduler(
-		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs, enableColor),
+		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs, ui.PacketColors),
 		pcap.Options{
 			CacheSize:      cacheSize,
 			PacketsPerLoad: bundleSize,

@@ -153,10 +153,12 @@ var QuitRequestedChan chan struct{}
 
 var Loader *pcap.Loader
 var PcapScheduler *pcap.Scheduler
-var DarkMode bool          // global state in app
-var AutoScroll bool        // true if the packet list should auto-scroll when listening on an interface.
-var newPacketsArrived bool // true if current updates are due to new packets when listening on an interface.
-var Running bool           // true if gowid/tcell is controlling the terminal
+var DarkMode bool              // global state in app
+var PacketColors bool          // global state in app
+var PacketColorsSupported bool // global state in app - true if it's even possible
+var AutoScroll bool            // true if the packet list should auto-scroll when listening on an interface.
+var newPacketsArrived bool     // true if current updates are due to new packets when listening on an interface.
+var Running bool               // true if gowid/tcell is controlling the terminal
 
 //======================================================================
 
@@ -576,7 +578,7 @@ func (t *rowFocusTableWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
 		),
 	}
 
-	if pos >= 0 {
+	if pos >= 0 && PacketColors {
 		res = styled.New(res,
 			gowid.MakePaletteEntry(t.colors[pos].FG, t.colors[pos].BG),
 		)
@@ -2309,6 +2311,26 @@ func Build() (*gowid.App, error) {
 				reallyQuit(app)
 			},
 		},
+	}
+
+	if PacketColorsSupported {
+		generalMenuItems = append(
+			generalMenuItems[0:2],
+			append(
+				[]menuutil.SimpleMenuItem{
+					menuutil.SimpleMenuItem{
+						Txt: "Toggle Packet Colors",
+						Key: gowid.MakeKey('c'),
+						CB: func(app gowid.IApp, w gowid.IWidget) {
+							generalMenu.Close(app)
+							PacketColors = !PacketColors
+							termshark.SetConf("main.packet-colors", PacketColors)
+						},
+					},
+				},
+				generalMenuItems[2:]...,
+			)...,
+		)
 	}
 
 	generalMenuListBox := menuutil.MakeMenuWithHotKeys(generalMenuItems)
