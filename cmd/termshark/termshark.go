@@ -604,6 +604,10 @@ func cmain() int {
 				fmt.Fprintf(os.Stderr, ": %v", ifaceErr)
 			}
 			fmt.Fprintf(os.Stderr, " (exit code %d)\n", ifaceExitCode)
+			if runtime.GOOS == "linux" && os.Geteuid() != 0 {
+				fmt.Fprintf(os.Stderr, "You might need: sudo setcap cap_net_raw,cap_net_admin+eip %s\n", termshark.DumpcapBin())
+				fmt.Fprintf(os.Stderr, "Or try running with sudo or as root.\n")
+			}
 			fmt.Fprintf(os.Stderr, "See https://wiki.wireshark.org/CaptureSetup/CapturePrivileges for more info.\n")
 		}
 	}()
@@ -749,9 +753,11 @@ func cmain() int {
 
 		// Verifies whether or not we will be able to read from the interface (hopefully)
 		ifaceExitCode = 0
-		//if ifaceExitCode, ifaceErr = termshark.RunForExitCode("dumpcap", "-i", useIface, "-a", "duration:1", "-w", os.DevNull); ifaceExitCode != 0 {
-		//return 1
-		//}
+		if psrc.IsInterface() {
+			if ifaceExitCode, ifaceErr = termshark.RunForExitCode(termshark.DumpcapBin(), "-i", psrc.Name(), "-a", "duration:1", "-w", os.DevNull); ifaceExitCode != 0 {
+				return 1
+			}
+		}
 
 		ifValid := func(app gowid.IApp) {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
