@@ -172,6 +172,29 @@ termshark -G fields
 ```
 then parsing the output into a nested collection of Go maps, and serializing it to ```$XDG_CONFIG_CACHE/tsharkfieldsv2.gob.gz```.
 
+## How can I make termshark run without root?
+
+Termshark depends on tshark, and termshark will run without root if tshark/dumpcap will. On Linux, these are the most common ways to allow tshark to run as a non-root user
+
+(1) For Ubuntu/Debian systems, you can add your user to the `wireshark` group. These instructions are taken [from this answer](https://osqa-ask.wireshark.org/questions/7976/wireshark-setup-linux-for-nonroot-user/51058) on [wireshark.org](https://ask.wireshark.org/questions/):
+
+```bash
+sudo apt-get install wireshark
+sudo dpkg-reconfigure wireshark-common 
+sudo usermod -a -G wireshark $USER
+newgrp wireshark
+```
+
+If you logout and login again after `usermod`, you can omit the `newgrp` command.
+
+(2) You might need to set the capabilities of `dumpcap` using a command like this:
+
+```bash
+sudo setcap cap_net_raw,cap_net_admin+eip /usr/sbin/dumpcap
+```
+
+You can find more detail at https://wiki.wireshark.org/CaptureSetup/CapturePrivileges.
+
 ## Termshark is laggy or using a lot of RAM
 
 I hope this is much-improved with v2. If you still experience problems, try running termshark with the ```--debug``` flag e.g.
