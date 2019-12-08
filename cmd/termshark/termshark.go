@@ -778,6 +778,7 @@ func cmain() int {
 	}
 
 	quitRequested := false
+	quitIssuedToApp := false
 	prevstate := ui.Loader.State()
 	var prev float64
 
@@ -820,22 +821,33 @@ Loop:
 
 		// This should really be moved to a handler...
 		if ui.Loader.State() == 0 {
-			if ui.Loader.State() != prevstate {
-				// If the state is now 0, it means no interface-reading process is running. That means
-				// we will no longer be reading from an interface or a fifo, so we point the loader at
-				// the file we wrote to the cache, and redirect all loads/filters to that now.
+			if prevstate != 0 {
+				// If the state has just switched to 0, it means no interface-reading process is
+				// running. That means we will no longer be reading from an interface or a fifo, so
+				// we point the loader at the file we wrote to the cache, and redirect all
+				// loads/filters to that now.
 				ui.Loader.TurnOffPipe()
-				if quitRequested {
-					app.Quit()
-				}
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
 					ui.ClearProgressWidget(app)
 					ui.SetProgressDeterminate(app) // always switch back - for pdml (partial) loads of later data.
 				}))
-				// When the progress bar is enabled, track the previous percentage reached. This
-				// is so that I don't go "backwards" if I generate a progress value less than the last
-				// one, using the current algorithm (because it would be confusing to see it go backwards)
+				// When the progress bar is enabled, track the previous percentage reached. This is
+				// so that I don't go "backwards" if I generate a progress value less than the last
+				// one, using the current algorithm (because it would be confusing to see it go
+				// backwards)
 				prev = 0.0
+			}
+
+			if quitRequested {
+				if ui.Running {
+					if !quitIssuedToApp {
+						app.Quit()
+						quitIssuedToApp = true // Avoid closing app twice - doubly-closed channel
+					}
+				} else {
+					// No UI so exit loop immediately
+					break Loop
+				}
 			}
 		}
 
@@ -936,21 +948,8 @@ Loop:
 			}()
 
 		case <-ui.QuitRequestedChan:
-			if ui.Loader.State() == 0 {
-
-				// Only explicitly quit if this flag isn't set because if it is set, then the quit
-				// will happen before the select{} statement above
-				if !quitRequested {
-					app.Quit()
-				}
-
-				// If the UI isn't running, then there aren't app events, and that channel is used
-				// to break the select loop. So break it manually.
-				if !ui.Running {
-					break Loop
-				}
-			} else {
-				quitRequested = true
+			quitRequested = true
+			if ui.Loader.State() != 0 {
 				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
 				// will happen next time round because the quitRequested flag is checked.
 				ui.PcapScheduler.RequestStopLoad(ui.NoHandlers{})

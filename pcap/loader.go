@@ -55,6 +55,7 @@ func (c *Loader) State() LoaderState {
 }
 
 // Repeatedly go back to the start if anything is triggered.
+// Call only on the main thread (running the select loop)
 func (c *Loader) SetState(st LoaderState) {
 	c.state = st
 Outer:
