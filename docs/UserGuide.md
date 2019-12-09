@@ -265,6 +265,7 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
   browse-command = ["firefox", "$1"]
 ```
 - ```color-tsharks``` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
+- ```colors``` (bool) - if true, and tshark supports the feature, termshark will colorize packets in its list view.
 - ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 ```toml
 [main]
@@ -282,7 +283,7 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 - ```recent-filters``` (string list) - recently used Wireshark display filters.
 - ```stream-cache-size``` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
 - ```stream-view``` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
-- ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is set to the cygwin tail command. But probably better to use Wireshark on Windows :-)
+- ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is to use `termshark` itself in a special hidden tail-mode. But probably better to use Wireshark on Windows :-)
 - ```term``` (string) - termshark will use this as a replacement for the TERM environment variable.
 ```toml
 [main]
