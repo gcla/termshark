@@ -1580,7 +1580,9 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 		}
 	}))
 
-	withScrollbar := withscrollbar.New(packetListView)
+	withScrollbar := withscrollbar.New(packetListView, withscrollbar.Options{
+		HideIfContentFits: true,
+	})
 	packetListViewHolder.SetSubWidget(enableselected.New(withScrollbar), app)
 }
 

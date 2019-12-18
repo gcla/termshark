@@ -308,6 +308,8 @@ func makeTable(data chunkList) (gowid.IWidget, *copymodetable.Widget) {
 	sc := &keepSelected{
 		sub: withscrollbar.New(scrollableTableWidget{
 			Widget: cmtbl,
+		}, withscrollbar.Options{
+			HideIfContentFits: true,
 		}),
 	}
 
