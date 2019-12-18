@@ -2825,19 +2825,19 @@ func Build() (*gowid.App, error) {
 	maxViewPath = []interface{}{2, 0} // list, structure or hex - whichever one is selected
 
 	mainviewPaths = [][]interface{}{
-		{2, 0}, // packet list
-		{4},    // packet structure
-		{6},    // packet hex
+		{2}, // packet list
+		{4}, // packet structure
+		{6}, // packet hex
 	}
 
 	altview1Paths = [][]interface{}{
-		{2, 0, 0, 0}, // packet list
-		{2, 0, 2},    // packet structure
-		{2, 2},       // packet hex
+		{2, 0, 0}, // packet list
+		{2, 0, 2}, // packet structure
+		{2, 2},    // packet hex
 	}
 
 	altview2Paths = [][]interface{}{
-		{2, 0, 0}, // packet list
+		{2, 0},    // packet list
 		{2, 2, 0}, // packet structure
 		{2, 2, 2}, // packet hex
 	}

@@ -15,11 +15,18 @@ import (
 //======================================================================
 
 type Widget struct {
-	*columns.Widget
+	always   *columns.Widget // use if scrollbar is to be shown
 	w        IScrollSubWidget
 	sb       *vscroll.Widget
 	goUpDown int // positive means down
 	pgUpDown int // positive means down
+	opt      Options
+}
+
+var _ gowid.IWidget = (*Widget)(nil)
+
+type Options struct {
+	HideIfContentFits bool
 }
 
 type IScrollValues interface {
@@ -27,19 +34,33 @@ type IScrollValues interface {
 	ScrollLength() int
 }
 
-type IScrollSubWidget interface {
-	gowid.IWidget
-	IScrollValues
+// Implemented by widgets that can scroll
+type IScrollOneLine interface {
 	Up(lines int, size gowid.IRenderSize, app gowid.IApp)
 	Down(lines int, size gowid.IRenderSize, app gowid.IApp)
+}
+
+type IScrollOnePage interface {
 	UpPage(num int, size gowid.IRenderSize, app gowid.IApp)
 	DownPage(num int, size gowid.IRenderSize, app gowid.IApp)
 }
 
-func New(w IScrollSubWidget) *Widget {
+type IScrollSubWidget interface {
+	gowid.IWidget
+	IScrollValues
+	IScrollOneLine
+	IScrollOnePage
+}
+
+func New(w IScrollSubWidget, opts ...Options) *Widget {
+	var opt Options
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+
 	sb := vscroll.NewExt(vscroll.VerticalScrollbarUnicodeRunes)
 	res := &Widget{
-		Widget: columns.New([]gowid.IContainerWidget{
+		always: columns.New([]gowid.IContainerWidget{
 			&gowid.ContainerWidget{
 				IWidget: w,
 				D:       gowid.RenderWithWeight{W: 1},
@@ -55,6 +76,7 @@ func New(w IScrollSubWidget) *Widget {
 		sb:       sb,
 		goUpDown: 0,
 		pgUpDown: 0,
+		opt:      opt,
 	}
 	sb.OnClickAbove(gowid.MakeWidgetCallback("cb", res.clickUp))
 	sb.OnClickBelow(gowid.MakeWidgetCallback("cb", res.clickDown))
@@ -84,7 +106,19 @@ func CalculateMenuRows(vals IScrollValues, rows int, focus gowid.Selector, app g
 	return vals.ScrollPosition(), 1, vals.ScrollLength() - (vals.ScrollPosition() + 1)
 }
 
+func (w *Widget) contentFits(size gowid.IRenderSize) bool {
+	res := true
+	if rower, ok := size.(gowid.IRows); ok {
+		res = (w.w.ScrollLength() <= rower.Rows())
+	}
+	return res
+}
+
 func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	if w.opt.HideIfContentFits && w.contentFits(size) {
+		return w.w.UserInput(ev, size, focus, app)
+	}
+
 	box, ok := size.(gowid.IRenderBox)
 	if !ok {
 		panic(gowid.WidgetSizeError{Widget: w, Size: size, Required: "gowid.IRenderBox"})
@@ -96,14 +130,18 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 	w.sb.Middle = y
 	w.sb.Bottom = z
 
-	res := w.Widget.UserInput(ev, size, focus, app)
+	res := w.always.UserInput(ev, size, focus, app)
 	if res {
-		w.Widget.SetFocus(app, 0)
+		w.always.SetFocus(app, 0)
 	}
 	return res
 }
 
 func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
+	if w.opt.HideIfContentFits && w.contentFits(size) {
+		return w.w.Render(size, focus, app)
+	}
+
 	box, ok := size.(gowid.IRenderBox)
 	if !ok {
 		panic(gowid.WidgetSizeError{Widget: w, Size: size, Required: "gowid.IRenderBox"})
@@ -136,9 +174,21 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	w.sb.Middle = y
 	w.sb.Bottom = z
 
-	canvas := w.Widget.Render(size, focus, app)
+	canvas := w.always.Render(size, focus, app)
 
 	return canvas
+}
+
+func (w *Widget) RenderSize(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.IRenderBox {
+	if w.opt.HideIfContentFits && w.contentFits(size) {
+		return w.w.RenderSize(size, focus, app)
+	}
+
+	return w.always.RenderSize(size, focus, app)
+}
+
+func (w *Widget) Selectable() bool {
+	return w.w.Selectable()
 }
 
 //======================================================================
