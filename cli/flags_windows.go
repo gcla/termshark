@@ -4,12 +4,24 @@
 
 package cli
 
+import "github.com/jessevdk/go-flags"
+
 //======================================================================
 
-type PlatformSpecific struct{}
+type PlatformSwitches struct{}
 
-func TtySwitchValue(opts *Termshark) string {
+func (p PlatformSwitches) TtyValue() string {
 	return ""
+}
+
+//======================================================================
+
+type TailSwitch struct {
+	Tail flags.Filename `value-name:"<tail-file>" long:"tail" hidden:"true" description:"Tail a file (private)."`
+}
+
+func (t TailSwitch) TailFileValue() string {
+	return string(t.Tail)
 }
 
 //======================================================================

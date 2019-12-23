@@ -9,12 +9,20 @@ package cli
 //======================================================================
 
 // Embedded in the CLI options struct.
-type PlatformSpecific struct {
+type PlatformSwitches struct {
 	Tty string `long:"tty" description:"Display the UI on this terminal." value-name:"<tty>"`
 }
 
-func TtySwitchValue(opts *Termshark) string {
-	return opts.Tty
+func (p PlatformSwitches) TtyValue() string {
+	return p.Tty
+}
+
+//======================================================================
+
+type TailSwitch struct{}
+
+func (t TailSwitch) TailFileValue() string {
+	return ""
 }
 
 //======================================================================

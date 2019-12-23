@@ -134,8 +134,8 @@ func cmain() int {
 		}
 	}
 
-	if tsopts.Tail != "" {
-		err = termshark.TailFile(string(tsopts.Tail))
+	if tsopts.TailFileValue() != "" {
+		err = termshark.TailFile(tsopts.TailFileValue())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v", err)
 			return 1
@@ -232,7 +232,7 @@ func cmain() int {
 		return res
 	}
 
-	usetty := cli.TtySwitchValue(&opts)
+	usetty := opts.TtyValue()
 	if usetty != "" {
 		if ttyf, err := os.Open(usetty); err != nil {
 			fmt.Fprintf(os.Stderr, "Could not open terminal %s: %v.\n", usetty, err)
