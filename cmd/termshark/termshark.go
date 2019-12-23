@@ -795,6 +795,10 @@ func cmain() int {
 				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(termshark.DumpcapBin(), "-i", psrc.Name(), "-a", "duration:1", "-w", os.DevNull); ifaceExitCode != 0 {
 					return 1
 				}
+			} else {
+				// We only test one - the assumption is that if dumpcap can read from eth0, it can also read from eth1, ... And
+				// this lets termshark start up more quickly.
+				break
 			}
 		}
 
