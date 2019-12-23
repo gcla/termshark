@@ -6,6 +6,7 @@ package pcap
 
 import (
 	"os"
+	"strings"
 
 	"github.com/gcla/termshark/v2/system"
 )
@@ -21,6 +22,28 @@ type IPacketSource interface {
 }
 
 //======================================================================
+
+func FileSystemSources(srcs []IPacketSource) []IPacketSource {
+	res := make([]IPacketSource, 0)
+	for _, src := range srcs {
+		if src.IsFile() || src.IsFifo() {
+			res = append(res, src)
+		}
+	}
+	return res
+}
+
+func SourcesString(srcs []IPacketSource) string {
+	return strings.Join(SourcesNames(srcs), " + ")
+}
+
+func SourcesNames(srcs []IPacketSource) []string {
+	names := make([]string, 0, len(srcs))
+	for _, psrc := range srcs {
+		names = append(names, psrc.Name())
+	}
+	return names
+}
 
 func UIName(src IPacketSource) string {
 	if src.IsPipe() {

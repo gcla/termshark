@@ -18,7 +18,7 @@ type Tshark struct {
 
 // Termshark's own command line arguments. Used if we don't pass through to tshark.
 type Termshark struct {
-	Iface           string         `value-name:"<interface>" short:"i" description:"Interface to read."`
+	Ifaces          []string       `value-name:"<interfaces>" short:"i" description:"Interface(s) to read."`
 	Pcap            flags.Filename `value-name:"<file>" short:"r" description:"Pcap file to read."`
 	DecodeAs        []string       `short:"d" description:"Specify dissection of layer type." value-name:"<layer type>==<selector>,<decode-as protocol>"`
 	PrintIfaces     bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
