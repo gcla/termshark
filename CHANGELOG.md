@@ -1,6 +1,7 @@
 # Changelog
 
-## [Unreleased]
+## [2.0.3] - 2019-12-23
+
 ### Added
 
 - Termshark now colorizes its packet list view by default, using the current Wireshark `colorfilter` rules.
@@ -9,6 +10,18 @@
 ### Changed
 
 - Fixed a potential deadlock when reassembling very long streams.
+
+## [2.0.2] - 2019-11-11
+
+### Changed
+
+- Internal Go API name changes that I didn't understand when I released termshark V2.
+
+## [2.0.1] - 2019-11-10
+
+### Changed
+
+- Fix a mistake that caused a build break on homebrew.
 
 ## [2.0.0] - 2019-11-10
 ### Added
