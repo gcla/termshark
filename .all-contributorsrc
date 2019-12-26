@@ -153,7 +153,8 @@
       "avatar_url": "https://avatars1.githubusercontent.com/u/9713907?v=4",
       "profile": "https://github.com/dawidd6",
       "contributions": [
-        "bug"
+        "bug",
+        "platform"
       ]
     },
     {
@@ -333,6 +334,15 @@
       "name": "Dragos Maftei",
       "avatar_url": "https://avatars1.githubusercontent.com/u/15351028?v=4",
       "profile": "https://github.com/dragosmaftei",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "IAXES",
+      "name": "Matthew Giassa",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/8325672?v=4",
+      "profile": "http://www.giassa.net",
       "contributions": [
         "ideas"
       ]
