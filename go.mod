@@ -1,13 +1,13 @@
 module github.com/gcla/termshark/v2
 
 require (
+	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/antchfx/xmlquery v1.0.0
 	github.com/antchfx/xpath v1.0.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gcla/deep v1.0.2
 	github.com/gcla/gowid v1.0.1-0.20191116181933-e43461853f37
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
-	github.com/gcla/termshark v1.0.0
 	github.com/gdamore/tcell v1.2.1-0.20190805162843-ae1dc54d2c70
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
@@ -30,6 +30,6 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
 
-replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20191105032631-bdf184f0c937
+replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20191227184110-d619c6036dbf
 
 replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
