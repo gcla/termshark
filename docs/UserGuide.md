@@ -283,7 +283,7 @@ Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_H
 - ```recent-filters``` (string list) - recently used Wireshark display filters.
 - ```stream-cache-size``` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
 - ```stream-view``` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
-- ```tail-command``` (string) - make termshark use this specific ```tail``` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to ```tshark```. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is to use `termshark` itself in a special hidden tail-mode. But probably better to use Wireshark on Windows :-)
+- ```tail-command``` (string) - make termshark use this specific `tail` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to `tshark`. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is to use `termshark` itself with a special hidden `--tail` flag. But probably better to use Wireshark on Windows :-)
 - ```term``` (string) - termshark will use this as a replacement for the TERM environment variable.
 ```toml
 [main]
