@@ -1,6 +1,10 @@
-# User Guide
+# Termshark User Guide
 
-Termshark provides a terminal-based user interface for analyzing packet captures. It's inspired by Wireshark, and depends on tshark for all its intelligence. Termshark is run from the command-line. You can see its options with
+Termshark provides a terminal-based user interface for analyzing packet captures.
+
+## Basic Usage
+
+Termshark is inspired by Wireshark, and depends on tshark for all its intelligence. Termshark is run from the command-line. You can see its options with
 
 ```bash
 $ termshark -h
@@ -44,77 +48,9 @@ $ termshark -r test.pcap | cat
     2   0.000000 192.168.44.123 → 192.168.44.213 TFTP 77 Read Request, File: C:\IBMTCPIP\lccm.1, Transfer type: octet
 ```
 
-## Read a pcap file
+## Choose a Source
 
-Launch termshark like this to inspect a file:
-
-```bash
-termshark -r test.pcap
-```
-
-You can also apply a display filter directly from the command-line:
-
-```bash
-termshark -r test.pcap icmp
-```
-
-Note that when reading a file, the filter will be interpreted as a [display filter](https://wiki.wireshark.org/DisplayFilters). When reading from an interface, the filter is interpreted as a [capture filter](https://wiki.wireshark.org/CaptureFilters). This follows tshark's behavior.
-
-Termshark will launch in your terminal. From here, you can press `?` for help:
-
-![tshelp](https://drive.google.com/uc?export=view&id=1DOZEAlP5xiNAoCKrZoIhWJ9Zz3gX0gJf)
-
-## Filtering
-
-Press `/` to focus on the display filter. Now you can type in a Wireshark display filter expression. The UI will update in real-time to display the validity of the current expression. If the expression is invalid, the filter widget will change color to red. As you type, termshark presents a drop-down menu with possible completions for the current term:
-
-![filterbad](https://drive.google.com/uc?export=view&id=1KobuhX7KfA_i2VU-lCllPc3FkLUBEmQi)
-
-When the filter widget is green, you can hit the "Apply" button to make its value take effect. Termshark will then reload the packets with the new display filter applied.
-
-![filterbad](https://drive.google.com/uc?export=view&id=10AVIaRtLWgqJ_fi0kWS_PI-vOogZTVv-)
-
-## Changing Files
-
-Termshark provides a "Recent" button which will open a menu with your most recently-loaded pcap files. Each invocation of termshark with the `-r` flag will add a pcap to the start of this list:
-
-![recent](https://drive.google.com/uc?export=view&id=1jnENk7ANqo2TZeqA-4hujHDWfDko_isT)
-
-## Changing Views
-
-Press `tab` to move between the three packet views. You can also use the mouse to move views by clicking with the left mouse button. When focus is in any of these three views, hit the `\` key to maximize that view:
-
-![max](https://drive.google.com/uc?export=view&id=143PHT2YDEuDig2QqFIGcZTjNg9TA7awB)
-
-Press `\` to restore the original layout. Press `|` to move the hex view to the right-hand side:
-
-![altview](https://drive.google.com/uc?export=view&id=1RinO3imTgboVYKLWblaLOqwjhu7OcUt4)
-
-You can also press `<`,`>`,`+` and `-` to change the relative size of each view.
-
-## Packet List View
-
-Termshark's top-most view is a list of packets read from the capture (or interface). Termshark generates the data by running `tshark` on the input with the `-T psml` options, and parsing the resulting XML. Currently the columns displayed cannot be configured, and are the same as Wireshark's defaults. When the source is a pcap file, the list can be sorted by column by clicking the button next to each column header:
-
-![sortcol](https://drive.google.com/uc?export=view&id=1UaXNRUp8UtR728j_CPTRTb0hpVy6EUte)
-
-You can hit `home` to jump to the top of the list or `end` to jump to the bottom. Sometimes, especially if running on a small terminal, the values in a column will be truncated (e.g. long IPv6 addresses). To see the full value, move the purple cursor over the value:
-
-![ipv6](https://drive.google.com/uc?export=view&id=1LXLz0gFieOf3mZEiP9QzwKSzSJL1FLT6)
-
-## Packet Structure View
-
-Termshark's middle view shows the structure of the packet selected in the list view. You can expand and contract the structure using the `[+]` and `[-]` buttons, the 'enter' key, or the right and left cursor keys:
-
-![structure](https://drive.google.com/uc?export=view&id=1Tv7kvLxXe5a2tbsvkWR6U8K6nhEBqk8D)
-
-As you navigate the packet structure, different sections of the bottom view - a hex representation of the packet - will be highlighted.
-
-## Packet Hex View
-
-Termshark's bottom view shows the bytes that the packet comprises. Like Wireshark, they are displayed in a hexdump-like format. As you move around the bytes, the middle (structure) view will update to show you where you are in the packet's structure.
-
-## Reading from an Interface
+### Reading from an Interface
 
 Launch termshark like this to read from an interface:
 
@@ -143,7 +79,33 @@ $ termshark -i eth0
 Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/eth0-657695279.pcap
 ```
 
-## Reading from a fifo or stdin
+### Read a pcap file
+
+Launch termshark like this to inspect a file:
+
+```bash
+termshark -r test.pcap
+```
+
+You can also apply a display filter directly from the command-line:
+
+```bash
+termshark -r test.pcap icmp
+```
+
+Note that when reading a file, the filter will be interpreted as a [display filter](https://wiki.wireshark.org/DisplayFilters). When reading from an interface, the filter is interpreted as a [capture filter](https://wiki.wireshark.org/CaptureFilters). This follows tshark's behavior.
+
+Termshark will launch in your terminal. From here, you can press `?` for help:
+
+![tshelp](https://drive.google.com/uc?export=view&id=1DOZEAlP5xiNAoCKrZoIhWJ9Zz3gX0gJf)
+
+#### Changing Files
+
+Termshark provides a "Recent" button which will open a menu with your most recently-loaded pcap files. Each invocation of termshark with the `-r` flag will add a pcap to the start of this list:
+
+![recent](https://drive.google.com/uc?export=view&id=1jnENk7ANqo2TZeqA-4hujHDWfDko_isT)
+
+### Reading from a fifo or stdin
 
 Termshark supports reading packets from a Unix fifo or from standard input - for example
 
@@ -182,7 +144,53 @@ termshark -r foo.pcap --tty=/dev/pts/10
 
 Issue a sleep in the pane for `/dev/pts/10` so that no other process reads from the terminal while it is dedicated to termshark.
 
-## Copy Mode
+## Using the TUI
+
+### Filtering
+
+Press `/` to focus on the display filter. Now you can type in a Wireshark display filter expression. The UI will update in real-time to display the validity of the current expression. If the expression is invalid, the filter widget will change color to red. As you type, termshark presents a drop-down menu with possible completions for the current term:
+
+![filterbad](https://drive.google.com/uc?export=view&id=1KobuhX7KfA_i2VU-lCllPc3FkLUBEmQi)
+
+When the filter widget is green, you can hit the "Apply" button to make its value take effect. Termshark will then reload the packets with the new display filter applied.
+
+![filterbad](https://drive.google.com/uc?export=view&id=10AVIaRtLWgqJ_fi0kWS_PI-vOogZTVv-)
+
+### Changing Views
+
+Press `tab` to move between the three packet views. You can also use the mouse to move views by clicking with the left mouse button. When focus is in any of these three views, hit the `\` key to maximize that view:
+
+![max](https://drive.google.com/uc?export=view&id=143PHT2YDEuDig2QqFIGcZTjNg9TA7awB)
+
+Press `\` to restore the original layout. Press `|` to move the hex view to the right-hand side:
+
+![altview](https://drive.google.com/uc?export=view&id=1RinO3imTgboVYKLWblaLOqwjhu7OcUt4)
+
+You can also press `<`,`>`,`+` and `-` to change the relative size of each view.
+
+### Packet List View
+
+Termshark's top-most view is a list of packets read from the capture (or interface). Termshark generates the data by running `tshark` on the input with the `-T psml` options, and parsing the resulting XML. Currently the columns displayed cannot be configured, and are the same as Wireshark's defaults. When the source is a pcap file, the list can be sorted by column by clicking the button next to each column header:
+
+![sortcol](https://drive.google.com/uc?export=view&id=1UaXNRUp8UtR728j_CPTRTb0hpVy6EUte)
+
+You can hit `home` to jump to the top of the list or `end` to jump to the bottom. Sometimes, especially if running on a small terminal, the values in a column will be truncated (e.g. long IPv6 addresses). To see the full value, move the purple cursor over the value:
+
+![ipv6](https://drive.google.com/uc?export=view&id=1LXLz0gFieOf3mZEiP9QzwKSzSJL1FLT6)
+
+### Packet Structure View
+
+Termshark's middle view shows the structure of the packet selected in the list view. You can expand and contract the structure using the `[+]` and `[-]` buttons, the 'enter' key, or the right and left cursor keys:
+
+![structure](https://drive.google.com/uc?export=view&id=1Tv7kvLxXe5a2tbsvkWR6U8K6nhEBqk8D)
+
+As you navigate the packet structure, different sections of the bottom view - a hex representation of the packet - will be highlighted.
+
+### Packet Hex View
+
+Termshark's bottom view shows the bytes that the packet comprises. Like Wireshark, they are displayed in a hexdump-like format. As you move around the bytes, the middle (structure) view will update to show you where you are in the packet's structure.
+
+### Copy Mode
 
 Both the structure and hex view support "copy mode" a feature which lets you copy ranges of data from the currently selected packet. First, move focus to the part of the packet you wish to copy. Now hit the `c` key - a section of the packet will be highlighted in yellow:
 
@@ -205,7 +213,7 @@ to instead set the primary selection. If forwarding X11 is not an option, you co
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
 
-## Stream Reassembly
+### Stream Reassembly
 
 Termshark is able to present reassembled TCP and UDP streams in a similar manner to Wireshark. In the packet list view, select a TCP or UDP packet then go to the "Analysis" menu and choose "Reassemble stream":
 
@@ -238,7 +246,9 @@ You can use Copy Mode in stream reassembly too. Hit the `c` key to enter Copy Mo
 
 Finally, clicking on a reassembled piece of the stream (enter or left mouse click) will cause termshark to select the underlying packet that contributed that payload. If you hit `q` to exit stream reassembly, termshark will set focus on the selected packet.
 
-## Dark Mode
+## Configuration
+
+### Dark Mode
 
 If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to open the main menu and select "Toggle Dark Mode".
 
@@ -246,17 +256,7 @@ If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to 
 
 Your choice is stored in the termshark [config file](UserGuide.md#config-file). Dark-mode is supported throughout the termshark user-interface.
 
-## Problems
-
-If termshark is running slowly or otherwise misbehaving, you might be able to narrow the issue down by using the `--debug` flag. When you start termshark with `--debug`, three things happen:
-
-1. A web server runs with content available at [http://127.0.0.1:6060/debug/pprof](http://127.0.0.1:6060/debug/pprof) (or the remote IP). This is a Golang feature and provides a view of some low-level internals of the process such as running goroutines.
-2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
-3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
-
-Profiles are stored under `$XDG_CONFIG_CACHE` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
-
-## Config File
+### Config File
 
 Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
 
@@ -306,3 +306,15 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 
 - `ui-cache-size` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
 - `validated-tsharks` - (string list) - termshark saves the path of each `tshark` binary it invokes (in case the user upgrades the system `tshark`). If the selected (e.g. `PATH`) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
+
+## Troubleshooting
+
+If termshark is running slowly or otherwise misbehaving, you might be able to narrow the issue down by using the `--debug` flag. When you start termshark with `--debug`, three things happen:
+
+1. A web server runs with content available at [http://127.0.0.1:6060/debug/pprof](http://127.0.0.1:6060/debug/pprof) (or the remote IP). This is a Golang feature and provides a view of some low-level internals of the process such as running goroutines.
+2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
+3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
+
+Profiles are stored under `$XDG_CONFIG_CACHE` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
+
+For commonly asked questions, check out the [FAQ](/docs/FAQ.md).
