@@ -2,6 +2,28 @@
 
 Termshark provides a terminal-based user interface for analyzing packet captures.
 
+## Table of Contents
+
+- [Table of Contents](#table-of-contents)
+- [Basic Usage](#basic-usage)
+- [Choose a Source](#choose-a-source)
+  - [Reading from an Interface](#reading-from-an-interface)
+  - [Read a pcap file](#read-a-pcap-file)
+    - [Changing Files](#changing-files)
+  - [Reading from a fifo or stdin](#reading-from-a-fifo-or-stdin)
+- [Using the TUI](#using-the-tui)
+  - [Filtering](#filtering)
+  - [Changing Views](#changing-views)
+  - [Packet List View](#packet-list-view)
+  - [Packet Structure View](#packet-structure-view)
+  - [Packet Hex View](#packet-hex-view)
+  - [Copy Mode](#copy-mode)
+  - [Stream Reassembly](#stream-reassembly)
+- [Configuration](#configuration)
+  - [Dark Mode](#dark-mode)
+  - [Config File](#config-file)
+- [Troubleshooting](#troubleshooting)
+
 ## Basic Usage
 
 Termshark is inspired by Wireshark, and depends on tshark for all its intelligence. Termshark is run from the command-line. You can see its options with
