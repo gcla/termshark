@@ -122,8 +122,12 @@ func MakeCommands(decodeAs []string, args []string, pdml []string, psml []string
 
 var _ ILoaderCmds = Commands{}
 
-func (c Commands) Iface(iface string, captureFilter string, tmpfile string) IBasicCommand {
-	args := []string{"-P", "-i", iface, "-w", tmpfile}
+func (c Commands) Iface(ifaces []string, captureFilter string, tmpfile string) IBasicCommand {
+	args := []string{"-P"}
+	for _, iface := range ifaces {
+		args = append(args, "-i", iface)
+	}
+	args = append(args, "-w", tmpfile)
 	if captureFilter != "" {
 		args = append(args, "-f", captureFilter)
 	}
@@ -185,7 +189,7 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 
 func (c Commands) Pcap(pcap string, displayFilter string) IPcapCommand {
 	// need to use stdout and -w - otherwise, tshark writes one-line text output
-	args := []string{"-F", "pcap", "-r", pcap, "-w", "-"}
+	args := []string{"-r", pcap, "-x"}
 	if displayFilter != "" {
 		args = append(args, "-Y", displayFilter)
 	}

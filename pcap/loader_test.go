@@ -179,7 +179,7 @@ func makeProcsFromPrefix(pref string) procsFromPrefix {
 	return procsFromPrefix{prefix: pref}
 }
 
-func (g procsFromPrefix) Iface(iface string, captureFilter string, tmpfile string) IBasicCommand {
+func (g procsFromPrefix) Iface(ifaces []string, captureFilter string, tmpfile string) IBasicCommand {
 	panic(fmt.Errorf("Should not need"))
 }
 
@@ -196,7 +196,7 @@ func (g procsFromPrefix) Psml(pcap interface{}, filter string) IPcapCommand {
 }
 
 func (g procsFromPrefix) Pcap(pcap string, filter string) IPcapCommand {
-	file, err := os.Open(fmt.Sprintf("testdata/%s.pcap", g.prefix))
+	file, err := os.Open(fmt.Sprintf("testdata/%s.hexdump", g.prefix))
 	if err != nil {
 		panic(err)
 	}
@@ -224,7 +224,7 @@ func makeLoopingProcs(pref string, loops int) loopingProcs {
 	return loopingProcs{prefix: pref, loops: loops}
 }
 
-func (g loopingProcs) Iface(iface string, captureFilter string, tmpfile string) IBasicCommand {
+func (g loopingProcs) Iface(ifaces []string, captureFilter string, tmpfile string) IBasicCommand {
 	panic(fmt.Errorf("Should not need"))
 }
 
@@ -238,7 +238,7 @@ func (g loopingProcs) Psml(pcap interface{}, filter string) IPcapCommand {
 }
 
 func (g loopingProcs) Pcap(pcap string, filter string) IPcapCommand {
-	rd := newPcapLoopReader(g.prefix, "pcap", g.loops, nil)
+	rd := newPcapLoopReader(g.prefix, "hexdump", g.loops, nil)
 	return newSimpleCmd(rd)
 }
 
