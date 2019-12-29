@@ -1,5 +1,21 @@
 # FAQ
 
+## Table of Contents
+
+* [How can I copy a section of a packet from a remote machine when I can't forward X11?](#how-can-i-copy-a-section-of-a-packet-from-a-remote-machine-when-i-cant-forward-x11)
+* [Can I run termshark on MacOS/OSX?](#can-i-run-termshark-on-macososx)
+* [Can I run termshark on Android?](#can-i-run-termshark-on-android)
+* [If I load a big pcap, termshark doesn't load all the packets at once - why?](#if-i-load-a-big-pcap-termshark-doesnt-load-all-the-packets-at-once---why)
+* [Termshark is too bright!](#termshark-is-too-bright)
+* [Termshark's colors are limited...](#termsharks-colors-are-limited)
+* [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
+* [How does termshark use tshark?](#how-does-termshark-use-tshark)
+* [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
+* [Termshark is laggy or using a lot of RAM](#termshark-is-laggy-or-using-a-lot-of-ram)
+* [How much memory does termshark use?](#how-much-memory-does-termshark-use)
+* [What is the oldest supported version of tshark?](#what-is-the-oldest-supported-version-of-tshark)
+* [What's next?](#whats-next)
+
 ## How can I copy a section of a packet from a remote machine when I can't forward X11?
 
 You can set up a custom termshark copy command that sends the copied data to a pastebin service, for example. If your remote machine is Ubuntu, try making an executable script called e.g. `/usr/local/bin/ts-copy.sh`
