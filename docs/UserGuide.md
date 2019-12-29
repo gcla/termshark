@@ -4,8 +4,6 @@ Termshark provides a terminal-based user interface for analyzing packet captures
 
 ```bash
 $ termshark -h
-```
-```console
 termshark v2.0.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
@@ -78,7 +76,7 @@ When the filter widget is green, you can hit the "Apply" button to make its valu
 
 ## Changing Files
 
-Termshark provides a "Recent" button which will open a menu with your most recently-loaded pcap files. Each invocation of termshark with the ```-r``` flag will add a pcap to the start of this list:
+Termshark provides a "Recent" button which will open a menu with your most recently-loaded pcap files. Each invocation of termshark with the `-r` flag will add a pcap to the start of this list:
 
 ![recent](https://drive.google.com/uc?export=view&id=1jnENk7ANqo2TZeqA-4hujHDWfDko_isT)
 
@@ -144,6 +142,7 @@ When you exit termshark, it will print a message with the location of the pcap f
 $ termshark -i eth0
 Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/eth0-657695279.pcap
 ```
+
 ## Reading from a fifo or stdin
 
 Termshark supports reading packets from a Unix fifo or from standard input - for example
@@ -157,7 +156,7 @@ On some machines, packet capture commands might require sudo or root access. To 
 ```bash
 $ sudo tcpdump -i eth0 -w - icmp | termshark
 (The termshark UI will start when packets are detected...)
-[sudo] password for gcla: 
+[sudo] password for gcla:
 ```
 
 If the termshark UI is active in the terminal but you want to see something displayed there before termshark started, you can now issue a SIGTSTP signal (on Unix) and termshark will suspend itself and give up control of the terminal. In bash, this operation is usually bound to ctrl-z.
@@ -196,10 +195,12 @@ You can hit the `left` and `right` arrow keys to expand or contract the selected
 Select the format you want and hit `enter` (or click). Copy mode is available in the packet structure and packet hex views.
 
 This feature comes with a caveat! If you are connected to a remote machine e.g. via ssh, then you should use the `-X` flag to forward X11. On Linux, the default copy command is `xsel`. If you forward X11 with ssh, then the packet data will be copied to your desktop machine's clipboard. You can customize the copy command using termshark's [config file](UserGuide.md#config-file) e.g.
+
 ```toml
 [main]
   copy-command = ["xsel", "-i", "-p"]
 ```
+
 to instead set the primary selection. If forwarding X11 is not an option, you could instead upload the data (received via stdin) to a service like pastebin, and print the URL on stdout - termshark will display the copy command's output in a dialog when the command completes. See the [FAQ](FAQ.md).
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
@@ -217,7 +218,7 @@ Termshark shows you:
 - A search box.
 - A button to display the entire conversation, only the client side, or only the server side.
 
-You can type a string in the search box and hit enter - or the Next button - to move through the matches. 
+You can type a string in the search box and hit enter - or the Next button - to move through the matches.
 
 ![streams2](https://drive.google.com/uc?export=view&id=1IjD5L0QgBWNpZ_j8KY_AYhELxwoPoSI7)
 
@@ -231,7 +232,7 @@ Like Wireshark, you can filter the displayed data to show only the client-side o
 
 ![streams4](https://drive.google.com/uc?export=view&id=1GKE28J0j-OFrAgxqc0yhc8XnEBR3kaAv)
 
-You can use Copy Mode in stream reassembly too. Hit the `c` key to enter Copy Mode. The currently selected "chunk" will be highlighted. Hit `ctrl-c` to copy that data. By default, termshark will copy the data to your clipboard. Hit the left arrow key to widen the data copied to the entire conversation (or filtered by client or server if that is selected). 
+You can use Copy Mode in stream reassembly too. Hit the `c` key to enter Copy Mode. The currently selected "chunk" will be highlighted. Hit `ctrl-c` to copy that data. By default, termshark will copy the data to your clipboard. Hit the left arrow key to widen the data copied to the entire conversation (or filtered by client or server if that is selected).
 
 ![streams5](https://drive.google.com/uc?export=view&id=18rv298lPYiAiXFwVhBjogZ43qfj6DYd4)
 
@@ -239,7 +240,7 @@ Finally, clicking on a reassembled piece of the stream (enter or left mouse clic
 
 ## Dark Mode
 
-If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to open the main menu and select "Toggle Dark Mode". 
+If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to open the main menu and select "Toggle Dark Mode".
 
 ![darkmode](https://drive.google.com/uc?export=view&id=1bkwdKL2pHwJYpiwvyazEQ1ACtG50ZHI7)
 
@@ -249,7 +250,7 @@ Your choice is stored in the termshark [config file](UserGuide.md#config-file). 
 
 If termshark is running slowly or otherwise misbehaving, you might be able to narrow the issue down by using the `--debug` flag. When you start termshark with `--debug`, three things happen:
 
-1. A web server runs with content available at http://127.0.0.1:6060/debug/pprof (or the remote IP). This is a Golang feature and provides a view of some low-level internals of the process such as running goroutines.
+1. A web server runs with content available at [http://127.0.0.1:6060/debug/pprof](http://127.0.0.1:6060/debug/pprof) (or the remote IP). This is a Golang feature and provides a view of some low-level internals of the process such as running goroutines.
 2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
 3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
 
@@ -257,44 +258,51 @@ Profiles are stored under `$XDG_CONFIG_CACHE` (e.g. `~/.cache/termshark/`). If y
 
 ## Config File
 
-Termshark reads options from a TOML configuration file saved in ```$XDG_CONFIG_HOME/termshark.toml``` (e.g. ```~/.config/termshark/termshark.toml``` on Linux). All options are saved under the ```[main]``` section. The available options are:
+Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
 
-- ```browse-command``` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals ```$1``` will be replaced by the URL prior to the command being run e.g.
+- `browse-command` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals `$1` will be replaced by the URL prior to the command being run e.g.
+
 ```toml
 [main]
   browse-command = ["firefox", "$1"]
 ```
-- ```color-tsharks``` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
-- ```colors``` (bool) - if true, and tshark supports the feature, termshark will colorize packets in its list view.
-- ```copy-command``` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
+
+- `color-tsharks` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
+- `colors` (bool) - if true, and tshark supports the feature, termshark will colorize packets in its list view.
+- `copy-command` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
+
 ```toml
 [main]
   copy-command = ["xsel", "-i", "-b"]
-```  
-- ```copy-command-timeout``` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
-- ```dark-mode``` (bool) - if true, termshark will run in dark-mode. 
-- ```dumpcap``` (string) - make termshark use this specific ```dumpcap``` (used when reading from an interface).
-- ```packet-colors``` (bool) - if true (or missing), termshark will colorize packets according to Wireshark's rules.
-- ```pcap-bundle-size``` - (int) - load tshark PDML this many packets at a time. Termshark will lazily load PDML because it's a slow process and uses a lot of RAM. For example, if `pcap-bundle-size`=1000, then on first loading a pcap, termshark will load PDML for packets 1-1000. If you scroll past packet 500, termshark will optimistically load PDML for packets 1001-2000. A higher value will make termshark load more packets at a time; a value of 0 means load the entire pcap's worth of PDML. Termshark stores the data compressed in RAM, but expect approximately 10MB per 1000 packets loaded. If you have the memory, can wait a minute or two for the entire pcap to load, and e.g. plan to use the packet list header to sort the packets in various ways, setting `pcap-bundle-size` to 0 will provide the best experience.
-- ```pcap-cache-size``` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of `pcap-bundle-size`. This setting determines how many such bundles termshark will keep cached. The default is 32.
-- ```pdml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PDML.
-- ```psml-args``` (string list) - any extra parameters to pass to ```tshark``` when it is invoked to generate PSML.
-- ```recent-files``` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
-- ```recent-filters``` (string list) - recently used Wireshark display filters.
-- ```stream-cache-size``` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
-- ```stream-view``` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
-- ```tail-command``` (string) - make termshark use this specific `tail` command. This is used when reading from an interface in order to feed ```dumpcap```-saved data to `tshark`. The default is ```tail -f -c +0 <file>```. If you are running on Windows, the default is to use `termshark` itself with a special hidden `--tail` flag. But probably better to use Wireshark on Windows :-)
-- ```term``` (string) - termshark will use this as a replacement for the TERM environment variable.
+```
+
+- `copy-command-timeout` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
+- `dark-mode` (bool) - if true, termshark will run in dark-mode.
+- `dumpcap` (string) - make termshark use this specific `dumpcap` (used when reading from an interface).
+- `packet-colors` (bool) - if true (or missing), termshark will colorize packets according to Wireshark's rules.
+- `pcap-bundle-size` - (int) - load tshark PDML this many packets at a time. Termshark will lazily load PDML because it's a slow process and uses a lot of RAM. For example, if `pcap-bundle-size`=1000, then on first loading a pcap, termshark will load PDML for packets 1-1000. If you scroll past packet 500, termshark will optimistically load PDML for packets 1001-2000. A higher value will make termshark load more packets at a time; a value of 0 means load the entire pcap's worth of PDML. Termshark stores the data compressed in RAM, but expect approximately 10MB per 1000 packets loaded. If you have the memory, can wait a minute or two for the entire pcap to load, and e.g. plan to use the packet list header to sort the packets in various ways, setting `pcap-bundle-size` to 0 will provide the best experience.
+- `pcap-cache-size` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of `pcap-bundle-size`. This setting determines how many such bundles termshark will keep cached. The default is 32.
+- `pdml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PDML.
+- `psml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PSML.
+- `recent-files` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
+- `recent-filters` (string list) - recently used Wireshark display filters.
+- `stream-cache-size` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
+- `stream-view` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
+- `tail-command` (string) - make termshark use this specific `tail` command. This is used when reading from an interface in order to feed `dumpcap`-saved data to `tshark`. The default is `tail -f -c +0 <file>`. If you are running on Windows, the default is to use `termshark` itself with a special hidden `--tail` flag. But probably better to use Wireshark on Windows :-)
+- `term` (string) - termshark will use this as a replacement for the TERM environment variable.
+
 ```toml
 [main]
   term = "screen-256color"
-```  
-- ```tshark``` (string) - make termshark use this specific ```tshark```.
-- ```tshark-args``` (string list) - these are added to each invocation of ```tshark``` made by termshark e.g.
+```
+
+- `tshark` (string) - make termshark use this specific `tshark`.
+- `tshark-args` (string list) - these are added to each invocation of `tshark` made by termshark e.g.
+
 ```toml
 [main]
   tshark-args = ["-d","udp.port==2075,cflow]"
-```  
-- ```ui-cache-size``` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
-- ```validated-tsharks``` - (string list) - termshark saves the path of each ``tshark`` binary it invokes (in case the user upgrades the system ```tshark```). If the selected (e.g. ```PATH```) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
+```
 
+- `ui-cache-size` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
+- `validated-tsharks` - (string list) - termshark saves the path of each `tshark` binary it invokes (in case the user upgrades the system `tshark`). If the selected (e.g. `PATH`) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
