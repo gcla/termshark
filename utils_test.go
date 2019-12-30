@@ -99,8 +99,9 @@ func TestInterfaces1(t *testing.T) {
 	interfaces, err := interfacesFrom(bytes.NewReader([]byte(out1)))
 	assert.NoError(t, err)
 	assert.Equal(t, 12, len(interfaces))
-	assert.Equal(t, interfaces[`\Device\NPF_{78032B7E-4968-42D3-9F37-287EA86C0AAA}`], 2)
-	assert.Equal(t, interfaces[`Local Area Connection* 10`], 2)
+	v := interfaces[2]
+	assert.Equal(t, `\Device\NPF_{78032B7E-4968-42D3-9F37-287EA86C0AAA}`, v[1])
+	assert.Equal(t, `Local Area Connection* 10`, v[0])
 }
 
 func TestConv1(t *testing.T) {
