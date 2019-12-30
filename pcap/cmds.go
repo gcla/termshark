@@ -123,7 +123,7 @@ func MakeCommands(decodeAs []string, args []string, pdml []string, psml []string
 var _ ILoaderCmds = Commands{}
 
 func (c Commands) Iface(ifaces []string, captureFilter string, tmpfile string) IBasicCommand {
-	args := []string{"-P"}
+	args := make([]string, 0)
 	for _, iface := range ifaces {
 		args = append(args, "-i", iface)
 	}
