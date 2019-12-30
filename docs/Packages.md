@@ -8,7 +8,7 @@ Here's how to install termshark on various OSes and with various package manager
   package which simply copies the released binary to install directory. Made by
   [jerry73204](https://github.com/jerry73204)
 - [termshark-git](https://aur.archlinux.org/packages/termshark-git): Compiles
-  from source, made by [Thann](https://github.com/Thann) 
+  from source, made by [Thann](https://github.com/Thann)
 
 ## Debian
 
@@ -23,13 +23,13 @@ apt install termshark
 
 Thanks to [Ryan Steinmetz](https://github.com/zi0r)
 
-Termshark is in the FreeBSD ports tree!  To install the package, run:
+Termshark is in the FreeBSD ports tree! To install the package, run:
 
-```pkg install termshark```
+`pkg install termshark`
 
 To build/install the port, run:
 
-```cd /usr/ports/net/termshark/ && make install clean```
+`cd /usr/ports/net/termshark/ && make install clean`
 
 ## Homebrew
 
@@ -37,6 +37,7 @@ To build/install the port, run:
 brew update
 brew install termshark
 ```
+
 ## Kali Linux
 
 ```bash
@@ -58,7 +59,7 @@ nix-env -iA nixpkgs.termshark
 
 Thanks to [mharjac](https://github.com/mharjac)
 
-Termshark can be easily installed on almost all major distros just by issuing: 
+Termshark can be easily installed on almost all major distros just by issuing:
 
 ```bash
 snap install termshark
@@ -72,6 +73,7 @@ Note there is a big caveat with Snap and the architecture of Wireshark that prev
 pkg install root-repo
 pkg install termshark
 ```
+
 Note that termshark does not require a rooted phone to inspect a pcap, but it does depend on tshark which is itself in Termux's root-repo for programs that do work best on a rooted phone.
 
 If you would like to use termshark's copy-mode to copy sections of packets to your Android clipboard, you will also need [Termux:API](https://play.google.com/store/apps/details?id=com.termux.api&hl=en_US). Install from the Play Store, then from termux, type:
@@ -90,7 +92,7 @@ If you are running Ubuntu 19.10 (eoan), termshark can be installed like this:
 sudo apt install termshark
 ```
 
-For Ubuntu < 19.10, you can use the PPA *nicolais/termshark* to install termshark:
+For Ubuntu < 19.10, you can use the PPA _nicolais/termshark_ to install termshark:
 
 ```bash
 sudo add-apt-repository --update ppa:nicolais/termshark
@@ -98,6 +100,3 @@ sudo apt install termshark
 ```
 
 Thanks to [Nicolai Søberg](https://github.com/NicolaiSoeborg)
-
-
-
