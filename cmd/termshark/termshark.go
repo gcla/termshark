@@ -549,6 +549,7 @@ func cmain() int {
 	// If any of opts.Ifaces is provided as a number, it's meant as the index of the interfaces as
 	// per the order returned by the OS. useIface will always be the name of the interface.
 
+	var systemInterfaces map[int][]string
 	// See if the interface argument is an integer
 	for pi, psrc := range psrcs {
 		checkInterfaceName := false
@@ -570,19 +571,30 @@ func cmain() int {
 		}
 
 		if checkInterfaceName {
-			ifaces, err := termshark.Interfaces()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Could not enumerate network interfaces: %v\n", err)
-				return 1
+			if systemInterfaces == nil {
+				systemInterfaces, err = termshark.Interfaces()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Could not enumerate network interfaces: %v\n", err)
+					return 1
+				}
 			}
 
 			gotit := false
 			var canonicalName string
-			for i, n := range ifaces { // ("NDIS_...", 7)
-				if i == psrc.Name() || n == ifaceIdx {
+		iLoop:
+			for n, i := range systemInterfaces { // (7, ["NDIS_...", "Local Area..."])
+				if n == ifaceIdx {
 					gotit = true
-					canonicalName = i
+					canonicalName = i[0]
 					break
+				} else {
+					for _, iname := range i {
+						if iname == psrc.Name() {
+							gotit = true
+							canonicalName = i[0]
+							break iLoop
+						}
+					}
 				}
 			}
 			if gotit {
