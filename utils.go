@@ -314,7 +314,7 @@ func TSharkBin() string {
 }
 
 func DumpcapBin() string {
-	return ConfString("main.dumpcap", "dumpcap")
+	return ConfString("main.dumpcap", "tshark")
 }
 
 func TailCommand() []string {
