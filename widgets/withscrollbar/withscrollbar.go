@@ -10,6 +10,7 @@ import (
 	"github.com/gcla/gowid/widgets/columns"
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/vscroll"
+	"github.com/gdamore/tcell"
 )
 
 //======================================================================
@@ -43,6 +44,14 @@ type IScrollOneLine interface {
 type IScrollOnePage interface {
 	UpPage(num int, size gowid.IRenderSize, app gowid.IApp)
 	DownPage(num int, size gowid.IRenderSize, app gowid.IApp)
+}
+
+type IScrollHome interface {
+	GoHome(size gowid.IRenderSize, app gowid.IApp)
+}
+
+type IScrollToEnd interface {
+	GoToEnd(size gowid.IRenderSize, app gowid.IApp)
 }
 
 type IScrollSubWidget interface {
@@ -129,6 +138,39 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 	w.sb.Top = x
 	w.sb.Middle = y
 	w.sb.Bottom = z
+
+	if ws, ok := w.w.(IScrollOnePage); ok {
+		if ev, ok := ev.(*tcell.EventKey); ok {
+			switch ev.Key() {
+			case tcell.KeyPgUp:
+				ws.UpPage(1, size, app)
+				return true
+			case tcell.KeyPgDn:
+				ws.DownPage(1, size, app)
+				return true
+			}
+		}
+	}
+
+	if ws, ok := w.w.(IScrollHome); ok {
+		if ev, ok := ev.(*tcell.EventKey); ok {
+			switch ev.Key() {
+			case tcell.KeyHome:
+				ws.GoHome(size, app)
+				return true
+			}
+		}
+	}
+
+	if ws, ok := w.w.(IScrollToEnd); ok {
+		if ev, ok := ev.(*tcell.EventKey); ok {
+			switch ev.Key() {
+			case tcell.KeyEnd:
+				ws.GoToEnd(size, app)
+				return true
+			}
+		}
+	}
 
 	res := w.always.UserInput(ev, size, focus, app)
 	if res {
