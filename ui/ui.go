@@ -1425,7 +1425,14 @@ func setLowerWidgets(app gowid.IApp) {
 
 			hex := getHexWidgetToDisplay(row)
 			if hex != nil {
-				sw1 = enableselected.New(hex)
+				sw1 = enableselected.New(
+					withscrollbar.New(
+						hex,
+						withscrollbar.Options{
+							HideIfContentFits: true,
+						},
+					),
+				)
 			}
 			str := getStructWidgetToDisplay(row, app)
 			if str != nil {
