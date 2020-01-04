@@ -50,6 +50,7 @@ type Widget struct {
 	cursorSelected    string
 	lineNumUnselected string
 	lineNumSelected   string
+	offset            int // scroll position, bit of a hack
 	paletteIfCopying  string
 	gowid.AddressProvidesID
 	styled.UsePaletteIfSelectedForCopy
@@ -140,8 +141,14 @@ func (w *Widget) SetPosition(pos int, app gowid.IApp) {
 
 func (w *Widget) RenderSize(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.IRenderBox {
 	// 1<-4><3><----------(8 * 3)-1---<2<-------(8 * 3)-1-----><3><---8-->1<---8-->
+	var cols int
+	if sz, ok := size.(gowid.IColumns); ok {
+		cols = sz.Columns()
+	} else {
+		cols = 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3 + 8 + 1 + 8
+	}
+
 	var rows int
-	cols := 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3 + 8 + 1 + 8
 	if box, ok := size.(gowid.IRows); ok {
 		rows = box.Rows()
 	} else {
@@ -177,9 +184,25 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	}
 
 	cols := 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3 + 8 + 1 + 8
-	c := gowid.NewCanvasOfSize(cols, canvasRows)
+	ccols := cols
+	if sz, ok := size.(gowid.IColumns); ok {
+		ccols = gwutil.Max(ccols, sz.Columns())
+	}
+	c := gowid.NewCanvasOfSize(ccols, canvasRows)
 
-	rows := gwutil.Min(canvasRows, (len(w.data)+15)/16)
+	drows := (len(w.data) + 15) / 16
+	if w.offset >= drows {
+		w.offset = drows
+	}
+	rows := gwutil.Min(canvasRows, drows)
+
+	if w.Position() < w.offset*16 {
+		w.SetPosition(w.Position()%16+(w.offset*16), app)
+	}
+
+	if w.Position() >= ((canvasRows + w.offset) * 16) {
+		w.SetPosition(w.Position()%16+((canvasRows+w.offset-1)*16), app)
+	}
 
 	var lineNumStyle convertedStyle
 	var cursorStyle convertedStyle
@@ -221,7 +244,7 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 
 	var i int
 Loop:
-	for row := 0; row < rows; row++ {
+	for row := w.offset; row < rows+w.offset; row++ {
 		twoByteWriter.XOffset = 1 + 4 + 3
 		asciiWriter.XOffset = 1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3
 
@@ -322,9 +345,10 @@ Loop:
 	lineNumWriter := CanvasSlice{
 		C:       c,
 		XOffset: 1,
+		YOffset: 0,
 	}
 
-	for k := 0; k < rows; k++ {
+	for k, rk := w.offset, 0; k < rows+w.offset; k, rk = k+1, rk+1 {
 		fmt.Fprintf(lineNumWriter, "%04x", k*16)
 
 		lineNumWriter.YOffset += 1
@@ -338,9 +362,13 @@ Loop:
 		}
 		if active {
 			for x := 0; x < 6; x++ {
-				styleAt(c, x, k, lineNumStyle)
+				styleAt(c, x, rk, lineNumStyle)
 			}
 		}
+	}
+
+	if sz, ok := size.(gowid.IColumns); ok {
+		c.TrimRight(sz.Columns())
 	}
 
 	if diff == 0 {
@@ -477,21 +505,112 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 		}
 	}
 
+	pos := w.Position()
+	atBottom := false
+	atTop := false
+
+	var canvasRows int
+	if box, ok := size.(gowid.IRows); ok {
+		canvasRows = box.Rows()
+	} else {
+		canvasRows = (len(w.data) + 15) / 16
+	}
+
+	atTop = ((pos / 16) == w.offset)
+	atBottom = ((pos / 16) == (w.offset + canvasRows - 1))
+
 	if scrollDown {
-		pos := w.Position()
 		if pos+16 < len(w.data) {
 			w.SetPosition(pos+16, app)
+			if atBottom {
+				w.offset += 1
+			}
 			res = true
 		}
 	} else if scrollUp {
-		pos := w.Position()
 		if pos-16 >= 0 {
 			w.SetPosition(pos-16, app)
+			if atTop {
+				w.offset -= 1
+			}
 			res = true
 		}
 	}
 
 	return res
+}
+
+// Implement withscrollbar.IScrollValues
+func (t *Widget) ScrollLength() int {
+	return (len(t.data) + 15) / 16
+}
+
+// Implement withscrollbar.IScrollValues
+func (t *Widget) ScrollPosition() int {
+	return t.Position() / 16
+}
+
+// Can leave the cursor out of sight
+func (t *Widget) Up(lines int, size gowid.IRenderSize, app gowid.IApp) {
+	t.offset -= lines
+	if t.offset < 0 {
+		t.offset = 0
+	}
+}
+
+// Adjusts cursor pos too
+func (t *Widget) GoHome(size gowid.IRenderSize, app gowid.IApp) {
+	t.offset = 0
+	t.SetPosition(0, app)
+}
+
+func (t *Widget) GoToEnd(size gowid.IRenderSize, app gowid.IApp) {
+	var canvasRows int
+	if box, ok := size.(gowid.IRows); ok {
+		canvasRows = box.Rows()
+	} else {
+		canvasRows = (len(t.data) + 15) / 16
+	}
+
+	dataRows := (len(t.data) + 15) / 16
+	t.offset += gwutil.Max(0, dataRows-(canvasRows+t.offset))
+
+	t.SetPosition(len(t.data)-1, app)
+}
+
+// Can leave the cursor out of sight
+func (t *Widget) Down(lines int, size gowid.IRenderSize, app gowid.IApp) {
+	var canvasRows int
+	if box, ok := size.(gowid.IRows); ok {
+		canvasRows = box.Rows()
+	} else {
+		canvasRows = (len(t.data) + 15) / 16
+	}
+
+	dataRows := (len(t.data) + 15) / 16
+	t.offset += gwutil.Max(0, gwutil.Min(lines, dataRows-(canvasRows+t.offset)))
+}
+
+func (t *Widget) DownPage(num int, size gowid.IRenderSize, app gowid.IApp) {
+	units := 1
+	if size, ok := size.(gowid.IRows); ok {
+		units = size.Rows()
+	}
+
+	for i := 0; i < num; i++ {
+		t.Down(units, size, app)
+	}
+}
+
+func (t *Widget) UpPage(num int, size gowid.IRenderSize, app gowid.IApp) {
+	units := 1
+	if size, ok := size.(gowid.IRows); ok {
+		units = size.Rows()
+	}
+
+	for i := 0; i < num; i++ {
+		t.Up(units, size, app)
+	}
 }
 
 //======================================================================
