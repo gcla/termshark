@@ -193,7 +193,7 @@ When termshark starts these stream reassembly processes, it also sets a display 
 Finally, termshark uses tshark in one more way - to generate the possible completions for prefixes of display filter terms. If you type `tcp.` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
 
 ```bash
-termshark -G fields
+tshark -G fields
 ```
 
 then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CONFIG_CACHE/tsharkfieldsv2.gob.gz`.
