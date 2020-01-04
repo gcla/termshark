@@ -5,6 +5,7 @@
 package pcap
 
 import (
+	"bufio"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gcla/deep"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/termshark/v2"
@@ -112,7 +114,7 @@ type IPcapCommand interface {
 }
 
 type ILoaderCmds interface {
-	Iface(iface string, captureFilter string, tmpfile string) IBasicCommand
+	Iface(ifaces []string, captureFilter string, tmpfile string) IBasicCommand
 	Tail(tmpfile string) ITailCommand
 	Psml(pcap interface{}, displayFilter string) IPcapCommand
 	Pcap(pcap string, displayFilter string) IPcapCommand
@@ -126,8 +128,8 @@ type Loader struct {
 
 	suppressErrors bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
 
-	psrc          IPacketSource // The canonical struct for the loader's current packet source.
-	ifaceFile     string        // The temp pcap file that is created by reading from the interface
+	psrcs         []IPacketSource // The canonical struct for the loader's current packet source.
+	ifaceFile     string          // The temp pcap file that is created by reading from the interface
 	displayFilter string
 	captureFilter string
 
@@ -377,11 +379,11 @@ func (c *Scheduler) RequestNewFilter(newfilt string, cb interface{}) {
 	}
 }
 
-func (c *Scheduler) RequestLoadInterface(psrc IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}) {
-	log.Infof("Scheduler requested interface/fifo load for '%v'", psrc.Name())
+func (c *Scheduler) RequestLoadInterfaces(psrcs []IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}) {
+	log.Infof("Scheduler requested interface/fifo load for '%v'", SourcesString(psrcs))
 	c.OperationsChan <- func() {
 		c.Disable()
-		c.doLoadInterfaceOperation(psrc, captureFilter, displayFilter, tmpfile, cb, func() {
+		c.doLoadInterfacesOperation(psrcs, captureFilter, displayFilter, tmpfile, cb, func() {
 			c.Enable()
 		})
 	}
@@ -416,7 +418,10 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 		startIfaceAgain := false
 
 		if c.State()&LoadingIface != 0 {
-			startIfaceAgain = CanRestart(c.psrc) // Only try to restart if the packet source allows
+			startIfaceAgain = true
+			for _, psrc := range c.psrcs {
+				startIfaceAgain = startIfaceAgain && CanRestart(psrc) // Only try to restart if the packet source allows
+			}
 		}
 
 		c.stopLoadCurrentSource()
@@ -426,8 +431,8 @@ func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 			// will run in app goroutine
 			c.doClearPcapOperation(cb, func() {
 				if startIfaceAgain {
-					c.doLoadInterfaceOperation(
-						c.psrc, c.CaptureFilter(),
+					c.doLoadInterfacesOperation(
+						c.psrcs, c.CaptureFilter(),
 						c.DisplayFilter(), c.InterfaceFile(), cb, fn,
 					)
 				} else {
@@ -566,7 +571,7 @@ func (h HandlerList) Unpack() []interface{} {
 	return h
 }
 
-func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}, fn RunFn) {
+func (c *Loader) doLoadInterfacesOperation(psrcs []IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}, fn RunFn) {
 	// The channel is unbuffered, and monitored from the same goroutine, so this would block
 	// unless we start a new goroutine
 
@@ -575,14 +580,15 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 	// If we're already loading, but the request is for the same, then ignore. If we were stopped, then
 	// process the request, because it implicitly means start reading from the interface again (and we
 	// are stopped)
-	if c.State()&LoadingPsml != 0 && c.Interface() == psrc.Name() && c.DisplayFilter() == displayFilter && c.CaptureFilter() == captureFilter {
+	names := SourcesString(psrcs)
+	if c.State()&LoadingPsml != 0 && deep.Equal(c.Interfaces(), names) == nil && c.DisplayFilter() == displayFilter && c.CaptureFilter() == captureFilter {
 		log.Infof("No operation - same interface and filters.")
 		fn()
 	} else if c.State() == 0 {
 		handleClear(cb)
 		handleNewSource(cb)
 
-		if err := c.startLoadInterfaceNew(psrc, captureFilter, displayFilter, tmpfile, cb); err == nil {
+		if err := c.startLoadInterfacesNew(psrcs, captureFilter, displayFilter, tmpfile, cb); err == nil {
 			c.When(func() bool {
 				return c.State()&(LoadingIface|LoadingPsml) == LoadingIface|LoadingPsml
 			}, fn)
@@ -591,7 +597,7 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 		} else {
 			HandleError(err, cb)
 		}
-	} else if c.State() == LoadingIface && psrc.Name() == c.Interface() {
+	} else if c.State() == LoadingIface && deep.Equal(c.Interfaces(), names) == nil {
 		//if iface == c.Interface() { // same interface, so just start it back up - iface spooler still running
 		handleClear(cb)
 		c.startLoadNewFilter(displayFilter, cb)
@@ -604,13 +610,13 @@ func (c *Loader) doLoadInterfaceOperation(psrc IPacketSource, captureFilter stri
 	} else {
 		// State contains Loadingpdml and/or Loadingpdml. Need to stop those first. OR state contains
 		// Loadingiface but the interface requested is different.
-		if c.State()&LoadingIface != 0 && psrc.Name() != c.Interface() {
+		if c.State()&LoadingIface != 0 && deep.Equal(c.Interfaces(), names) != nil {
 			c.doStopLoadOperation(cb, func() {
-				c.doLoadInterfaceOperation(psrc, captureFilter, displayFilter, tmpfile, cb, fn)
+				c.doLoadInterfacesOperation(psrcs, captureFilter, displayFilter, tmpfile, cb, fn)
 			}) // returns an enable function when idle
 		} else {
 			c.doStopLoadToIfaceOperation(func() {
-				c.doLoadInterfaceOperation(psrc, captureFilter, displayFilter, tmpfile, cb, fn)
+				c.doLoadInterfacesOperation(psrcs, captureFilter, displayFilter, tmpfile, cb, fn)
 			})
 		}
 	}
@@ -754,9 +760,14 @@ func handleNewSource(cb interface{}, chs ...chan struct{}) bool {
 }
 
 // https://stackoverflow.com/a/28005931/784226
-func TempPcapFile(token string) string {
-	re := regexp.MustCompile(`[^a-zA-Z0-9.-]`)
-	tokenClean := re.ReplaceAllString(token, "_")
+func TempPcapFile(tokens ...string) string {
+	tokensClean := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		re := regexp.MustCompile(`[^a-zA-Z0-9.-]`)
+		tokensClean = append(tokensClean, re.ReplaceAllString(token, "_"))
+	}
+
+	tokenClean := strings.Join(tokensClean, "-")
 
 	return filepath.Join(termshark.PcapDir(), fmt.Sprintf("%s--%s.pcap",
 		tokenClean,
@@ -772,12 +783,12 @@ func (c *Loader) makeNewSourceContext() {
 // Always called from app goroutine context - so don't need to protect for race on cancelfn
 // Assumes gstate is ready
 // iface can be a number, or a fifo, or a pipe...
-func (c *Loader) startLoadInterfaceNew(psrc IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}) error {
+func (c *Loader) startLoadInterfacesNew(psrcs []IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}) error {
 	c.PcapPsml = nil
 	c.PcapPdml = tmpfile
 	c.PcapPcap = tmpfile
 
-	c.psrc = psrc // dpm't know if it's fifo (tfifo), pipe (/dev/fd/3) or iface (eth0). Treated same way
+	c.psrcs = psrcs // dpm't know if it's fifo (tfifo), pipe (/dev/fd/3) or iface (eth0). Treated same way
 	c.ifaceFile = tmpfile
 	c.displayFilter = displayFilter
 	c.captureFilter = captureFilter
@@ -794,10 +805,10 @@ func (c *Loader) startLoadInterfaceNew(psrc IPacketSource, captureFilter string,
 		return err
 	}
 
-	log.Infof("Starting new interface/fifo load '%v'", psrc.Name())
+	log.Infof("Starting new interface/fifo load '%v'", SourcesString(psrcs))
 	c.startLoadPsml(cb)
 	termshark.TrackedGo(func() {
-		c.loadIfaceAsync(cb)
+		c.loadIfacesAsync(cb)
 	}, Goroutinewg)
 
 	return nil
@@ -813,7 +824,7 @@ func (c *Loader) startLoadNewFilter(displayFilter string, cb interface{}) {
 }
 
 func (c *Loader) startLoadNewFile(pcap string, displayFilter string, cb interface{}) {
-	c.psrc = FileSource{Filename: pcap}
+	c.psrcs = []IPacketSource{FileSource{Filename: pcap}}
 	c.ifaceFile = ""
 
 	c.PcapPsml = pcap
@@ -900,7 +911,7 @@ type ISimpleCache interface {
 var _ ISimpleCache = CacheEntry{}
 
 type iPcapLoader interface {
-	Interface() string
+	Interfaces() []string
 	InterfaceFile() string
 	DisplayFilter() string
 	CaptureFilter() string
@@ -913,36 +924,39 @@ var _ iPcapLoader = (*Loader)(nil)
 var _ fmt.Stringer = (*Loader)(nil)
 
 func (c *Loader) String() string {
-	switch {
-	case c.psrc.IsFile() || c.psrc.IsFifo():
-		return filepath.Base(c.psrc.Name())
-	case c.psrc.IsPipe():
-		return "<stdin>"
-	case c.psrc.IsInterface():
-		return c.psrc.Name()
-	default:
-		return "(no packet source)"
+	names := make([]string, 0, len(c.psrcs))
+	for _, psrc := range c.psrcs {
+		switch {
+		case psrc.IsFile() || psrc.IsFifo():
+			names = append(names, filepath.Base(psrc.Name()))
+		case psrc.IsPipe():
+			names = append(names, "<stdin>")
+		case psrc.IsInterface():
+			names = append(names, psrc.Name())
+		default:
+			names = append(names, "(no packet source)")
+		}
 	}
+	return strings.Join(names, " + ")
 }
 
 func (c *Loader) Pcap() string {
-	if c.psrc == nil {
-		return ""
-	} else if c.psrc.IsFile() {
-		return c.psrc.Name()
-	} else {
-		return ""
+	for _, psrc := range c.psrcs {
+		if psrc != nil && psrc.IsFile() {
+			return psrc.Name()
+		}
 	}
+	return ""
 }
 
-func (c *Loader) Interface() string {
-	if c.psrc == nil {
-		return ""
-	} else if !c.psrc.IsFile() {
-		return c.psrc.Name()
-	} else {
-		return ""
+func (c *Loader) Interfaces() []string {
+	names := make([]string, 0, len(c.psrcs))
+	for _, psrc := range c.psrcs {
+		if psrc != nil && !psrc.IsFile() {
+			names = append(names, psrc.Name())
+		}
 	}
+	return names
 }
 
 func (c *Loader) InterfaceFile() string {
@@ -1343,39 +1357,13 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		}()
 
 		packets := make([][]byte, 0, c.opt.PacketsPerLoad)
-
-		globalHdr := [24]byte{}
-		pktHdr := [16]byte{}
-
-		_, err = io.ReadFull(pcapOut, globalHdr[:])
-		if err != nil {
-			if unexpectedError(err) {
-				err = fmt.Errorf("Could not read PCAP header: %v", err)
-				HandleError(err, cb)
-			}
-			return
-		}
-
 		issuedKill := false
+		re := regexp.MustCompile(`([0-9a-f][0-9a-f] )`)
+		rd := bufio.NewReader(pcapOut)
+		packet := make([]byte, 0)
 
 		for {
-			_, err = io.ReadFull(pcapOut, pktHdr[:])
-			if err != nil {
-				if unexpectedError(err) {
-					err = fmt.Errorf("Could not read PCAP packet header: %v", err)
-					HandleError(err, cb)
-				}
-				break
-			}
-
-			var value uint32
-			value |= uint32(pktHdr[8])
-			value |= uint32(pktHdr[9]) << 8
-			value |= uint32(pktHdr[10]) << 16
-			value |= uint32(pktHdr[11]) << 24
-
-			packet := make([]byte, int(value))
-			_, err = io.ReadFull(pcapOut, packet)
+			line, err := rd.ReadString('\n')
 			if err != nil {
 				if !issuedKill && unexpectedError(err) {
 					err = fmt.Errorf("Could not read PCAP packet: %v", err)
@@ -1383,16 +1371,34 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 				}
 				break
 			}
-			packets = append(packets, packet)
-			readEnough := (len(packets) >= c.KillAfterReadingThisMany)
-			c.updateCacheEntryWithPcap(row, packets, false)
 
-			if readEnough {
-				// Shortcut - we never take more than abcdex - so just kill here
-				issuedKill = true
-				err = termshark.KillIfPossible(c.PcapCmd)
-				if err != nil {
-					log.Infof("Did not kill pdml process: %v", err)
+			parseResults := re.FindAllStringSubmatch(string(line), -1)
+
+			if len(parseResults) < 1 {
+				packets = append(packets, packet)
+				packet = make([]byte, 0)
+
+				readEnough := (len(packets) >= c.KillAfterReadingThisMany)
+				c.updateCacheEntryWithPcap(row, packets, false)
+
+				if readEnough {
+					// Shortcut - we never take more than abcdex - so just kill here
+					issuedKill = true
+					err = termshark.KillIfPossible(c.PcapCmd)
+					if err != nil {
+						log.Infof("Did not kill pdml process: %v", err)
+					}
+				}
+			} else {
+				// Ignore line number
+				for _, parsedByte := range parseResults[1:] {
+					b, err := strconv.ParseUint(string(parsedByte[0][0:2]), 16, 8)
+					if err != nil {
+						err = fmt.Errorf("Could not read PCAP packet: %v", err)
+						HandleError(err, cb)
+						break
+					}
+					packet = append(packet, byte(b))
 				}
 			}
 		}
@@ -1904,7 +1910,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 // dumpcap -i eth0 -w /tmp/foo.pcap
 // dumpcap -i /dev/fd/3 -w /tmp/foo.pcap
-func (c *Loader) loadIfaceAsync(cb interface{}) {
+func (c *Loader) loadIfacesAsync(cb interface{}) {
 	c.totalFifoBytesWritten = gwutil.NoneInt64()
 	c.ifaceCtx, c.ifaceCancelFn = context.WithCancel(c.thisSrcCtx)
 
@@ -1916,7 +1922,7 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 		c.ifaceCancelFn = nil
 	}()
 
-	c.ifaceCmd = c.cmds.Iface(c.psrc.Name(), c.captureFilter, c.ifaceFile)
+	c.ifaceCmd = c.cmds.Iface(SourcesNames(c.psrcs), c.captureFilter, c.ifaceFile)
 
 	log.Infof("Starting Iface command: %v", c.ifaceCmd)
 
@@ -1940,8 +1946,10 @@ func (c *Loader) loadIfaceAsync(cb interface{}) {
 		// if psrc is a PipeSource, then we open /dev/fd/3 in termshark, and reroute descriptor
 		// stdin to number 3 when termshark starts. So to kill the process writing in, we need
 		// to close our side of the pipe.
-		if cl, ok := c.psrc.(io.Closer); ok {
-			cl.Close()
+		for _, psrc := range c.psrcs {
+			if cl, ok := psrc.(io.Closer); ok {
+				cl.Close()
+			}
 		}
 	}()
 

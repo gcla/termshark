@@ -664,7 +664,7 @@ var UnexpectedOutput = fmt.Errorf("Unexpected output")
 // Use tshark's output, becauses the indices can then be used to select
 // an interface to sniff on, and net.Interfaces returns the interfaces in
 // a different order.
-func Interfaces() (map[string]int, error) {
+func Interfaces() (map[int][]string, error) {
 	cmd := exec.Command(TSharkBin(), "-D")
 	out, err := cmd.Output()
 	if err != nil {
@@ -673,10 +673,10 @@ func Interfaces() (map[string]int, error) {
 	return interfacesFrom(bytes.NewReader(out))
 }
 
-func interfacesFrom(reader io.Reader) (map[string]int, error) {
+func interfacesFrom(reader io.Reader) (map[int][]string, error) {
 	re := regexp.MustCompile("^(?P<index>[0-9]+)\\.\\s+(?P<name1>[^\\s]+)(\\s*\\((?P<name2>[^)]+)\\))?")
 
-	res := make(map[string]int)
+	res := make(map[int][]string)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -697,11 +697,13 @@ func interfacesFrom(reader io.Reader) (map[string]int, error) {
 			return nil, gowid.WithKVs(UnexpectedOutput, map[string]interface{}{"Output": line})
 		}
 
-		res[result["name1"]] = int(i)
+		val := make([]string, 0)
+		val = append(val, result["name1"])
 
 		if name2, ok := result["name2"]; ok {
-			res[name2] = int(i)
+			val = append([]string{name2}, val...)
 		}
+		res[int(i)] = val
 	}
 
 	return res, nil
