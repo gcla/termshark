@@ -60,5 +60,40 @@ Submit a PR to `termux-root-packages`.
 
 To edit files in use by a docker container, you can use tramp + emacs with a path like this: `/docker:builder@201c39983bf8:/home/builder/termux-packages/termux-root-packages/packages/termshark/build.sh`
 
+## Snapcraft
+
+Fork Mario's termshark-snap repository: https://github.com/mharjac/termshark-snap (@mharjac) and clone it to a recentish Linux. Edit `snapcraft.yaml`. Change `version:` and edit this section to use the correct hash - this one corresponds to v2.0.3:
+
+```
+go get github.com/gcla/termshark/v2/cmd/termshark@73dfd1f6cb8c553eb524ebc27d991f637c1ac5ea
+```
+
+From a shell, type
+
+```
+snapcraft
+```
+
+If you have prior snapcraft builds of termshark, you might need
+
+```
+snapcraft clean
+```
+
+first. On my 19.10 machine, I ran into snapcraft failures that resolved when I simply ran `snapcraft` again...
+
+When this succeeds, the working directory should have a file `termshark_2.0.3_amd64.snap`. To install this - to test it out - try this:
+
+```
+snap install --dangerous ./termshark_2.0.3_amd64.snap
+```
+
+then to run it:
+
+```
+/snap/bin/termshark -h
+```
+
+Check your changes in and submit a PR to Mario (@mharjac).
 
 
