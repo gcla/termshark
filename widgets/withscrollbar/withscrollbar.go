@@ -8,7 +8,9 @@ package withscrollbar
 import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/columns"
+	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/selectable"
+	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/gowid/widgets/vscroll"
 	"github.com/gdamore/tcell"
 )
@@ -19,8 +21,10 @@ type Widget struct {
 	always   *columns.Widget // use if scrollbar is to be shown
 	w        IScrollSubWidget
 	sb       *vscroll.Widget
-	goUpDown int // positive means down
-	pgUpDown int // positive means down
+	goUpDown int     // positive means down
+	pgUpDown int     // positive means down
+	frac     float32 // positive means down
+	fracSet  bool
 	opt      Options
 }
 
@@ -81,14 +85,13 @@ func New(w IScrollSubWidget, opts ...Options) *Widget {
 				D:       gowid.RenderWithUnits{U: 1},
 			},
 		}),
-		w:        w,
-		sb:       sb,
-		goUpDown: 0,
-		pgUpDown: 0,
-		opt:      opt,
+		w:   w,
+		sb:  sb,
+		opt: opt,
 	}
 	sb.OnClickAbove(gowid.MakeWidgetCallback("cb", res.clickUp))
 	sb.OnClickBelow(gowid.MakeWidgetCallback("cb", res.clickDown))
+	sb.OnRightClick(gowid.MakeWidgetCallbackExt("cb", res.rightClick))
 	sb.OnClickUpArrow(gowid.MakeWidgetCallback("cb", res.clickUpArrow))
 	sb.OnClickDownArrow(gowid.MakeWidgetCallback("cb", res.clickDownArrow))
 	return res
@@ -100,6 +103,12 @@ func (e *Widget) clickUp(app gowid.IApp, w gowid.IWidget) {
 
 func (e *Widget) clickDown(app gowid.IApp, w gowid.IWidget) {
 	e.pgUpDown += 1
+}
+
+func (e *Widget) rightClick(app gowid.IApp, w gowid.IWidget, data ...interface{}) {
+	frac := data[0].(float32)
+	e.frac = frac
+	e.fracSet = true
 }
 
 func (e *Widget) clickUpArrow(app gowid.IApp, w gowid.IWidget) {
@@ -179,6 +188,10 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 	return res
 }
 
+type iSetPosition interface {
+	SetPos(pos list.IBoundedWalkerPosition, app gowid.IApp)
+}
+
 func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
 	if w.opt.HideIfContentFits && w.contentFits(size) {
 		return w.w.Render(size, focus, app)
@@ -194,7 +207,7 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	var z int
 	if ecols >= 1 {
 		ebox := gowid.MakeRenderBox(ecols, box.BoxRows())
-		if w.goUpDown != 0 || w.pgUpDown != 0 {
+		if w.goUpDown != 0 || w.pgUpDown != 0 || w.fracSet {
 			if w.goUpDown > 0 {
 				w.w.Down(w.goUpDown, ebox, app)
 			} else if w.goUpDown < 0 {
@@ -205,6 +218,13 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 				w.w.DownPage(w.pgUpDown, ebox, app)
 			} else if w.pgUpDown < 0 {
 				w.w.UpPage(-w.pgUpDown, ebox, app)
+			}
+
+			if w.fracSet {
+				if wp, ok := w.w.(iSetPosition); ok {
+					wp.SetPos(table.Position(int(float32(w.w.ScrollLength()-1)*w.frac)), app)
+				}
+				w.fracSet = false
 			}
 		}
 		w.goUpDown = 0
