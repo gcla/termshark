@@ -15,6 +15,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
+	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/termshark/v2/format"
 	"github.com/gdamore/tcell"
@@ -190,6 +191,7 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	}
 	c := gowid.NewCanvasOfSize(ccols, canvasRows)
 
+	// Adjust in case it's been set too high e.g. via a scrollbar
 	drows := (len(w.data) + 15) / 16
 	if w.offset >= drows {
 		w.offset = drows
@@ -348,7 +350,12 @@ Loop:
 		YOffset: 0,
 	}
 
+Loop2:
 	for k, rk := w.offset, 0; k < rows+w.offset; k, rk = k+1, rk+1 {
+		if k*16 >= len(w.data) {
+			break Loop2
+		}
+
 		fmt.Fprintf(lineNumWriter, "%04x", k*16)
 
 		lineNumWriter.YOffset += 1
@@ -548,6 +555,11 @@ func (t *Widget) ScrollLength() int {
 // Implement withscrollbar.IScrollValues
 func (t *Widget) ScrollPosition() int {
 	return t.Position() / 16
+}
+
+// Implements withscrollbar.iSetPosition. Note that position is a row.
+func (t *Widget) SetPos(pos list.IBoundedWalkerPosition, app gowid.IApp) {
+	t.offset = pos.ToInt()
 }
 
 // Can leave the cursor out of sight
