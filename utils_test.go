@@ -104,6 +104,36 @@ func TestInterfaces1(t *testing.T) {
 	assert.Equal(t, `Local Area Connection* 10`, v[0])
 }
 
+func TestInterfaces2(t *testing.T) {
+	out1 := `
+1. eth0
+2. ham0
+3. docker0
+4. vethd45103d
+5. lo (Loopback)
+6. mpqemubr0-dummy
+7. nflog
+8. nfqueue
+9. bluetooth0
+10. virbr0-nic
+11. vboxnet0
+12. ciscodump (Cisco remote capture)
+13. dpauxmon (DisplayPort AUX channel monitor capture)
+14. randpkt (Random packet generator)
+15. sdjournal (systemd Journal Export)
+16. sshdump (SSH remote capture)
+17. udpdump (UDP Listener remote capture)
+`[1:]
+	interfaces, err := interfacesFrom(bytes.NewReader([]byte(out1)))
+	assert.NoError(t, err)
+	assert.Equal(t, 17, len(interfaces))
+	v := interfaces[3]
+	assert.Equal(t, `docker0`, v[0])
+	v = interfaces[12]
+	assert.Equal(t, `Cisco remote capture`, v[0])
+	assert.Equal(t, `ciscodump`, v[1])
+}
+
 func TestConv1(t *testing.T) {
 	var tests = []struct {
 		arg string

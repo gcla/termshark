@@ -674,7 +674,7 @@ func Interfaces() (map[int][]string, error) {
 }
 
 func interfacesFrom(reader io.Reader) (map[int][]string, error) {
-	re := regexp.MustCompile("^(?P<index>[0-9]+)\\.\\s+(?P<name1>[^\\s]+)(\\s*\\((?P<name2>[^)]+)\\))?")
+	re := regexp.MustCompile(`^(?P<index>[0-9]+)\.\s+(?P<name1>[^\s]+)(\s*\((?P<name2>[^)]+)\))?`)
 
 	res := make(map[int][]string)
 	scanner := bufio.NewScanner(reader)
@@ -687,7 +687,7 @@ func interfacesFrom(reader io.Reader) (map[int][]string, error) {
 		}
 		result := make(map[string]string)
 		for i, name := range re.SubexpNames() {
-			if i != 0 && name != "" {
+			if i != 0 && match[i] != "" {
 				result[name] = match[i]
 			}
 		}
