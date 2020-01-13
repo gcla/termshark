@@ -111,6 +111,15 @@ func cmain() int {
 		fmt.Println("Config file not found...")
 	}
 
+	if os.Getenv("TERMSHARK_CAPTURE_MODE") == "1" {
+		err = system.DumpcapExt(termshark.DumpcapBin(), termshark.TSharkBin(), os.Args[1:]...)
+		if err != nil {
+			return 1
+		} else {
+			return 0
+		}
+	}
+
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
 	var tsopts cli.Tshark
 
