@@ -9,12 +9,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/gcla/termshark/v2"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -76,19 +74,6 @@ func (c *Command) Close() error {
 		return cl.Close()
 	}
 	return nil
-}
-
-func (c *Command) Kill() error {
-	c.Lock()
-	defer c.Unlock()
-	if c.Cmd.Process == nil {
-		return errors.WithStack(ProcessNotStarted{Command: c.Cmd})
-	}
-	if runtime.GOOS == "windows" {
-		return c.Cmd.Process.Kill()
-	} else {
-		return c.Cmd.Process.Signal(os.Interrupt)
-	}
 }
 
 func (c *Command) Pid() int {
