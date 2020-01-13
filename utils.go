@@ -324,6 +324,26 @@ func DumpcapBin() string {
 	return ConfString("main.dumpcap", "dumpcap")
 }
 
+// CaptureBin is the binary the user intends to use to capture
+// packets i.e. with the -i switch. This might be distinct from
+// DumpcapBin because dumpcap can't capture on extcap interfaces
+// like randpkt, but while tshark can, it can drop packets more
+// readily than dumpcap. This value is interpreted as the name
+// of a binary, resolved against PATH. Note that the default is
+// termshark - this invokes termshark in a special mode where it
+// first tries DumpcapBin, then if that fails, TSharkBin - for
+// the best of both worlds. To detect this, termshark will run
+// CaptureBin with TERMSHARK_CAPTURE_MODE=1 in the environment,
+// so when termshark itself is invoked with this in the environment,
+// it switches to capture mode.
+func CaptureBin() string {
+	if runtime.GOOS == "windows" {
+		return ConfString("main.capture-command", DumpcapBin())
+	} else {
+		return ConfString("main.capture-command", "termshark")
+	}
+}
+
 func TailCommand() []string {
 	def := []string{"tail", "-f", "-c", "+0"}
 	if runtime.GOOS == "windows" {
