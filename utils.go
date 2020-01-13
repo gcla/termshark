@@ -344,6 +344,24 @@ func CaptureBin() string {
 	}
 }
 
+// PrivilegedBin returns a capture binary that may require setcap
+// privileges on Linux. This is a simple UI to cover the fact that
+// termshark's default capture method is to run dumpcap and tshark
+// as a fallback. I don't want to tell the user the capture binary
+// is termshark - that'd be confusing. We know that on Linux, termshark
+// will run dumpcap first, then fall back to tshark if needed. Only
+// dumpcap should need access to live interfaces; tshark is needed
+// for extcap interfaces only. This is used to provide advice to
+// the user if packet capture fails.
+func PrivilegedBin() string {
+	cap := CaptureBin()
+	if cap == "termshark" {
+		return DumpcapBin()
+	} else {
+		return cap
+	}
+}
+
 func TailCommand() []string {
 	def := []string{"tail", "-f", "-c", "+0"}
 	if runtime.GOOS == "windows" {
