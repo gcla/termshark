@@ -25,5 +25,5 @@ func (c *Command) Kill() error {
 	if c.Cmd.Process == nil {
 		return errors.WithStack(ProcessNotStarted{Command: c.Cmd})
 	}
-	return syscall.Kill(-c.Cmd.Process.Pid, syscall.SIGINT)
+	return syscall.Kill(c.Cmd.Process.Pid, syscall.SIGINT)
 }

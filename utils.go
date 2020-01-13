@@ -218,7 +218,11 @@ func TSharkVersion(tshark string) (semver.Version, error) {
 
 // Depends on empty.pcap being present
 func TSharkSupportsColor(tshark string) (bool, error) {
-	exitCode, err := RunForExitCode(tshark, "-r", CacheFile("empty.pcap"), "-T", "psml", "-w", os.DevNull, "--color")
+	exitCode, err := RunForExitCode(
+		tshark,
+		[]string{"-r", CacheFile("empty.pcap"), "-T", "psml", "-w", os.DevNull, "--color"},
+		nil,
+	)
 	return exitCode == 0, err
 }
 
@@ -268,10 +272,13 @@ func TSharkPath() (string, *gowid.KeyValueError) {
 	return tsharkBin, nil
 }
 
-func RunForExitCode(prog string, args ...string) (int, error) {
+func RunForExitCode(prog string, args []string, env []string) (int, error) {
 	var err error
 	exitCode := -1 // default bad
 	cmd := exec.Command(prog, args...)
+	if env != nil {
+		cmd.Env = env
+	}
 	err = cmd.Run()
 	if err != nil {
 		if exerr, ok := err.(*exec.ExitError); ok {

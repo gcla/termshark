@@ -804,7 +804,11 @@ func cmain() int {
 		ifaceExitCode = 0
 		for _, psrc := range psrcs {
 			if psrc.IsInterface() {
-				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(termshark.DumpcapBin(), "-i", psrc.Name(), "-a", "duration:1", "-w", os.DevNull); ifaceExitCode != 0 {
+				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(
+					termshark.CaptureBin(),
+					[]string{"-i", psrc.Name(), "-a", "duration:1", "-w", os.DevNull},
+					nil,
+				); ifaceExitCode != 0 {
 					return 1
 				}
 			} else {
