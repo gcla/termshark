@@ -117,7 +117,20 @@ func (c Commands) Iface(ifaces []string, captureFilter string, tmpfile string) I
 	if captureFilter != "" {
 		args = append(args, "-f", captureFilter)
 	}
-	return &Command{Cmd: exec.Command(termshark.DumpcapBin(), args...)}
+	res := &Command{
+		Cmd: exec.Command(termshark.CaptureBin(), args...),
+	}
+	// This tells termshark to start in a special capture mode. It allows termshark
+	// to run itself like this:
+	//
+	// termshark -i eth0 -w foo.pcap
+	//
+	// which will then run dumpcap and if that fails, tshark. The idea
+	// is to use the most specialized/efficient capture method if that
+	// works, but fall back to tshark if needed e.g. for randpkt, sshcapture, etc
+	// (extcap interfaces).
+	res.Cmd.Env = append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1")
+	return res
 }
 
 func (c Commands) Tail(tmpfile string) ITailCommand {

@@ -816,7 +816,7 @@ func cmain() int {
 				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(
 					termshark.CaptureBin(),
 					[]string{"-i", psrc.Name(), "-a", "duration:1", "-w", os.DevNull},
-					nil,
+					append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1"),
 				); ifaceExitCode != 0 {
 					return 1
 				}
