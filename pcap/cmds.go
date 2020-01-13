@@ -45,6 +45,7 @@ func (c *Command) Start() error {
 	c.Lock()
 	defer c.Unlock()
 	c.Cmd.Stderr = log.StandardLogger().Writer()
+	c.PutInNewGroupOnUnix()
 	res := c.Cmd.Start()
 	return res
 }
