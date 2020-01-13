@@ -649,7 +649,7 @@ func cmain() int {
 			}
 			fmt.Fprintf(os.Stderr, " (exit code %d)\n", ifaceExitCode)
 			if runtime.GOOS == "linux" && os.Geteuid() != 0 {
-				fmt.Fprintf(os.Stderr, "You might need: sudo setcap cap_net_raw,cap_net_admin+eip %s\n", termshark.DumpcapBin())
+				fmt.Fprintf(os.Stderr, "You might need: sudo setcap cap_net_raw,cap_net_admin+eip %s\n", termshark.PrivilegedBin())
 				fmt.Fprintf(os.Stderr, "Or try running with sudo or as root.\n")
 			}
 			fmt.Fprintf(os.Stderr, "See https://termshark.io/no-root for more info.\n")
