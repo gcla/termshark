@@ -6,9 +6,9 @@ require (
 	github.com/antchfx/xpath v1.0.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.1.1-0.20200111024027-4729cb92e40c
+	github.com/gcla/gowid v1.1.1-0.20200115023729-a27a3906db68
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
-	github.com/gdamore/tcell v1.2.1-0.20190805162843-ae1dc54d2c70
+	github.com/gdamore/tcell v1.3.1-0.20200114053155-ef4e0a2e861f
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/jessevdk/go-flags v1.4.0
@@ -30,6 +30,6 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
 
-replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20191227184110-d619c6036dbf
+replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20200115024242-dff649c754a6
 
 replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
