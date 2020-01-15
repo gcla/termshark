@@ -6,9 +6,9 @@ require (
 	github.com/antchfx/xpath v1.0.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.1.1-0.20200115023729-a27a3906db68
+	github.com/gcla/gowid v1.1.1-0.20200115035252-3a0bb85e8b40
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
-	github.com/gdamore/tcell v1.3.1-0.20200114053155-ef4e0a2e861f
+	github.com/gdamore/tcell v1.3.1-0.20200115030318-bff4943f9a29
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/jessevdk/go-flags v1.4.0
