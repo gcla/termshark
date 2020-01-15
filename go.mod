@@ -30,6 +30,6 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
 
-replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20200115024242-dff649c754a6
+replace github.com/gdamore/tcell => github.com/gcla/tcell v1.1.2-0.20200115035344-b90e69b9dbe0
 
 replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
