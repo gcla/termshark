@@ -373,7 +373,18 @@ func (c streamClicker) OnPacketClicked(pkt int, app gowid.IApp) error {
 				packetListTable.SetFocusOnData(app)
 				packetListTable.GoToMiddle(app)
 				setFocusOnPacketList(app)
-				OpenMessage(fmt.Sprintf("Selected packet %d.", pkt+1), appView, app)
+				packetListData := packetListView.Model().(table.ISimpleDataProvider).GetData()
+				// This condition should always be true. I just feel cautious because accessing the psml data
+				// in this way feels fragile. Also, take note: there's an open issue to make it possible to
+				// customize the packet headers, in which case the item at index 0 in the psml might not be
+				// the frame number (though this check doesn't guard against that...). It's more useful
+				// to display the actual frame number if possible, so do that if we can, otherwise just
+				// display which segment of the stream this is.
+				if len(packetListData) > row && len(packetListData[row]) > 0 {
+					OpenMessage(fmt.Sprintf("Selected packet %s.", packetListData[row][0]), appView, app)
+				} else {
+					OpenMessage(fmt.Sprintf("Selected segment %d.", pkt+1), appView, app)
+				}
 			}
 		}
 	}
