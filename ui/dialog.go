@@ -14,8 +14,6 @@ import (
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/widgets/appkeys"
-	"github.com/gdamore/tcell"
 )
 
 //======================================================================
@@ -30,8 +28,6 @@ var (
 )
 
 func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
-	maximizer := &dialog.Maximizer{}
-
 	var al gowid.IHAlignment = hmiddle
 	if strings.Count(msgt, "\n") > 0 {
 		al = gowid.HAlignLeft{}
@@ -49,24 +45,6 @@ func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp)
 
 	view = framed.NewSpace(view)
 
-	view = appkeys.New(
-		view,
-		func(ev *tcell.EventKey, app gowid.IApp) bool {
-			if ev.Rune() == 'z' { // maximize/unmaximize
-				if maximizer.Maxed {
-					maximizer.Unmaximize(YesNo, app)
-				} else {
-					maximizer.Maximize(YesNo, app)
-				}
-				return true
-			}
-			return false
-		},
-		appkeys.Options{
-			ApplyBefore: true,
-		},
-	)
-
 	YesNo = dialog.New(
 		view,
 		dialog.Options{
@@ -82,7 +60,9 @@ func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp)
 }
 
 func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) {
-	YesNo = dialog.New(framed.NewSpace(text.New(termshark.TemplateToString(Templates, tmplName, TemplateData))),
+	YesNo = dialog.New(framed.NewSpace(
+		text.New(termshark.TemplateToString(Templates, tmplName, TemplateData)),
+	),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
