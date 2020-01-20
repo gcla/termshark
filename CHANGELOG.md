@@ -70,6 +70,7 @@ termshark -i eth0 --tty=/dev/pts/5
 
 - Initial release.
 
-[Unreleased]: https://github.com/gcla/termshark/commpare/v2.0.0...HEAD
+[Unreleased]: https://github.com/gcla/termshark/commpare/v2.0.3...HEAD
 [1.0.0]: https://github.com/gcla/termshark/releases/tag/v1.0.0
 [2.0.0]: https://github.com/gcla/termshark/releases/tag/v2.0.0
+[2.0.3]: https://github.com/gcla/termshark/releases/tag/v2.0.3
