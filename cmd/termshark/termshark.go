@@ -19,6 +19,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/capinfo"
 	"github.com/gcla/termshark/v2/cli"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/streams"
@@ -53,6 +54,7 @@ func main() {
 	termshark.Goroutinewg = &ensureGoroutinesStopWG
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
 	streams.Goroutinewg = &ensureGoroutinesStopWG
+	capinfo.Goroutinewg = &ensureGoroutinesStopWG
 	ui.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()

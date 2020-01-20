@@ -1051,6 +1051,8 @@ func reallyClear(app gowid.IApp) {
 							pcap.HandlerList{
 								MakePacketViewUpdater(app),
 								MakeUpdateCurrentCaptureInTitle(app),
+								ManageStreamCache{},
+								ManageCapinfoCache{},
 							},
 						)
 					},
@@ -1916,6 +1918,7 @@ func RequestLoadPcapWithCheck(pcapf string, displayFilter string, app gowid.IApp
 				MakePacketViewUpdater(app),
 				MakeUpdateCurrentCaptureInTitle(app),
 				ManageStreamCache{},
+				ManageCapinfoCache{},
 			},
 		)
 	}
@@ -2381,6 +2384,14 @@ func Build() (*gowid.App, error) {
 
 	analysisMenuItems := []menuutil.SimpleMenuItem{
 		menuutil.SimpleMenuItem{
+			Txt: "Capture file properties",
+			Key: gowid.MakeKey('c'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				analysisMenu.Close(app)
+				startCapinfo(app)
+			},
+		},
+		menuutil.SimpleMenuItem{
 			Txt: "Reassemble stream",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
@@ -2511,6 +2522,7 @@ func Build() (*gowid.App, error) {
 				MakeSaveRecents("", FilterWidget.Value(), app),
 				MakePacketViewUpdater(app),
 				ManageStreamCache{},
+				ManageCapinfoCache{},
 			},
 		)
 	})
