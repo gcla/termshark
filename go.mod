@@ -6,7 +6,7 @@ require (
 	github.com/antchfx/xpath v1.0.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.1.1-0.20200115035252-3a0bb85e8b40
+	github.com/gcla/gowid v1.1.1-0.20200119222749-dad1ef3bbdcf
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gdamore/tcell v1.3.1-0.20200115030318-bff4943f9a29
 	github.com/go-test/deep v1.0.2 // indirect
