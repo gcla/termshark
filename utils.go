@@ -317,6 +317,10 @@ func DumpcapBin() string {
 	return ConfString("main.dumpcap", "dumpcap")
 }
 
+func CapinfosBin() string {
+	return ConfString("main.capinfos", "capinfos")
+}
+
 func TailCommand() []string {
 	def := []string{"tail", "-f", "-c", "+0"}
 	if runtime.GOOS == "windows" {
