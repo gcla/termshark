@@ -245,6 +245,7 @@ func (c *Loader) resetData() {
 	c.PacketPsmlData = make([][]string, 0)
 	c.PacketPsmlColors = make([]PacketColors, 0)
 	c.PacketPsmlHeaders = make([]string, 0, 10)
+	c.PcapPdml = ""
 	packetCache, err := lru.New(c.opt.CacheSize)
 	if err != nil {
 		log.Fatal(err)
