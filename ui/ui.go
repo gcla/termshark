@@ -752,13 +752,9 @@ func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
 	termshark.CopyCommand(strings.NewReader(tocopy), v)
 }
 
-func openCopyChoices(copyLen int, app gowid.IApp) {
+func processCopyChoices(copyLen int, app gowid.IApp) {
 	var cc *dialog.Widget
 	maximizer := &dialog.Maximizer{}
-
-	clips := app.Clips()
-
-	cws := make([]gowid.IWidget, 0, len(clips))
 
 	copyCmd := termshark.ConfStringSlice(
 		"main.copy-command",
@@ -769,6 +765,24 @@ func openCopyChoices(copyLen int, app gowid.IApp) {
 		OpenError("Config file has an invalid copy-command entry! Please remove it.", app)
 		return
 	}
+
+	clips := app.Clips()
+
+	// No need to display a choice dialog with one choice - just copy right away
+	if len(clips) == 1 {
+		app.InCopyMode(false)
+		termshark.CopyCommand(strings.NewReader(clips[0].ClipValue()), userCopiedCallbacks{
+			app:     app,
+			copyCmd: copyCmd,
+			pleaseWaitCallbacks: &pleaseWaitCallbacks{
+				w:   pleaseWaitSpinner,
+				app: app,
+			},
+		})
+		return
+	}
+
+	cws := make([]gowid.IWidget, 0, len(clips))
 
 	for _, clip := range clips {
 		c2 := clip
@@ -1167,7 +1181,7 @@ func copyModeExitKeysClipped(evk *tcell.EventKey, copyLen int, app gowid.IApp) b
 		case tcell.KeyEscape:
 			app.InCopyMode(false)
 		case tcell.KeyCtrlC:
-			openCopyChoices(copyLen, app)
+			processCopyChoices(copyLen, app)
 		case tcell.KeyRight:
 			cl := app.CopyModeClaimedAt()
 			app.CopyModeClaimedAt(cl + 1)
