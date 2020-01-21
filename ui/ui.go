@@ -838,6 +838,7 @@ func processCopyChoices(copyLen int, app gowid.IApp) {
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			FocusOnWidget:   true,
 		},
 	)
 

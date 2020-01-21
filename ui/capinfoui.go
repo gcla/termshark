@@ -44,7 +44,7 @@ func startCapinfo(app gowid.IApp) {
 			&handler,
 		)
 	} else {
-		OpenMessage(CapinfoData, appView, app)
+		OpenMessageForCopy(CapinfoData, appView, app)
 	}
 }
 
@@ -106,7 +106,7 @@ func (t *capinfoParseHandler) AfterEnd(closeMe chan<- struct{}) {
 			ClosePleaseWait(t.app)
 		}
 
-		OpenMessage(CapinfoData, appView, app)
+		OpenMessageForCopy(CapinfoData, appView, app)
 	}))
 	close(t.stop)
 }

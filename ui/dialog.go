@@ -12,8 +12,11 @@ import (
 	"github.com/gcla/gowid/widgets/dialog"
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/hpadding"
+	"github.com/gcla/gowid/widgets/selectable"
+	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/widgets/appkeys"
 )
 
 //======================================================================
@@ -27,15 +30,44 @@ var (
 	PleaseWait *dialog.Widget
 )
 
+type textID string
+
+func (t textID) ID() interface{} {
+	return string(t)
+}
+
+// So that I can capture ctrl-c etc before the dialog
+type copyable struct {
+	*dialog.Widget
+	wrapper gowid.IWidget
+}
+
+func (w *copyable) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	return w.wrapper.UserInput(ev, size, focus, app)
+}
+
 func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
+	openMessage(msgt, openOver, false, app)
+}
+
+func OpenMessageForCopy(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
+	openMessage(msgt, openOver, true, app)
+}
+
+func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget bool, app gowid.IApp) {
 	var al gowid.IHAlignment = hmiddle
 	if strings.Count(msgt, "\n") > 0 {
 		al = gowid.HAlignLeft{}
 	}
 
-	var view gowid.IWidget = text.New(msgt, text.Options{
-		Align: al,
-	})
+	var view gowid.IWidget = text.NewCopyable(msgt, textID(msgt),
+		styled.UsePaletteIfSelectedForCopy{Entry: "copy-mode-alt"},
+		text.Options{
+			Align: al,
+		},
+	)
+
+	view = selectable.New(view)
 
 	view = hpadding.New(
 		view,
@@ -53,10 +85,30 @@ func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp)
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			FocusOnWidget:   focusOnWidget,
 		},
 	)
 
-	dialog.OpenExt(YesNo, openOver, fixed, fixed, app)
+	wrapper := appkeys.New(
+		appkeys.New(
+			YesNo,
+			copyModeExitKeys20,
+			appkeys.Options{
+				ApplyBefore: true,
+			},
+		),
+		copyModeEnterKeys,
+		appkeys.Options{
+			ApplyBefore: true,
+		},
+	)
+
+	dialog.OpenExt(
+		&copyable{
+			Widget:  YesNo,
+			wrapper: wrapper,
+		}, openOver, fixed, fixed, app,
+	)
 }
 
 func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) {
