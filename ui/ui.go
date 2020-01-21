@@ -754,7 +754,6 @@ func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
 
 func processCopyChoices(copyLen int, app gowid.IApp) {
 	var cc *dialog.Widget
-	maximizer := &dialog.Maximizer{}
 
 	copyCmd := termshark.ConfStringSlice(
 		"main.copy-command",
@@ -831,21 +830,6 @@ func processCopyChoices(copyLen int, app gowid.IApp) {
 	}
 
 	var view1 gowid.IWidget = pile.NewFlow(text.New("Select option to copy:"), divider.NewUnicode(), view2)
-
-	view1 = appkeys.New(
-		view1,
-		func(ev *tcell.EventKey, app gowid.IApp) bool {
-			if ev.Rune() == 'z' { // maximize/unmaximize
-				if maximizer.Maxed {
-					maximizer.Unmaximize(cc, app)
-				} else {
-					maximizer.Maximize(cc, app)
-				}
-				return true
-			}
-			return false
-		},
-	)
 
 	cc = dialog.New(view1,
 		dialog.Options{
