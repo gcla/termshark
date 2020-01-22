@@ -815,7 +815,7 @@ func cmain() int {
 			if psrc.IsInterface() {
 				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(
 					termshark.CaptureBin(),
-					[]string{"-i", psrc.Name(), "-a", "duration:1", "-w", os.DevNull},
+					[]string{"-i", psrc.Name(), "-a", "duration:1"},
 					append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1"),
 				); ifaceExitCode != 0 {
 					return 1

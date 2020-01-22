@@ -220,7 +220,7 @@ func TSharkVersion(tshark string) (semver.Version, error) {
 func TSharkSupportsColor(tshark string) (bool, error) {
 	exitCode, err := RunForExitCode(
 		tshark,
-		[]string{"-r", CacheFile("empty.pcap"), "-T", "psml", "-w", os.DevNull, "--color"},
+		[]string{"-r", CacheFile("empty.pcap"), "-T", "psml", "--color"},
 		nil,
 	)
 	return exitCode == 0, err
@@ -279,6 +279,8 @@ func RunForExitCode(prog string, args []string, env []string) (int, error) {
 	if env != nil {
 		cmd.Env = env
 	}
+	cmd.Stdout = ioutil.Discard
+	cmd.Stderr = ioutil.Discard
 	err = cmd.Run()
 	if err != nil {
 		if exerr, ok := err.(*exec.ExitError); ok {
