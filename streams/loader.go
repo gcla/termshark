@@ -78,8 +78,12 @@ func NewLoader(cmds ILoaderCmds, ctx context.Context) *Loader {
 }
 
 func (c *Loader) StopLoad() {
+	c.SuppressErrors = true
 	if c.streamCancelFn != nil {
 		c.streamCancelFn()
+	}
+	if c.indexerCancelFn != nil {
+		c.indexerCancelFn()
 	}
 }
 
@@ -96,6 +100,8 @@ type IIndexerCallbacks interface {
 }
 
 func (c *Loader) StartLoad(pcap string, proto string, idx int, app gowid.IApp, cb IIndexerCallbacks) {
+	c.SuppressErrors = false
+
 	termshark.TrackedGo(func() {
 		c.loadStreamReassemblyAsync(pcap, proto, idx, app, cb)
 	}, Goroutinewg)
@@ -233,18 +239,17 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 		streamOut.Close()
 	}, Goroutinewg)
 
-	decodeStreamXml(streamOut, proto, c.indexerCtx, cb)
-
-	res = true
+	res = decodeStreamXml(streamOut, proto, c.indexerCtx, cb)
 
 	c.indexerCancelFn()
 }
 
-func decodeStreamXml(streamOut io.Reader, proto string, ctx context.Context, cb ITrackPayload) {
+func decodeStreamXml(streamOut io.Reader, proto string, ctx context.Context, cb ITrackPayload) bool {
 	inTCP := false
 	inUDP := false
 	curPkt := 0
 	curDataLen := 0
+	res := false
 
 	d := xml.NewDecoder(streamOut)
 	for {
@@ -254,6 +259,7 @@ func decodeStreamXml(streamOut io.Reader, proto string, ctx context.Context, cb 
 		t, tokenErr := d.Token()
 		if tokenErr != nil {
 			if tokenErr == io.EOF {
+				res = true
 				break
 			}
 		}
@@ -319,6 +325,8 @@ func decodeStreamXml(streamOut io.Reader, proto string, ctx context.Context, cb 
 			}
 		}
 	}
+
+	return res
 }
 
 //======================================================================

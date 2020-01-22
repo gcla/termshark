@@ -118,14 +118,15 @@ func startStreamReassembly(app gowid.IApp) {
 
 	if ok {
 		swid = swid2.(*streamwidget.Widget)
+		ok = swid.Finished()
+	}
+
+	if ok {
+		openStreamUi(swid, app)
 	} else {
 		swid = makeStreamWidget(previousFilterValue, filter, Loader.String(), proto)
 		streamWidgets.Add(*currentStreamKey, swid)
-	}
 
-	if swid.Finished() {
-		openStreamUi(swid, app)
-	} else {
 		// Use the source context. At app shutdown, canceling main will cancel src which will cancel the stream
 		// loader. And changing source should also cancel the stream loader on all occasions.
 		StreamLoader = streams.NewLoader(streams.MakeCommands(), Loader.SourceContext())
@@ -243,7 +244,7 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 
 func (t *streamParseHandler) AfterIndexEnd(success bool, closeMe chan<- struct{}) {
 	close(closeMe)
-	t.wid.SetFinished(true)
+	t.wid.SetFinished(success)
 }
 
 func (t *streamParseHandler) AfterEnd(closeMe chan<- struct{}) {
