@@ -342,7 +342,7 @@ func CaptureBin() string {
 	if runtime.GOOS == "windows" {
 		return ConfString("main.capture-command", DumpcapBin())
 	} else {
-		return ConfString("main.capture-command", "termshark")
+		return ConfString("main.capture-command", os.Args[0])
 	}
 }
 
