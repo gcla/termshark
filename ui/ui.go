@@ -57,6 +57,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/hexdumper2"
 	"github.com/gcla/termshark/v2/widgets/ifwidget"
 	"github.com/gcla/termshark/v2/widgets/resizable"
+	"github.com/gcla/termshark/v2/widgets/rossshark"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
 	"github.com/gdamore/tcell"
 	lru "github.com/hashicorp/golang-lru"
@@ -71,7 +72,7 @@ var Goroutinewg *sync.WaitGroup
 // Global so that we can change the displayed packet in the struct view, etc
 // test
 var appViewNoKeys *holder.Widget
-var appView *appkeys.KeyWidget
+var appView *holder.Widget
 var mainViewNoKeys *holder.Widget
 var mainView *appkeys.KeyWidget
 var pleaseWaitSpinner *spinner.Widget
@@ -106,6 +107,7 @@ var generalMenu *menu.Widget
 var analysisMenu *menu.Widget
 var savedMenu *menu.Widget
 var FilterWidget *filter.Widget
+var Fin *rossshark.Widget
 var CopyModeWidget gowid.IWidget
 var CopyModePredicate ifwidget.Predicate
 var openMenuSite *menu.SiteWidget
@@ -2896,10 +2898,36 @@ func Build() (*gowid.App, error) {
 		ChooseOne: &DarkMode,
 	}
 
-	appView = appkeys.New(
+	appViewWithKeys := appkeys.New(
 		assignTo(&appViewNoKeys, holder.New(mainView)),
 		appKeyPress,
 	)
+
+	if !termshark.ConfBool("main.disable-shark-fin", false) {
+		Fin = rossshark.New(appViewWithKeys)
+
+		steerableFin := appkeys.New(
+			Fin,
+			func(evk *tcell.EventKey, app gowid.IApp) bool {
+				switch evk.Key() {
+				case tcell.KeyLeft:
+					Fin.Dir = rossshark.Backward
+					return true
+				case tcell.KeyRight:
+					Fin.Dir = rossshark.Forward
+					return true
+				}
+				return false
+			},
+			appkeys.Options{
+				ApplyBefore: true,
+			},
+		)
+
+		appView = holder.New(steerableFin)
+	} else {
+		appView = holder.New(appViewWithKeys)
+	}
 
 	// Create app, etc, but don't init screen which sets ICANON, etc
 	app, err = gowid.NewApp(gowid.AppArgs{

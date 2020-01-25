@@ -849,6 +849,7 @@ func cmain() int {
 
 Loop:
 	for {
+		var finChan <-chan time.Time
 		var opsChan <-chan pcap.RunFn
 		var tickChan <-chan time.Time
 		var emptyStructViewChan <-chan time.Time
@@ -943,11 +944,19 @@ Loop:
 			tcellEvents = app.TCellEvents
 		}
 
+		if ui.Fin != nil && ui.Fin.Active() {
+			finChan = ui.Fin.C()
+		}
+
 		afterRenderEvents = app.AfterRenderEvents
 
 		prevstate = ui.Loader.State()
 
 		select {
+
+		case <-finChan:
+			ui.Fin.Advance()
+			app.Redraw()
 
 		case we := <-tmpPcapWatcherChan:
 			if strings.Contains(we.Name, ifaceTmpFile) {
