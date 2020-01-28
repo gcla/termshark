@@ -70,7 +70,6 @@ func (c *Model) HeaderWidgets() []gowid.IWidget {
 			i2 := i
 			var all, label gowid.IWidget
 			label = text.New(s + " ")
-			label = button.NewBare(label)
 
 			sorters := c.Comparators
 			if sorters != nil {
