@@ -45,7 +45,7 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/pdmltree"
-	"github.com/gcla/termshark/v2/psmltable"
+	"github.com/gcla/termshark/v2/psmlmodel"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/widgets"
@@ -1460,7 +1460,7 @@ func setLowerWidgets(app gowid.IApp) {
 
 }
 
-func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmltable.Model {
+func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 	packetPsmlTableModel := table.NewSimpleModel(
 		psml.PsmlHeaders(),
 		psml.PsmlData(),
@@ -1487,7 +1487,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmltable.Model {
 		},
 	)
 
-	expandingModel := psmltable.New(
+	expandingModel := psmlmodel.New(
 		packetPsmlTableModel,
 		gowid.MakePaletteRef("pkt-list-row-focus"),
 	)
