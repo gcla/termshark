@@ -43,6 +43,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/copymodetable"
 	"github.com/gcla/termshark/v2/widgets/framefocus"
+	"github.com/gcla/termshark/v2/widgets/keepselected"
 	"github.com/gcla/termshark/v2/widgets/regexstyle"
 	"github.com/gcla/termshark/v2/widgets/trackfocus"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
@@ -305,13 +306,13 @@ func makeTable(data chunkList) (gowid.IWidget, *copymodetable.Widget) {
 		"streamtable",
 		copyModePalette{},
 	)
-	sc := &keepSelected{
-		sub: withscrollbar.New(scrollableTableWidget{
+	sc := keepselected.New(
+		withscrollbar.New(scrollableTableWidget{
 			Widget: cmtbl,
 		}, withscrollbar.Options{
 			HideIfContentFits: true,
 		}),
-	}
+	)
 
 	return sc, cmtbl
 }
@@ -1329,39 +1330,6 @@ func newData(clicker IChunkClicked, ca iClickIsActive, mapper iMapChunkToTableRo
 		vdata:      vdata,
 	}
 	return res
-}
-
-//======================================================================
-
-// A widget to ensure that its subwidget is always rendered as "selected", even if it's
-// not in focus. This allows a composite widget to style its selected child even without
-// focus so the user can see which child is active.
-type keepSelected struct {
-	sub gowid.IWidget
-}
-
-func (w *keepSelected) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
-	return w.sub.Render(size, focus.SelectIf(true), app)
-}
-
-func (w *keepSelected) RenderSize(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.IRenderBox {
-	return w.sub.RenderSize(size, focus.SelectIf(true), app)
-}
-
-func (w *keepSelected) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
-	return w.sub.UserInput(ev, size, focus.SelectIf(true), app)
-}
-
-func (w *keepSelected) Selectable() bool {
-	return w.sub.Selectable()
-}
-
-func (w *keepSelected) SubWidget() gowid.IWidget {
-	return w.sub
-}
-
-func (w *keepSelected) SetSubWidget(wi gowid.IWidget, app gowid.IApp) {
-	w.sub = wi
 }
 
 //======================================================================
