@@ -218,7 +218,11 @@ func TSharkVersion(tshark string) (semver.Version, error) {
 
 // Depends on empty.pcap being present
 func TSharkSupportsColor(tshark string) (bool, error) {
-	exitCode, err := RunForExitCode(tshark, "-r", CacheFile("empty.pcap"), "-T", "psml", "-w", os.DevNull, "--color")
+	exitCode, err := RunForExitCode(
+		tshark,
+		[]string{"-r", CacheFile("empty.pcap"), "-T", "psml", "--color"},
+		nil,
+	)
 	return exitCode == 0, err
 }
 
@@ -268,10 +272,15 @@ func TSharkPath() (string, *gowid.KeyValueError) {
 	return tsharkBin, nil
 }
 
-func RunForExitCode(prog string, args ...string) (int, error) {
+func RunForExitCode(prog string, args []string, env []string) (int, error) {
 	var err error
 	exitCode := -1 // default bad
 	cmd := exec.Command(prog, args...)
+	if env != nil {
+		cmd.Env = env
+	}
+	cmd.Stdout = ioutil.Discard
+	cmd.Stderr = ioutil.Discard
 	err = cmd.Run()
 	if err != nil {
 		if exerr, ok := err.(*exec.ExitError); ok {
@@ -319,6 +328,44 @@ func DumpcapBin() string {
 
 func CapinfosBin() string {
 	return ConfString("main.capinfos", "capinfos")
+}
+
+// CaptureBin is the binary the user intends to use to capture
+// packets i.e. with the -i switch. This might be distinct from
+// DumpcapBin because dumpcap can't capture on extcap interfaces
+// like randpkt, but while tshark can, it can drop packets more
+// readily than dumpcap. This value is interpreted as the name
+// of a binary, resolved against PATH. Note that the default is
+// termshark - this invokes termshark in a special mode where it
+// first tries DumpcapBin, then if that fails, TSharkBin - for
+// the best of both worlds. To detect this, termshark will run
+// CaptureBin with TERMSHARK_CAPTURE_MODE=1 in the environment,
+// so when termshark itself is invoked with this in the environment,
+// it switches to capture mode.
+func CaptureBin() string {
+	if runtime.GOOS == "windows" {
+		return ConfString("main.capture-command", DumpcapBin())
+	} else {
+		return ConfString("main.capture-command", os.Args[0])
+	}
+}
+
+// PrivilegedBin returns a capture binary that may require setcap
+// privileges on Linux. This is a simple UI to cover the fact that
+// termshark's default capture method is to run dumpcap and tshark
+// as a fallback. I don't want to tell the user the capture binary
+// is termshark - that'd be confusing. We know that on Linux, termshark
+// will run dumpcap first, then fall back to tshark if needed. Only
+// dumpcap should need access to live interfaces; tshark is needed
+// for extcap interfaces only. This is used to provide advice to
+// the user if packet capture fails.
+func PrivilegedBin() string {
+	cap := CaptureBin()
+	if cap == "termshark" {
+		return DumpcapBin()
+	} else {
+		return cap
+	}
 }
 
 func TailCommand() []string {

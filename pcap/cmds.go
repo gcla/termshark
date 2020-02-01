@@ -9,12 +9,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/gcla/termshark/v2"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,6 +45,7 @@ func (c *Command) Start() error {
 	c.Lock()
 	defer c.Unlock()
 	c.Cmd.Stderr = log.StandardLogger().Writer()
+	c.PutInNewGroupOnUnix()
 	res := c.Cmd.Start()
 	return res
 }
@@ -76,19 +75,6 @@ func (c *Command) Close() error {
 		return cl.Close()
 	}
 	return nil
-}
-
-func (c *Command) Kill() error {
-	c.Lock()
-	defer c.Unlock()
-	if c.Cmd.Process == nil {
-		return errors.WithStack(ProcessNotStarted{Command: c.Cmd})
-	}
-	if runtime.GOOS == "windows" {
-		return c.Cmd.Process.Kill()
-	} else {
-		return c.Cmd.Process.Signal(os.Interrupt)
-	}
 }
 
 func (c *Command) Pid() int {
@@ -131,7 +117,20 @@ func (c Commands) Iface(ifaces []string, captureFilter string, tmpfile string) I
 	if captureFilter != "" {
 		args = append(args, "-f", captureFilter)
 	}
-	return &Command{Cmd: exec.Command(termshark.DumpcapBin(), args...)}
+	res := &Command{
+		Cmd: exec.Command(termshark.CaptureBin(), args...),
+	}
+	// This tells termshark to start in a special capture mode. It allows termshark
+	// to run itself like this:
+	//
+	// termshark -i eth0 -w foo.pcap
+	//
+	// which will then run dumpcap and if that fails, tshark. The idea
+	// is to use the most specialized/efficient capture method if that
+	// works, but fall back to tshark if needed e.g. for randpkt, sshcapture, etc
+	// (extcap interfaces).
+	res.Cmd.Env = append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1")
+	return res
 }
 
 func (c Commands) Tail(tmpfile string) ITailCommand {

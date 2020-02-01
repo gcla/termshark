@@ -113,6 +113,15 @@ func cmain() int {
 		fmt.Println("Config file not found...")
 	}
 
+	if os.Getenv("TERMSHARK_CAPTURE_MODE") == "1" {
+		err = system.DumpcapExt(termshark.DumpcapBin(), termshark.TSharkBin(), os.Args[1:]...)
+		if err != nil {
+			return 1
+		} else {
+			return 0
+		}
+	}
+
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
 	var tsopts cli.Tshark
 
@@ -651,7 +660,7 @@ func cmain() int {
 			}
 			fmt.Fprintf(os.Stderr, " (exit code %d)\n", ifaceExitCode)
 			if runtime.GOOS == "linux" && os.Geteuid() != 0 {
-				fmt.Fprintf(os.Stderr, "You might need: sudo setcap cap_net_raw,cap_net_admin+eip %s\n", termshark.DumpcapBin())
+				fmt.Fprintf(os.Stderr, "You might need: sudo setcap cap_net_raw,cap_net_admin+eip %s\n", termshark.PrivilegedBin())
 				fmt.Fprintf(os.Stderr, "Or try running with sudo or as root.\n")
 			}
 			fmt.Fprintf(os.Stderr, "See https://termshark.io/no-root for more info.\n")
@@ -806,7 +815,11 @@ func cmain() int {
 		ifaceExitCode = 0
 		for _, psrc := range psrcs {
 			if psrc.IsInterface() {
-				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(termshark.DumpcapBin(), "-i", psrc.Name(), "-a", "duration:1", "-w", os.DevNull); ifaceExitCode != 0 {
+				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(
+					termshark.CaptureBin(),
+					[]string{"-i", psrc.Name(), "-a", "duration:1"},
+					append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1"),
+				); ifaceExitCode != 0 {
 					return 1
 				}
 			} else {
