@@ -939,6 +939,20 @@ func CopyCommand(input io.Reader, cb interface{}) error {
 	return nil
 }
 
+// Returns true if error, too
+func FileSizeDifferentTo(filename string, cur int64) (int64, bool) {
+	var newSize int64
+	diff := true
+	fi, err := os.Stat(filename)
+	if err == nil {
+		newSize = fi.Size()
+		if cur == newSize {
+			diff = false
+		}
+	}
+	return newSize, diff
+}
+
 //======================================================================
 // Local Variables:
 // mode: Go
