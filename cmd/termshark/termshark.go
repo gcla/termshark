@@ -847,6 +847,17 @@ func cmain() int {
 
 	ctrlzLineDisc := tty.TerminalSignals{}
 
+	// This is used to stop iface load and any stream reassembly. Make sure to
+	// avoid any stream reassembly errors, since this is a controlled shutdown
+	// but the tshark processes reading data for stream reassembly may still
+	// complain about interruptions
+	stopLoaders := func() {
+		if ui.StreamLoader != nil {
+			ui.StreamLoader.SuppressErrors = true
+		}
+		ui.Loader.Close()
+	}
+
 Loop:
 	for {
 		var opsChan <-chan pcap.RunFn
@@ -994,10 +1005,7 @@ Loop:
 				// is called, the main select{} loop will be broken, and nothing will listen
 				// to that channel. As a result, nothing stops a pcap load. This calls the
 				// context cancellation function right away
-				if ui.StreamLoader != nil {
-					ui.StreamLoader.SuppressErrors = true
-				}
-				ui.Loader.Close()
+				stopLoaders()
 
 				appRunner.Stop()
 				app.Close()
@@ -1009,7 +1017,7 @@ Loop:
 			if ui.Loader.State() != 0 {
 				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
 				// will happen next time round because the quitRequested flag is checked.
-				ui.PcapScheduler.RequestStopLoad(ui.NoHandlers{})
+				stopLoaders()
 			}
 
 		case sig := <-sigChan:

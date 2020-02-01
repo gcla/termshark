@@ -1716,9 +1716,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 			}
 			// If the psml command generates an error, then we should stop any feed
 			// from the interface too.
-			if c.ifaceCancelFn != nil {
-				c.ifaceCancelFn()
-			}
+			c.stopLoadIface()
 		}
 	}()
 
