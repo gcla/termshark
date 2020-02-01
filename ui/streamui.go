@@ -34,6 +34,8 @@ var streamView *appkeys.KeyWidget
 var conversationMenu *menu.Widget
 var conversationMenuHolder *holder.Widget
 
+var streamsPcapSize int64
+
 var currentStreamKey *streamKey
 var streamWidgets *lru.Cache // map[streamKey]*streamwidget.Widget
 
@@ -107,10 +109,16 @@ func startStreamReassembly(app gowid.IApp) {
 
 	currentStreamKey = &streamKey{proto: proto, idx: streamIndex.Val()}
 
+	newSize, reset := termshark.FileSizeDifferentTo(Loader.PcapPdml, streamsPcapSize)
+	if reset {
+		streamWidgets = nil
+	}
+
 	// we maintain an lru.Cache of stream widgets so that we can quickly re-open
 	// the UI for streams that have been calculated before.
 	if streamWidgets == nil {
 		initStreamWidgetCache()
+		streamsPcapSize = newSize
 	}
 
 	var swid *streamwidget.Widget
