@@ -162,8 +162,8 @@ func startStreamReassembly(app gowid.IApp) {
 type streamParseHandler struct {
 	app              gowid.IApp
 	tick             *time.Ticker // for updating the spinner
-	stop             chan struct{}
-	stopped          bool
+	stopChunks       chan struct{}
+	stopIndices      chan struct{}
 	chunks           chan streams.IChunk
 	pktIndices       chan int
 	name             string
@@ -210,7 +210,8 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 	}))
 
 	t.tick = time.NewTicker(time.Duration(200) * time.Millisecond)
-	t.stop = make(chan struct{})
+	t.stopChunks = make(chan struct{})
+	t.stopIndices = make(chan struct{})
 	t.chunks = make(chan streams.IChunk, 1000)
 	t.pktIndices = make(chan int, 1000)
 
@@ -219,7 +220,6 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 		fn := func() {
 			t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				t.drainChunks()
-				t.drainPacketIndices()
 
 				if !t.openedStreams {
 					appViewNoKeys.SetSubWidget(streamView, app)
@@ -229,7 +229,20 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 			}))
 		}
 
-		termshark.RunOnDoubleTicker(t.stop, fn,
+		termshark.RunOnDoubleTicker(t.stopChunks, fn,
+			time.Duration(200)*time.Millisecond,
+			time.Duration(200)*time.Millisecond,
+			10)
+	}, Goroutinewg)
+
+	termshark.TrackedGo(func() {
+		fn := func() {
+			t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				t.drainPacketIndices()
+			}))
+		}
+
+		termshark.RunOnDoubleTicker(t.stopIndices, fn,
 			time.Duration(200)*time.Millisecond,
 			time.Duration(200)*time.Millisecond,
 			10)
@@ -243,7 +256,7 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 				t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 					pleaseWaitSpinner.Update()
 				}))
-			case <-t.stop:
+			case <-t.stopChunks:
 				break Loop
 			}
 		}
@@ -253,15 +266,18 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 func (t *streamParseHandler) AfterIndexEnd(success bool, closeMe chan<- struct{}) {
 	close(closeMe)
 	t.wid.SetFinished(success)
+	close(t.stopIndices)
+
+	for {
+		if t.drainPacketIndices() == 0 {
+			break
+		}
+	}
 }
 
 func (t *streamParseHandler) AfterEnd(closeMe chan<- struct{}) {
 	close(closeMe)
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		t.Lock()
-		t.stopped = true
-		t.Unlock()
-
 		if !t.pleaseWaitClosed {
 			t.pleaseWaitClosed = true
 			ClosePleaseWait(t.app)
@@ -273,7 +289,7 @@ func (t *streamParseHandler) AfterEnd(closeMe chan<- struct{}) {
 
 		// Clear out anything lingering from last ticker run to now
 		for {
-			if t.drainChunks() == 0 && t.drainPacketIndices() == 0 {
+			if t.drainChunks() == 0 {
 				break
 			}
 		}
@@ -282,15 +298,13 @@ func (t *streamParseHandler) AfterEnd(closeMe chan<- struct{}) {
 			OpenMessage("No stream payloads found.", appView, app)
 		}
 	}))
-	close(t.stop)
+	close(t.stopChunks)
 }
 
 func (t *streamParseHandler) TrackPayloadPacket(packet int) {
 	t.Lock()
 	defer t.Unlock()
-	if !t.stopped {
-		t.pktIndices <- packet
-	}
+	t.pktIndices <- packet
 }
 
 func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader, ch chan struct{}) {
@@ -305,9 +319,7 @@ func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader, ch chan st
 func (t *streamParseHandler) OnStreamChunk(chunk streams.IChunk, ch chan struct{}) {
 	t.Lock()
 	defer t.Unlock()
-	if !t.stopped {
-		t.chunks <- chunk
-	}
+	t.chunks <- chunk
 	close(ch)
 }
 

@@ -538,7 +538,6 @@ func (w *Widget) construct() {
 	)
 
 	searchBoxStyled := styled.New(searchBox2,
-		// gcla later todo
 		gowid.MakePaletteRef("stream-search"),
 	)
 
@@ -554,7 +553,6 @@ func (w *Widget) construct() {
 	}
 
 	streamsFooter1 := columns.NewWithDim(
-		//gowid.RenderWithWeight{1},
 		fixed,
 		hpad,
 		hpadding.New(
@@ -571,8 +569,6 @@ func (w *Widget) construct() {
 		},
 		hpad,
 		hpadding.New(
-			//styled.NewInvertedFocus(nextBtn, gowid.MakePaletteRef("default")),
-			//styled.NewExt(nextBtn, gowid.MakePaletteRef("default"), gowid.
 			clicktracker.New(
 				styled.NewExt(
 					nextBtn,
