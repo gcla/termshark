@@ -45,6 +45,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/framefocus"
 	"github.com/gcla/termshark/v2/widgets/keepselected"
 	"github.com/gcla/termshark/v2/widgets/regexstyle"
+	"github.com/gcla/termshark/v2/widgets/scrollabletable"
 	"github.com/gcla/termshark/v2/widgets/trackfocus"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
 	"github.com/gdamore/tcell"
@@ -307,11 +308,12 @@ func makeTable(data chunkList) (gowid.IWidget, *copymodetable.Widget) {
 		copyModePalette{},
 	)
 	sc := keepselected.New(
-		withscrollbar.New(scrollableTableWidget{
-			Widget: cmtbl,
-		}, withscrollbar.Options{
-			HideIfContentFits: true,
-		}),
+		withscrollbar.New(
+			scrollabletable.New(cmtbl),
+			withscrollbar.Options{
+				HideIfContentFits: true,
+			},
+		),
 	)
 
 	return sc, cmtbl
@@ -1201,21 +1203,6 @@ func (c chunkList) RowIdentifier(row int) (table.RowId, bool) {
 		return -1, false
 	}
 	return table.RowId(row), true
-}
-
-//======================================================================
-
-// To implement withscrollbar.IScrollValues
-type scrollableTableWidget struct {
-	*copymodetable.Widget
-}
-
-func (s scrollableTableWidget) ScrollLength() int {
-	return s.Model().(table.IBoundedModel).Rows()
-}
-
-func (s scrollableTableWidget) ScrollPosition() int {
-	return s.CurrentRow()
 }
 
 //======================================================================
