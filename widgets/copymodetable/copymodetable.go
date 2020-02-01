@@ -11,7 +11,10 @@ package copymodetable
 
 import (
 	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/table"
+	"github.com/gcla/termshark/v2/widgets/withscrollbar"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 //======================================================================
@@ -24,12 +27,26 @@ type ITableCopier interface {
 	CopyTable() []gowid.ICopyResult
 }
 
+type ICopyModeTableNeeds interface {
+	gowid.IWidget
+	list.IWalker
+	table.IGoToMiddle
+	withscrollbar.IScrollOneLine
+	withscrollbar.IScrollOnePage
+	CurrentRow() int
+	SetCurrentRow(table.Position)
+	Model() table.IModel
+	SetModel(table.IModel, gowid.IApp)
+	Cache() *lru.Cache
+	OnFocusChanged(gowid.IWidgetChangedCallback)
+}
+
 type Widget struct {
-	table.BoundedWidget                          // Wrap a regular bounded table
-	RowClip             IRowCopier               // Knows how to make a clip result set given a row
-	AllClip             ITableCopier             // Knows how to make a clip result set from the whole table
-	name                string                   // for widget "id"
-	clip                gowid.IClipboardSelected // function to modify selected widget for copying
+	ICopyModeTableNeeds
+	RowClip IRowCopier               // Knows how to make a clip result set given a row
+	AllClip ITableCopier             // Knows how to make a clip result set from the whole table
+	name    string                   // for widget "id"
+	clip    gowid.IClipboardSelected // function to modify selected widget for copying
 }
 
 type idstring string
@@ -39,13 +56,13 @@ func (i idstring) ID() interface{} {
 	return i
 }
 
-func New(wrapped table.BoundedWidget, rowClip IRowCopier, allClip ITableCopier, name string, clip gowid.IClipboardSelected) *Widget {
+func New(wrapped ICopyModeTableNeeds, rowClip IRowCopier, allClip ITableCopier, name string, clip gowid.IClipboardSelected) *Widget {
 	return &Widget{
-		BoundedWidget: wrapped,
-		RowClip:       rowClip,
-		AllClip:       allClip,
-		name:          name,
-		clip:          clip,
+		ICopyModeTableNeeds: wrapped,
+		RowClip:             rowClip,
+		AllClip:             allClip,
+		name:                name,
+		clip:                clip,
 	}
 }
 
@@ -66,12 +83,12 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 		}
 
 		w.SetModel(model, app)
-		res := w.Widget.Render(size, focus, app)
+		res := w.ICopyModeTableNeeds.Render(size, focus, app)
 		w.SetModel(origModel, app)
 
 		return res
 	} else {
-		return w.Widget.Render(size, focus, app)
+		return w.ICopyModeTableNeeds.Render(size, focus, app)
 	}
 }
 
@@ -82,7 +99,7 @@ func (w *Widget) ID() interface{} {
 }
 
 func (w *Widget) SubWidget() gowid.IWidget {
-	return w.Widget
+	return w.ICopyModeTableNeeds
 }
 
 func (w *Widget) CopyModeLevels() int {
