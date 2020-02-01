@@ -510,6 +510,8 @@ type iRowFocusTableWidgetNeeds interface {
 	table.IFocus
 	table.IGoToMiddle
 	table.ISetFocus
+	list.IWalkerHome
+	list.IWalkerEnd
 	SetModel(table.IModel, gowid.IApp)
 	FocusXY() (table.Coords, error)
 	SetFocusXY(gowid.IApp, table.Coords)
