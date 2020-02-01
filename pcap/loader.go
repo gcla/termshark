@@ -126,7 +126,7 @@ type Loader struct {
 
 	state LoaderState // which pieces are currently loading
 
-	suppressErrors bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
+	SuppressErrors bool // true if loader is in a transient state due to a user operation e.g. stop, reload, etc
 
 	psrcs         []IPacketSource // The canonical struct for the loader's current packet source.
 	ifaceFile     string          // The temp pcap file that is created by reading from the interface
@@ -333,12 +333,12 @@ func (c *Scheduler) IsEnabled() bool {
 
 func (c *Scheduler) Enable() {
 	c.disabled = false
-	c.suppressErrors = false
+	c.SuppressErrors = false
 }
 
 func (c *Scheduler) Disable() {
 	c.disabled = true
-	c.suppressErrors = true
+	c.SuppressErrors = true
 }
 
 func (c *Scheduler) RequestClearPcap(cb interface{}) {
@@ -1704,7 +1704,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// PsmlCmd.Wait() below completes.
 		closePipe()
 		err := c.PsmlCmd.Wait()
-		if !c.suppressErrors {
+		if !c.SuppressErrors {
 			if err != nil {
 				if _, ok := err.(*exec.ExitError); ok {
 					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
@@ -1953,7 +1953,7 @@ func (c *Loader) loadIfacesAsync(cb interface{}) {
 	}()
 
 	err = c.ifaceCmd.Wait() // it definitely started, so we must wait
-	if !c.suppressErrors && err != nil {
+	if !c.SuppressErrors && err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			// This could be if termshark is started like this: cat nosuchfile.pcap | termshark -i -
 			// Then dumpcap will be started with /dev/fd/3 as its stdin, but will fail with EOF and

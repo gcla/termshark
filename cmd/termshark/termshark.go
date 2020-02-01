@@ -868,6 +868,7 @@ func cmain() int {
 		if ui.StreamLoader != nil {
 			ui.StreamLoader.SuppressErrors = true
 		}
+		ui.Loader.SuppressErrors = true
 		ui.Loader.Close()
 	}
 
