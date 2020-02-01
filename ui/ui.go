@@ -134,7 +134,7 @@ var colSpace *gowid.ContainerWidget
 
 var curPacketStructWidget *copymodetree.Widget
 var packetHexWidgets *lru.Cache
-var packetListView *rowFocusTableWidget
+var packetListView *psmlTableRowWidget
 
 var Loadingw gowid.IWidget    // "loading..."
 var MissingMsgw gowid.IWidget // centered, holding singlePacketViewMsgHolder
@@ -502,22 +502,44 @@ func (w *selectedComposite) SubWidget() gowid.IWidget {
 
 //======================================================================
 
+// An ugly interface that captures what sort of type will be suitable
+// as a table widget to which a row focus can be applied.
+type iRowFocusTableWidgetNeeds interface {
+	gowid.IWidget
+	list.IBoundedWalker
+	table.IFocus
+	table.IGoToMiddle
+	table.ISetFocus
+	SetModel(table.IModel, gowid.IApp)
+	FocusXY() (table.Coords, error)
+	SetFocusXY(gowid.IApp, table.Coords)
+	Lower() *table.ListWithPreferedColumn
+	SetFocusOnData(app gowid.IApp) bool
+	OnFocusChanged(f gowid.IWidgetChangedCallback)
+}
+
 // rowFocusTableWidget provides a table that highlights the selected row or
 // focused row.
 type rowFocusTableWidget struct {
-	// set to true after the first time we move focus from the table header to the data. We do this
-	// once and that this happens quickly, but then assume the user might want to move back to the
-	// table header manually, and it would be strange if the table keeps jumping back to the data...
-	didFirstAutoFocus bool
-	*table.BoundedWidget
-	colors []pcap.PacketColors
+	iRowFocusTableWidgetNeeds
+	rowSelected string
+	rowFocus    string
+}
+
+func NewRowFocusTableWidget(w iRowFocusTableWidgetNeeds, rs string, rf string) *rowFocusTableWidget {
+	res := &rowFocusTableWidget{
+		iRowFocusTableWidgetNeeds: w,
+		rowSelected:               rs,
+		rowFocus:                  rf,
+	}
+	res.Lower().IWidget = list.NewBounded(res)
+	return res
 }
 
 var _ gowid.IWidget = (*rowFocusTableWidget)(nil)
-var _ gowid.IComposite = (*rowFocusTableWidget)(nil)
 
 func (t *rowFocusTableWidget) SubWidget() gowid.IWidget {
-	return t.BoundedWidget
+	return t.iRowFocusTableWidgetNeeds
 }
 
 func (t *rowFocusTableWidget) InvertedModel() table.IInvertible {
@@ -525,7 +547,7 @@ func (t *rowFocusTableWidget) InvertedModel() table.IInvertible {
 }
 
 func (t *rowFocusTableWidget) Rows() int {
-	return t.Widget.Model().(table.IBoundedModel).Rows()
+	return t.Model().(table.IBoundedModel).Rows()
 }
 
 // Implement withscrollbar.IScrollValues
@@ -540,32 +562,32 @@ func (t *rowFocusTableWidget) ScrollPosition() int {
 
 func (t *rowFocusTableWidget) Up(lines int, size gowid.IRenderSize, app gowid.IApp) {
 	for i := 0; i < lines; i++ {
-		t.Widget.UserInput(tcell.NewEventKey(tcell.KeyUp, ' ', tcell.ModNone), size, gowid.Focused, app)
+		t.UserInput(tcell.NewEventKey(tcell.KeyUp, ' ', tcell.ModNone), size, gowid.Focused, app)
 	}
 }
 
 func (t *rowFocusTableWidget) Down(lines int, size gowid.IRenderSize, app gowid.IApp) {
 	for i := 0; i < lines; i++ {
-		t.Widget.UserInput(tcell.NewEventKey(tcell.KeyDown, ' ', tcell.ModNone), size, gowid.Focused, app)
+		t.UserInput(tcell.NewEventKey(tcell.KeyDown, ' ', tcell.ModNone), size, gowid.Focused, app)
 	}
 }
 
 func (t *rowFocusTableWidget) UpPage(num int, size gowid.IRenderSize, app gowid.IApp) {
 	for i := 0; i < num; i++ {
-		t.Widget.UserInput(tcell.NewEventKey(tcell.KeyPgUp, ' ', tcell.ModNone), size, gowid.Focused, app)
+		t.UserInput(tcell.NewEventKey(tcell.KeyPgUp, ' ', tcell.ModNone), size, gowid.Focused, app)
 	}
 }
 
 func (t *rowFocusTableWidget) DownPage(num int, size gowid.IRenderSize, app gowid.IApp) {
 	for i := 0; i < num; i++ {
-		t.Widget.UserInput(tcell.NewEventKey(tcell.KeyPgDn, ' ', tcell.ModNone), size, gowid.Focused, app)
+		t.UserInput(tcell.NewEventKey(tcell.KeyPgDn, ' ', tcell.ModNone), size, gowid.Focused, app)
 	}
 }
 
 // list.IWalker
 func (t *rowFocusTableWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
 	pos := int(lpos.(table.Position))
-	w := t.Widget.AtRow(pos)
+	w := t.AtRow(pos)
 	if w == nil {
 		return nil
 	}
@@ -573,10 +595,47 @@ func (t *rowFocusTableWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
 	// Composite so it passes through prefered column
 	var res gowid.IWidget = &selectedComposite{
 		Widget: isselected.New(w,
-			styled.New(w, gowid.MakePaletteRef("pkt-list-row-selected")),
-			styled.New(w, gowid.MakePaletteRef("pkt-list-row-focus")),
+			styled.New(w, gowid.MakePaletteRef(t.rowSelected)),
+			styled.New(w, gowid.MakePaletteRef(t.rowFocus)),
 		),
 	}
+
+	return res
+}
+
+// Needed for WidgetAt above to work - otherwise t.Table.Focus() is called, table is the receiver,
+// then it calls WidgetAt so ours is not used.
+func (t *rowFocusTableWidget) Focus() list.IWalkerPosition {
+	return table.Focus(t)
+}
+
+//======================================================================
+
+// A rowFocusTableWidget that adds colors to rows
+type psmlTableRowWidget struct {
+	*rowFocusTableWidget
+	// set to true after the first time we move focus from the table header to the data. We do this
+	// once and that this happens quickly, but then assume the user might want to move back to the
+	// table header manually, and it would be strange if the table keeps jumping back to the data...
+	didFirstAutoFocus bool
+	colors            []pcap.PacketColors
+}
+
+func NewPsmlTableRowWidget(w *rowFocusTableWidget, c []pcap.PacketColors) *psmlTableRowWidget {
+	res := &psmlTableRowWidget{
+		rowFocusTableWidget: w,
+		colors:              c,
+	}
+	res.Lower().IWidget = list.NewBounded(res)
+	return res
+}
+
+func (t *psmlTableRowWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
+	res := t.rowFocusTableWidget.At(lpos)
+	if res == nil {
+		return nil
+	}
+	pos := int(lpos.(table.Position))
 
 	if pos >= 0 && PacketColors {
 		res = styled.New(res,
@@ -587,9 +646,7 @@ func (t *rowFocusTableWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
 	return res
 }
 
-// Needed for WidgetAt above to work - otherwise t.Table.Focus() is called, table is the receiver,
-// then it calls WidgetAt so ours is not used.
-func (t *rowFocusTableWidget) Focus() list.IWalkerPosition {
+func (t *psmlTableRowWidget) Focus() list.IWalkerPosition {
 	return table.Focus(t)
 }
 
@@ -1534,12 +1591,15 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 	expandingModel := makePacketListModel(psml, app)
 
 	packetListTable = &table.BoundedWidget{Widget: table.New(expandingModel)}
-	packetListView = &rowFocusTableWidget{
-		BoundedWidget: packetListTable,
-		colors:        psml.PsmlColors(),
-	}
+	packetListView = NewPsmlTableRowWidget(
+		NewRowFocusTableWidget(
+			packetListTable,
+			"pkt-list-row-selected",
+			"pkt-list-row-focus",
+		),
+		psml.PsmlColors(),
+	)
 
-	packetListView.Lower().IWidget = list.NewBounded(packetListView)
 	packetListView.OnFocusChanged(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		fxy, err := packetListView.FocusXY()
 		if err != nil {
