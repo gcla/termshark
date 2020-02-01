@@ -30,7 +30,7 @@ Termshark is inspired by Wireshark, and depends on tshark for all its intelligen
 
 ```bash
 $ termshark -h
-termshark v2.0.0
+termshark v2.1.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
@@ -39,20 +39,21 @@ Usage:
   termshark [FilterOrFile]
 
 Application Options:
-  -i=<interface>                                          Interface to read.
-  -r=<file>                                               Pcap file to read.
-  -d=<layer type>==<selector>,<decode-as protocol>        Specify dissection of layer type.
-  -D                                                      Print a list of the interfaces on which termshark can capture.
-  -Y=<displaY filter>                                     Apply display filter.
-  -f=<capture filter>                                     Apply capture filter.
-      --tty=<tty>                                         Display the UI on this terminal.
-      --pass-thru=[auto|true|false]                       Run tshark instead (auto => if stdout is not a tty). (default: auto)
-      --log-tty                                           Log to the terminal.
-  -h, --help                                              Show this help message.
-  -v, --version                                           Show version information.
+  -i=<interfaces>                                            Interface(s) to read.
+  -r=<file>                                                  Pcap file to read.
+  -d=<layer type>==<selector>,<decode-as protocol>           Specify dissection of layer type.
+  -D                                                         Print a list of the interfaces on which termshark can capture.
+  -Y=<displaY filter>                                        Apply display filter.
+  -f=<capture filter>                                        Apply capture filter.
+  -t=<timestamp format>[a|ad|adoy|d|dd|e|r|u|ud|udoy]        Set the format of the packet timestamp printed in summary lines.
+      --tty=<tty>                                            Display the UI on this terminal.
+      --pass-thru=[auto|true|false]                          Run tshark instead (auto => if stdout is not a tty). (default: auto)
+      --log-tty                                              Log to the terminal.
+  -h, --help                                                 Show this help message.
+  -v, --version                                              Show version information.
 
 Arguments:
-  FilterOrFile:                                           Filter (capture for iface, display for pcap), or pcap file to read.
+  FilterOrFile:                                              Filter (capture for iface, display for pcap), or pcap file to read.
 
 If --pass-thru is true (or auto, and stdout is not a tty), tshark will be
 executed with the supplied command-line flags. You can provide
@@ -88,7 +89,13 @@ termshark -i eth0 tcp
 
 Termshark will apply the capture filter as it reads, but the UI currently does not provide any indication of the capture filter that is in effect.
 
-Termshark's UI will launch and the packet views will update as packets are read:
+Termshark supports reading from more than one interface at a time:
+
+```bash
+termshark -i eth0 -i eth1
+```
+
+Once packets are detected, termshark's UI will launch and the packet views will update as packets are read:
 
 ![readiface](https://drive.google.com/uc?export=view&id=1UPD6KaNGsFrQ9lW-_dx_0SXhTbWBX4vn)
 
@@ -289,8 +296,14 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
   browse-command = ["firefox", "$1"]
 ```
 
+- `capinfos` (string) - make termshark use this specific `capinfos` binary (for pcap properties).
+- `capture-command` (string) - use this binary to capture packets, passing `-i`, `-w` and `-f` flags. 
 - `color-tsharks` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
 - `colors` (bool) - if true, and tshark supports the feature, termshark will colorize packets in its list view.
+- `conv-absolute-time` (bool) - if true, have tshark provide conversation data with a relative start time field.
+- `conv-resolve-names` (bool) - if true, have tshark provide conversation data with ethernet names resolved.
+- `conv-use-filter` (bool) - if true, have tshark provide conversation data limited to match the active display filter.
+- `conv-types` (string list) - a list of the conversation types termshark will query for and display in the conversations view. Currently limited to `eth`, `ip`, `ipv6`, `udp`, `tcp`.
 - `copy-command` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 
 ```toml

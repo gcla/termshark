@@ -190,6 +190,18 @@ The output of that is parsed to build an array mapping the index of each "chunk"
 
 When termshark starts these stream reassembly processes, it also sets a display filter in the main UI e.g. "tcp.stream eq 15". This causes termshark to invoke the PSML and PDML processes again - in addition to the two stream-reassembly-specific processes that I've just described.
 
+If the user selects "Analysis -> Conversations" from the menu, termshark starts a tshark process to gather this information. If the configured conversation types are `eth`, `ip`, `tcp`, then the invocation will look like:
+
+```console
+tshark -r my.pcap -q -z conv,eth -z conv,ip -z conv,tcp
+```
+
+The information is displayed in a table by conversation type. If the user has a display filter active - e.g. `http` - and hits the "Limit to filter" checkbox, then tshark will be invoked like this:
+
+```console
+tshark -r my.pcap -q -z conv,eth,http -z conv,ip,http -z conv,tcp,http
+```
+
 Finally, termshark uses tshark in one more way - to generate the possible completions for prefixes of display filter terms. If you type `tcp.` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
 
 ```bash
@@ -197,6 +209,8 @@ tshark -G fields
 ```
 
 then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CONFIG_CACHE/tsharkfieldsv2.gob.gz`.
+
+Termshark also uses the `capinfos` binary to compute the information displayed via the menu "Analysis -> Capture file properties". `capinfos` is typically distributed with tshark. 
 
 ## How can I make termshark run without root?
 
@@ -220,6 +234,31 @@ sudo setcap cap_net_raw,cap_net_admin+eip /usr/sbin/dumpcap
 ```
 
 You can find more detail at https://wiki.wireshark.org/CaptureSetup/CapturePrivileges.
+
+## How can termshark capture from extcap interfaces with dumpcap?
+
+Termshark doesn't always capture using dumpcap. It will try to use dumpcap if
+possible, because testing (from @pocc) indicated that it is less likely to
+drop packets - presumably because dumpcap's job is limited to generating a
+pcap with little interpretation of data. However, dumpcap doesn't support
+extcap interfaces like `randpkt`. If termshark detects that the live capture
+device is an extcap interface, it will use tshark as the capture binary
+instead. It does this automatically by using `termshark` itself as the default
+`capture-command`, and to make this work, termshark now runs the capture
+command with the environment variable `TERMSHARK_CAPTURE_MODE` set. dumpcap
+and tshark will ignore that, but termshark will detect it at startup and
+switch immediately to capture mode. It then runs this, in pseudo-code form`:
+
+```go
+cmd := exec.Command(dumpcap, args...)
+if cmd.Run() != nil {
+   syscall.Exec(tshark, append([]string{tshark}, args...), os.Environ())
+}
+```
+
+This trick is only implemented for Unix OSes. On Windows, termshark will use
+dumpcap. If you need to read extcap interfaces on Windows, you can set
+`capture-command` to `tshark` in the toml config file.
 
 ## Termshark is laggy or using a lot of RAM
 
@@ -270,8 +309,7 @@ As much as possible, I want termshark to work "right out of the box", and to me 
 
 Termshark v2 implemented stream reassembly, a "What's next" feature from v1. For Termshark v3, some possibilities are:
 
-- Show pcap statistics, conversation statics, etc - expose all tshark's `-z` options
-- Colorize the packets in the packet list view using Wireshark's coloring rules
+- Expose more of tshark's `-z` options (there are many more)
 - Better navigation of the UI with the keyboard e.g. VIM-style commands!
 - Allow the user to start reading from available interfaces once the UI has started
 - And since tshark can be customized via the TOML config file, don't be so trusting of its output - there are surely bugs lurking here
