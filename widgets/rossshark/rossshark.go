@@ -136,8 +136,8 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 
 //======================================================================
 
-// Plagiarized from https://www.calhoun.io/creating-random-strings-in-go/
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+// Use charset [a-f0-9] to mirror tshark -x/xxd hex output
+const charset = "abcdef0123456789"
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
