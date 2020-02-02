@@ -147,7 +147,7 @@ tcpdump -i eth0 -w - icmp | termshark
 
 On some machines, packet capture commands might require sudo or root access. To facilitate this, termshark's UI will not launch until it detects that it has received some packet data on its input. This makes it easier for the user to type in his or her root password on the tty before termshark takes over:
 
-```bash
+```console
 $ sudo tcpdump -i eth0 -w - icmp | termshark
 (The termshark UI will start when packets are detected...)
 [sudo] password for gcla:
@@ -155,7 +155,7 @@ $ sudo tcpdump -i eth0 -w - icmp | termshark
 
 If the termshark UI is active in the terminal but you want to see something displayed there before termshark started, you can now issue a SIGTSTP signal (on Unix) and termshark will suspend itself and give up control of the terminal. In bash, this operation is usually bound to ctrl-z.
 
-```bash
+```console
 $ termshark -r foo.pcap
 
 [1]+  Stopped                 termshark -r foo.pcap
