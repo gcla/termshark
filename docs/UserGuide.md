@@ -314,7 +314,7 @@ By default, termshark will now display packets in the packet list view colored a
 
 ### Config File
 
-Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
+Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
 
 - `browse-command` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals `$1` will be replaced by the URL prior to the command being run e.g.
 
@@ -377,6 +377,6 @@ If termshark is running slowly or otherwise misbehaving, you might be able to na
 2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
 3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
 
-Profiles are stored under `$XDG_CONFIG_CACHE` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
+Profiles are stored under `$XDG_CONFIG_CACHE/termshark` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
 
 For commonly asked questions, check out the [FAQ](/docs/FAQ.md).
