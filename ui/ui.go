@@ -639,7 +639,9 @@ func (t *psmlTableRowWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
 	}
 	pos := int(lpos.(table.Position))
 
-	if pos >= 0 && PacketColors {
+	// Check the color array length because it might not yet be adequately
+	// populated from the arriving psml.
+	if pos >= 0 && PacketColors && pos < len(t.colors) {
 		res = styled.New(res,
 			gowid.MakePaletteEntry(t.colors[pos].FG, t.colors[pos].BG),
 		)
