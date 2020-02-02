@@ -82,7 +82,7 @@ If you would like to use termshark's copy-mode to copy sections of packets to yo
 pkg install termux-api
 ```
 
-![device art](https://drive.google.com/uc?export=view&id=1RzilBvj5YFsSqv72kO6yOD0Oil88mwp3)
+![device art](/../gh-pages/images/device art.png?raw=true)
 
 ## Ubuntu
 

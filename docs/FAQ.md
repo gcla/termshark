@@ -35,7 +35,7 @@ Then edit `~/.config/termshark/termshark.toml` and set
 
 When you copy a section of a packet, you should see something like this:
 
-![othercopy](https://drive.google.com/uc?export=view&id=11kLyrEhBQL3e50Nrzk_BhhZgCzt1cqDn)
+![othercopy](/../gh-pages/images/othercopy.png?raw=true)
 
 ## Can I run termshark on MacOS/OSX?
 
@@ -69,7 +69,7 @@ cd .shortcuts
 ln -s $(which termshark)
 ```
 
-![termsharktermux](https://drive.google.com/uc?export=view&id=1Yq-Kx7fNkyw3Y-G0tYeo0dyTH-azvQIQ)
+![termsharktermux](/../gh-pages/images/termsharktermux.png?raw=true)
 
 ## If I load a big pcap, termshark doesn't load all the packets at once - why?
 
@@ -116,7 +116,7 @@ If you run termshark under tmux or screen and always have `TERM` set in a way th
 
 Unfortunately, the standard console window won't let you increase its size beyond its initial bounds using the mouse. To work around this, after termshark starts, right-click on the window title and select "Properties". Click "Layout" and then adjust the "Window Size" settings. When you quit termshark, your console window will be restored to its original size.
 
-![winconsole](https://drive.google.com/uc?export=view&id=1tYTiSdcQtsSRFmw0nw7awmL9MOZiUinM)
+![winconsole](/../gh-pages/images/winconsole.png?raw=true)
 
 ## How does termshark use tshark?
 
