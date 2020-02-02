@@ -23,6 +23,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Conversations](#conversations)
 - [Configuration](#configuration)
   - [Dark Mode](#dark-mode)
+  - [Packet Colors](#packet-colors)
   - [Config File](#config-file)
 - [Troubleshooting](#troubleshooting)
 
@@ -306,6 +307,10 @@ If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to 
 ![darkmode](https://drive.google.com/uc?export=view&id=1bkwdKL2pHwJYpiwvyazEQ1ACtG50ZHI7)
 
 Your choice is stored in the termshark [config file](UserGuide.md#config-file). Dark-mode is supported throughout the termshark user-interface.
+
+### Packet Colors
+
+By default, termshark will now display packets in the packet list view colored according to Wireshark's color rules. With recent installations of Wireshark, you can find this file at `$XDG_CONFIG_HOME/wireshark/colorfilters`. Termshark doesn't provide a way to edit the colors - the colors are provided by `tshark`. You can read about Wireshark's support [here](https://www.wireshark.org/docs/wsug_html_chunked/ChCustColorizationSection.html). If you don't like the way this looks in termshark, you can turn it off using termshark's main menu.
 
 ### Config File
 
