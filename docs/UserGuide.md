@@ -18,7 +18,9 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Packet Structure View](#packet-structure-view)
   - [Packet Hex View](#packet-hex-view)
   - [Copy Mode](#copy-mode)
+  - [Packet Capture Information](#packet-capture-information)
   - [Stream Reassembly](#stream-reassembly)
+  - [Conversations](#conversations)
 - [Configuration](#configuration)
   - [Dark Mode](#dark-mode)
   - [Config File](#config-file)
@@ -242,6 +244,12 @@ to instead set the primary selection. If forwarding X11 is not an option, you co
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
 
+### Packet Capture Information
+
+To show a summary of the information represented in the current pcap file, go to the "Analysis" menu and choose "Capture file properties". Termshark generates this information using the `capinfos` binary which is distributed with `tshark`.
+
+![capinfos1](https://drive.google.com/uc?export=view&id=1VSn657Z0Fi5V_gJ2wZOknHXgP6ma0WVv)
+
 ### Stream Reassembly
 
 Termshark is able to present reassembled TCP and UDP streams in a similar manner to Wireshark. In the packet list view, select a TCP or UDP packet then go to the "Analysis" menu and choose "Reassemble stream":
@@ -274,6 +282,20 @@ You can use Copy Mode in stream reassembly too. Hit the `c` key to enter Copy Mo
 ![streams5](https://drive.google.com/uc?export=view&id=18rv298lPYiAiXFwVhBjogZ43qfj6DYd4)
 
 Finally, clicking on a reassembled piece of the stream (enter or left mouse click) will cause termshark to select the underlying packet that contributed that payload. If you hit `q` to exit stream reassembly, termshark will set focus on the selected packet.
+
+### Conversations
+
+To display a table of conversations represented in the current pcap, go to the "Analysis" menu  and choose "Conversations". Termshark uses `tshark` to generate a list of conversations by protocol. Currently, termshark supports displaying Ethernet, IPv4, IPv6, UDP and TCP. 
+
+![convs1](https://drive.google.com/uc?export=view&id=1mmA0jrl1pNBdlNH6cjqyDo9sG4OU45NR)
+
+You have have termshark filter the packets displayed according to the current conversation selected. The "Prepare..." button will set termshark's display filter field, but *not* apply it, letting you futher edit it first. The "Apply..." button will set the display filter and apply it immediately. Navigate to the interesting conversation, then click either "Prepare..." or "Apply..."
+
+![convs2](https://drive.google.com/uc?export=view&id=1qvTRQdCgdSJUrz92Nu9E8RiURxoQh5bw)
+
+In the first pop-up menu, you can choose how to extend the current display filter, if there is in. In the second pop-up menu, you can choose whether to filter by the conversation bidirectionally, unidirectionally, or just using the source or destination. These menus mirror those used in Wireshark. When you hit enter, the filter will be adjusted. Hit 'q' to quit the conversations screen.
+
+![convs3](https://drive.google.com/uc?export=view&id=1SnbJg3O1EzuG_5-PgK_qsMRmIGHjeWUA)
 
 ## Configuration
 

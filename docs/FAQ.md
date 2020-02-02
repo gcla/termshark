@@ -11,6 +11,7 @@
 * [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
 * [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
+* [How can termshark capture from extcap interfaces with dumpcap?](#how-can-termshark-capture-from-extcap-interfaces-with-dumpcap)
 * [Termshark is laggy or using a lot of RAM](#termshark-is-laggy-or-using-a-lot-of-ram)
 * [How much memory does termshark use?](#how-much-memory-does-termshark-use)
 * [What is the oldest supported version of tshark?](#what-is-the-oldest-supported-version-of-tshark)
@@ -162,7 +163,7 @@ and checks the return code of the process. If it's zero, termshark assumes the f
 
 If the user selects the "Analysis -> Reassemble stream" menu option, termshark starts two more tshark processes to gather the data to display. First, tshark is invoked with the '-z' option to generate the reassembled stream information. Termshark knows the protocol and stream index to supply to tshark because it saves this information when processing the PDML to populate the packet structure view:
 
-```console
+```bash
 tshark -r my.pcap -q -z follow,tcp,raw,15
 ```
 
@@ -182,7 +183,7 @@ Node 1: 192.168.0.193:21
 
 A second tshark process is started concurrently:
 
-```console
+```bash
 tshark -T pdml -r my.pcap -Y "tcp.stream eq 15"
 ```
 
@@ -192,13 +193,13 @@ When termshark starts these stream reassembly processes, it also sets a display 
 
 If the user selects "Analysis -> Conversations" from the menu, termshark starts a tshark process to gather this information. If the configured conversation types are `eth`, `ip`, `tcp`, then the invocation will look like:
 
-```console
+```bash
 tshark -r my.pcap -q -z conv,eth -z conv,ip -z conv,tcp
 ```
 
 The information is displayed in a table by conversation type. If the user has a display filter active - e.g. `http` - and hits the "Limit to filter" checkbox, then tshark will be invoked like this:
 
-```console
+```bash
 tshark -r my.pcap -q -z conv,eth,http -z conv,ip,http -z conv,tcp,http
 ```
 
