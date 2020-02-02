@@ -2909,12 +2909,15 @@ func Build() (*gowid.App, error) {
 		steerableFin := appkeys.New(
 			Fin,
 			func(evk *tcell.EventKey, app gowid.IApp) bool {
-				switch evk.Key() {
-				case tcell.KeyLeft:
-					Fin.Dir = rossshark.Backward
-					return true
-				case tcell.KeyRight:
-					Fin.Dir = rossshark.Forward
+				if Fin.Active() {
+					switch evk.Key() {
+					case tcell.KeyLeft:
+						Fin.Dir = rossshark.Backward
+					case tcell.KeyRight:
+						Fin.Dir = rossshark.Forward
+					default:
+						Fin.Deactivate()
+					}
 					return true
 				}
 				return false
