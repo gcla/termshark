@@ -31,7 +31,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
 
 Termshark is inspired by Wireshark, and depends on tshark for all its intelligence. Termshark is run from the command-line. You can see its options with
 
-```bash
+```console
 $ termshark -h
 termshark v2.1.0
 
