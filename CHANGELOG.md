@@ -3,6 +3,7 @@
 ## [Unreleased]
 ### Added
 
+- Termshark now provides a conversations view for the most common conversation types.
 - Termshark now supports multiple live captures/interfaces on the command-line e.g. `termshark -i eth0 -i eth1`
 - Termshark's packet hex view displays a scrollbar if the data doesn't fit in the space available.
 - Termshark can show a capture file's properties using the capinfos binary (bundled with tshark).
