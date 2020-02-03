@@ -18,9 +18,12 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Packet Structure View](#packet-structure-view)
   - [Packet Hex View](#packet-hex-view)
   - [Copy Mode](#copy-mode)
+  - [Packet Capture Information](#packet-capture-information)
   - [Stream Reassembly](#stream-reassembly)
+  - [Conversations](#conversations)
 - [Configuration](#configuration)
   - [Dark Mode](#dark-mode)
+  - [Packet Colors](#packet-colors)
   - [Config File](#config-file)
 - [Troubleshooting](#troubleshooting)
 
@@ -28,9 +31,9 @@ Termshark provides a terminal-based user interface for analyzing packet captures
 
 Termshark is inspired by Wireshark, and depends on tshark for all its intelligence. Termshark is run from the command-line. You can see its options with
 
-```bash
+```console
 $ termshark -h
-termshark v2.0.0
+termshark v2.1.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
@@ -39,20 +42,21 @@ Usage:
   termshark [FilterOrFile]
 
 Application Options:
-  -i=<interface>                                          Interface to read.
-  -r=<file>                                               Pcap file to read.
-  -d=<layer type>==<selector>,<decode-as protocol>        Specify dissection of layer type.
-  -D                                                      Print a list of the interfaces on which termshark can capture.
-  -Y=<displaY filter>                                     Apply display filter.
-  -f=<capture filter>                                     Apply capture filter.
-      --tty=<tty>                                         Display the UI on this terminal.
-      --pass-thru=[auto|true|false]                       Run tshark instead (auto => if stdout is not a tty). (default: auto)
-      --log-tty                                           Log to the terminal.
-  -h, --help                                              Show this help message.
-  -v, --version                                           Show version information.
+  -i=<interfaces>                                            Interface(s) to read.
+  -r=<file>                                                  Pcap file to read.
+  -d=<layer type>==<selector>,<decode-as protocol>           Specify dissection of layer type.
+  -D                                                         Print a list of the interfaces on which termshark can capture.
+  -Y=<displaY filter>                                        Apply display filter.
+  -f=<capture filter>                                        Apply capture filter.
+  -t=<timestamp format>[a|ad|adoy|d|dd|e|r|u|ud|udoy]        Set the format of the packet timestamp printed in summary lines.
+      --tty=<tty>                                            Display the UI on this terminal.
+      --pass-thru=[auto|true|false]                          Run tshark instead (auto => if stdout is not a tty). (default: auto)
+      --log-tty                                              Log to the terminal.
+  -h, --help                                                 Show this help message.
+  -v, --version                                              Show version information.
 
 Arguments:
-  FilterOrFile:                                           Filter (capture for iface, display for pcap), or pcap file to read.
+  FilterOrFile:                                              Filter (capture for iface, display for pcap), or pcap file to read.
 
 If --pass-thru is true (or auto, and stdout is not a tty), tshark will be
 executed with the supplied command-line flags. You can provide
@@ -88,9 +92,15 @@ termshark -i eth0 tcp
 
 Termshark will apply the capture filter as it reads, but the UI currently does not provide any indication of the capture filter that is in effect.
 
-Termshark's UI will launch and the packet views will update as packets are read:
+Termshark supports reading from more than one interface at a time:
 
-![readiface](https://drive.google.com/uc?export=view&id=1UPD6KaNGsFrQ9lW-_dx_0SXhTbWBX4vn)
+```bash
+termshark -i eth0 -i eth1
+```
+
+Once packets are detected, termshark's UI will launch and the packet views will update as packets are read:
+
+![readiface](/../gh-pages/images/readiface.png?raw=true)
 
 You can apply a display filter while the packet capture process is ongoing - termshark will dynamically apply the filter without restarting the capture. Press `ctrl-c` to stop the capture process.
 
@@ -119,13 +129,13 @@ Note that when reading a file, the filter will be interpreted as a [display filt
 
 Termshark will launch in your terminal. From here, you can press `?` for help:
 
-![tshelp](https://drive.google.com/uc?export=view&id=1DOZEAlP5xiNAoCKrZoIhWJ9Zz3gX0gJf)
+![tshelp](/../gh-pages/images/tshelp.png?raw=true)
 
 #### Changing Files
 
 Termshark provides a "Recent" button which will open a menu with your most recently-loaded pcap files. Each invocation of termshark with the `-r` flag will add a pcap to the start of this list:
 
-![recent](https://drive.google.com/uc?export=view&id=1jnENk7ANqo2TZeqA-4hujHDWfDko_isT)
+![recent](/../gh-pages/images/recent.png?raw=true)
 
 ### Reading from a fifo or stdin
 
@@ -137,7 +147,7 @@ tcpdump -i eth0 -w - icmp | termshark
 
 On some machines, packet capture commands might require sudo or root access. To facilitate this, termshark's UI will not launch until it detects that it has received some packet data on its input. This makes it easier for the user to type in his or her root password on the tty before termshark takes over:
 
-```bash
+```console
 $ sudo tcpdump -i eth0 -w - icmp | termshark
 (The termshark UI will start when packets are detected...)
 [sudo] password for gcla:
@@ -145,7 +155,7 @@ $ sudo tcpdump -i eth0 -w - icmp | termshark
 
 If the termshark UI is active in the terminal but you want to see something displayed there before termshark started, you can now issue a SIGTSTP signal (on Unix) and termshark will suspend itself and give up control of the terminal. In bash, this operation is usually bound to ctrl-z.
 
-```bash
+```console
 $ termshark -r foo.pcap
 
 [1]+  Stopped                 termshark -r foo.pcap
@@ -172,21 +182,21 @@ Issue a sleep in the pane for `/dev/pts/10` so that no other process reads from 
 
 Press `/` to focus on the display filter. Now you can type in a Wireshark display filter expression. The UI will update in real-time to display the validity of the current expression. If the expression is invalid, the filter widget will change color to red. As you type, termshark presents a drop-down menu with possible completions for the current term:
 
-![filterbad](https://drive.google.com/uc?export=view&id=1KobuhX7KfA_i2VU-lCllPc3FkLUBEmQi)
+![filterbad](/../gh-pages/images/filterbad.png?raw=true)
 
 When the filter widget is green, you can hit the "Apply" button to make its value take effect. Termshark will then reload the packets with the new display filter applied.
 
-![filterbad](https://drive.google.com/uc?export=view&id=10AVIaRtLWgqJ_fi0kWS_PI-vOogZTVv-)
+![filterbad](/../gh-pages/images/filterbad.png?raw=true)
 
 ### Changing Views
 
 Press `tab` to move between the three packet views. You can also use the mouse to move views by clicking with the left mouse button. When focus is in any of these three views, hit the `\` key to maximize that view:
 
-![max](https://drive.google.com/uc?export=view&id=143PHT2YDEuDig2QqFIGcZTjNg9TA7awB)
+![max](/../gh-pages/images/max.png?raw=true)
 
 Press `\` to restore the original layout. Press `|` to move the hex view to the right-hand side:
 
-![altview](https://drive.google.com/uc?export=view&id=1RinO3imTgboVYKLWblaLOqwjhu7OcUt4)
+![altview](/../gh-pages/images/altview.png?raw=true)
 
 You can also press `<`,`>`,`+` and `-` to change the relative size of each view.
 
@@ -194,17 +204,17 @@ You can also press `<`,`>`,`+` and `-` to change the relative size of each view.
 
 Termshark's top-most view is a list of packets read from the capture (or interface). Termshark generates the data by running `tshark` on the input with the `-T psml` options, and parsing the resulting XML. Currently the columns displayed cannot be configured, and are the same as Wireshark's defaults. When the source is a pcap file, the list can be sorted by column by clicking the button next to each column header:
 
-![sortcol](https://drive.google.com/uc?export=view&id=1UaXNRUp8UtR728j_CPTRTb0hpVy6EUte)
+![sortcol](/../gh-pages/images/sortcol.png?raw=true)
 
 You can hit `home` to jump to the top of the list or `end` to jump to the bottom. Sometimes, especially if running on a small terminal, the values in a column will be truncated (e.g. long IPv6 addresses). To see the full value, move the purple cursor over the value:
 
-![ipv6](https://drive.google.com/uc?export=view&id=1LXLz0gFieOf3mZEiP9QzwKSzSJL1FLT6)
+![ipv6](/../gh-pages/images/ipv6.png?raw=true)
 
 ### Packet Structure View
 
 Termshark's middle view shows the structure of the packet selected in the list view. You can expand and contract the structure using the `[+]` and `[-]` buttons, the 'enter' key, or the right and left cursor keys:
 
-![structure](https://drive.google.com/uc?export=view&id=1Tv7kvLxXe5a2tbsvkWR6U8K6nhEBqk8D)
+![structure](/../gh-pages/images/structure.png?raw=true)
 
 As you navigate the packet structure, different sections of the bottom view - a hex representation of the packet - will be highlighted.
 
@@ -216,11 +226,11 @@ Termshark's bottom view shows the bytes that the packet comprises. Like Wireshar
 
 Both the structure and hex view support "copy mode" a feature which lets you copy ranges of data from the currently selected packet. First, move focus to the part of the packet you wish to copy. Now hit the `c` key - a section of the packet will be highlighted in yellow:
 
-![copymode1](https://drive.google.com/uc?export=view&id=1EE9zNYyzi3vLz6FBEgFfU0gRkkWsX1Dz)
+![copymode1](/../gh-pages/images/copymode1.png?raw=true)
 
 You can hit the `left` and `right` arrow keys to expand or contract the selected region. Now hit `ctrl-c` to copy. Termshark will display a dialog showing you the format in which you can copy the data:
 
-![copymode2](https://drive.google.com/uc?export=view&id=1EJW7DE1ycm9MbQkBFGOdDryoo5wlBgnZ)
+![copymode2](/../gh-pages/images/copymode2.png?raw=true)
 
 Select the format you want and hit `enter` (or click). Copy mode is available in the packet structure and packet hex views.
 
@@ -235,11 +245,17 @@ to instead set the primary selection. If forwarding X11 is not an option, you co
 
 If you are running on OSX, termux (Android) or Windows, termshark assumes you are running locally and uses a platform-specific copy command.
 
+### Packet Capture Information
+
+To show a summary of the information represented in the current pcap file, go to the "Analysis" menu and choose "Capture file properties". Termshark generates this information using the `capinfos` binary which is distributed with `tshark`.
+
+![capinfos1](/../gh-pages/images/capinfos1.png?raw=true)
+
 ### Stream Reassembly
 
 Termshark is able to present reassembled TCP and UDP streams in a similar manner to Wireshark. In the packet list view, select a TCP or UDP packet then go to the "Analysis" menu and choose "Reassemble stream":
 
-![streams1](https://drive.google.com/uc?export=view&id=1ss09_QwHnjONa1wQkhuc34RWJv2ZSbvp)
+![streams1](/../gh-pages/images/streams1.png?raw=true)
 
 Termshark shows you:
 
@@ -250,23 +266,37 @@ Termshark shows you:
 
 You can type a string in the search box and hit enter - or the Next button - to move through the matches.
 
-![streams2](https://drive.google.com/uc?export=view&id=1IjD5L0QgBWNpZ_j8KY_AYhELxwoPoSI7)
+![streams2](/../gh-pages/images/streams2.png?raw=true)
 
 Select Regex to instead have termshark interpret your search string as a regular expression. Because termshark is written in Golang, the regular expression uses Golang's regex dialect. [regex101](https://regex101.com/) provides a nice online way to experiment with matches. A quick tip - if you want your match to [cross line endings](https://stackoverflow.com/a/58318036/784226), prefix your search with `(?s)`.
 
 You can choose how to view the reassembled data by using the buttons at the bottom of the screen - ASCII, hex or Wireshark's raw format. Termshark will remember your preferred format.
 
-![streams3](https://drive.google.com/uc?export=view&id=1UsVIKEFMqHBRjWqxfobJtWczc1Y7iD09)
+![streams3](/../gh-pages/images/streams3.png?raw=true)
 
 Like Wireshark, you can filter the displayed data to show only the client-side or only the server-side of the conversation:
 
-![streams4](https://drive.google.com/uc?export=view&id=1GKE28J0j-OFrAgxqc0yhc8XnEBR3kaAv)
+![streams4](/../gh-pages/images/streams4.png?raw=true)
 
 You can use Copy Mode in stream reassembly too. Hit the `c` key to enter Copy Mode. The currently selected "chunk" will be highlighted. Hit `ctrl-c` to copy that data. By default, termshark will copy the data to your clipboard. Hit the left arrow key to widen the data copied to the entire conversation (or filtered by client or server if that is selected).
 
-![streams5](https://drive.google.com/uc?export=view&id=18rv298lPYiAiXFwVhBjogZ43qfj6DYd4)
+![streams5](/../gh-pages/images/streams5.png?raw=true)
 
 Finally, clicking on a reassembled piece of the stream (enter or left mouse click) will cause termshark to select the underlying packet that contributed that payload. If you hit `q` to exit stream reassembly, termshark will set focus on the selected packet.
+
+### Conversations
+
+To display a table of conversations represented in the current pcap, go to the "Analysis" menu  and choose "Conversations". Termshark uses `tshark` to generate a list of conversations by protocol. Currently, termshark supports displaying Ethernet, IPv4, IPv6, UDP and TCP. 
+
+![convs1](/../gh-pages/images/convs1.png?raw=true)
+
+You have have termshark filter the packets displayed according to the current conversation selected. The "Prepare..." button will set termshark's display filter field, but *not* apply it, letting you futher edit it first. The "Apply..." button will set the display filter and apply it immediately. Navigate to the interesting conversation, then click either "Prepare..." or "Apply..."
+
+![convs2](/../gh-pages/images/convs2.png?raw=true)
+
+In the first pop-up menu, you can choose how to extend the current display filter, if there is in. In the second pop-up menu, you can choose whether to filter by the conversation bidirectionally, unidirectionally, or just using the source or destination. These menus mirror those used in Wireshark. When you hit enter, the filter will be adjusted. Hit 'q' to quit the conversations screen.
+
+![convs3](/../gh-pages/images/convs3.png?raw=true)
 
 ## Configuration
 
@@ -274,13 +304,17 @@ Finally, clicking on a reassembled piece of the stream (enter or left mouse clic
 
 If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to open the main menu and select "Toggle Dark Mode".
 
-![darkmode](https://drive.google.com/uc?export=view&id=1bkwdKL2pHwJYpiwvyazEQ1ACtG50ZHI7)
+![darkmode](/../gh-pages/images/darkmode.png?raw=true)
 
 Your choice is stored in the termshark [config file](UserGuide.md#config-file). Dark-mode is supported throughout the termshark user-interface.
 
+### Packet Colors
+
+By default, termshark will now display packets in the packet list view colored according to Wireshark's color rules. With recent installations of Wireshark, you can find this file at `$XDG_CONFIG_HOME/wireshark/colorfilters`. Termshark doesn't provide a way to edit the colors - the colors are provided by `tshark`. You can read about Wireshark's support [here](https://www.wireshark.org/docs/wsug_html_chunked/ChCustColorizationSection.html). If you don't like the way this looks in termshark, you can turn it off using termshark's main menu.
+
 ### Config File
 
-Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
+Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
 
 - `browse-command` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals `$1` will be replaced by the URL prior to the command being run e.g.
 
@@ -289,8 +323,14 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
   browse-command = ["firefox", "$1"]
 ```
 
+- `capinfos` (string) - make termshark use this specific `capinfos` binary (for pcap properties).
+- `capture-command` (string) - use this binary to capture packets, passing `-i`, `-w` and `-f` flags. 
 - `color-tsharks` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
 - `colors` (bool) - if true, and tshark supports the feature, termshark will colorize packets in its list view.
+- `conv-absolute-time` (bool) - if true, have tshark provide conversation data with a relative start time field.
+- `conv-resolve-names` (bool) - if true, have tshark provide conversation data with ethernet names resolved.
+- `conv-use-filter` (bool) - if true, have tshark provide conversation data limited to match the active display filter.
+- `conv-types` (string list) - a list of the conversation types termshark will query for and display in the conversations view. Currently limited to `eth`, `ip`, `ipv6`, `udp`, `tcp`.
 - `copy-command` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 
 ```toml
@@ -338,6 +378,6 @@ If termshark is running slowly or otherwise misbehaving, you might be able to na
 2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
 3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
 
-Profiles are stored under `$XDG_CONFIG_CACHE` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
+Profiles are stored under `$XDG_CONFIG_CACHE/termshark` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
 
 For commonly asked questions, check out the [FAQ](/docs/FAQ.md).
