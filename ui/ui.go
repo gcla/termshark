@@ -2446,7 +2446,7 @@ func Build() (*gowid.App, error) {
 	analysisMenuItems := []menuutil.SimpleMenuItem{
 		menuutil.SimpleMenuItem{
 			Txt: "Capture file properties",
-			Key: gowid.MakeKey('c'),
+			Key: gowid.MakeKey('p'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				analysisMenu.Close(app)
 				startCapinfo(app)
@@ -2458,6 +2458,14 @@ func Build() (*gowid.App, error) {
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				analysisMenu.Close(app)
 				startStreamReassembly(app)
+			},
+		},
+		menuutil.SimpleMenuItem{
+			Txt: "Conversations",
+			Key: gowid.MakeKey('c'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				analysisMenu.Close(app)
+				openConvsUi(app)
 			},
 		},
 	}
@@ -2947,6 +2955,7 @@ func Build() (*gowid.App, error) {
 	menuPathMax = []interface{}{0, 6}
 
 	buildStreamUi()
+	buildFilterConvsMenu()
 
 	mainView = appkeys.New(mainViewNoKeys, mainKeyPress)
 
@@ -2982,6 +2991,8 @@ func Build() (*gowid.App, error) {
 	app.RegisterMenu(analysisMenu)
 	app.RegisterMenu(generalMenu)
 	app.RegisterMenu(conversationMenu)
+	app.RegisterMenu(filterConvsMenu1)
+	app.RegisterMenu(filterConvsMenu2)
 
 	gowid.SetFocusPath(mainview, mainviewPaths[0], app)
 	gowid.SetFocusPath(altview1, altview1Paths[0], app)

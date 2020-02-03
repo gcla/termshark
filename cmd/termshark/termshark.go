@@ -21,6 +21,7 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/capinfo"
 	"github.com/gcla/termshark/v2/cli"
+	"github.com/gcla/termshark/v2/convs"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/system"
@@ -55,6 +56,7 @@ func main() {
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
 	streams.Goroutinewg = &ensureGoroutinesStopWG
 	capinfo.Goroutinewg = &ensureGoroutinesStopWG
+	convs.Goroutinewg = &ensureGoroutinesStopWG
 	ui.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
