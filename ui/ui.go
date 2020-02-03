@@ -2903,9 +2903,9 @@ func Build() (*gowid.App, error) {
 		appKeyPress,
 	)
 
-	if !termshark.ConfBool("main.disable-shark-fin", false) {
-		Fin = rossshark.New(appViewWithKeys)
+	Fin = rossshark.New(appViewWithKeys)
 
+	if !termshark.ConfBool("main.disable-shark-fin", false) {
 		steerableFin := appkeys.New(
 			Fin,
 			func(evk *tcell.EventKey, app gowid.IApp) bool {

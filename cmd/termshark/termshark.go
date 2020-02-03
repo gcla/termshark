@@ -847,11 +847,15 @@ func cmain() int {
 
 	ctrlzLineDisc := tty.TerminalSignals{}
 
+	inactiveDuration := 30 * time.Second
+	inactivityTimer := time.NewTimer(inactiveDuration)
+
 Loop:
 	for {
 		var finChan <-chan time.Time
 		var opsChan <-chan pcap.RunFn
 		var tickChan <-chan time.Time
+		var inactivityChan <-chan time.Time
 		var emptyStructViewChan <-chan time.Time
 		var emptyHexViewChan <-chan time.Time
 		var psmlFinChan <-chan struct{}
@@ -923,6 +927,7 @@ Loop:
 
 		if ui.Loader.State()&pcap.LoadingIface != 0 {
 			ifaceFinChan = loaderIfaceFinChan
+			inactivityChan = inactivityTimer.C
 		}
 
 		// (User) operations are enabled by default (the test predicate is nil), or if the predicate returns true
@@ -953,6 +958,10 @@ Loop:
 		prevstate = ui.Loader.State()
 
 		select {
+
+		case <-inactivityChan:
+			ui.Fin.Activate()
+			app.Redraw()
 
 		case <-finChan:
 			ui.Fin.Advance()
@@ -1157,6 +1166,7 @@ Loop:
 
 		case ev := <-tcellEvents:
 			app.HandleTCellEvent(ev, gowid.IgnoreUnhandledInput)
+			inactivityTimer.Reset(inactiveDuration)
 
 		case ev, ok := <-afterRenderEvents:
 			// This means app.Quit() has been called, which closes the AfterRenderEvents
