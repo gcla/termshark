@@ -128,10 +128,16 @@ func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, ap
 
 func OpenPleaseWait(container gowid.ISettableComposite, app gowid.IApp) {
 	PleaseWait.Open(container, fixed, app)
+	if Fin != nil {
+		Fin.Activate()
+	}
 }
 
 func ClosePleaseWait(app gowid.IApp) {
 	PleaseWait.Close(app)
+	if Fin != nil {
+		Fin.Deactivate()
+	}
 }
 
 //======================================================================
