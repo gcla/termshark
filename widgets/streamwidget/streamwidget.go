@@ -111,7 +111,7 @@ type Widget struct {
 	stats          streamStats             // track turns, client packets, bytes, etc
 	streamHeader   streams.FollowHeader    // first chunk of data back from tshark -z follow
 	displayAs      DisplayFormat           // display as hex, ascii, raw
-	captureDevice  string                  // gcla later todo - custom widget, don't make callbacks, who cares
+	captureDevice  string                  // it's a very feature-specific widget so I don't care about supporting callbacks
 	displayFilter  string                  // "tcp.stream eq 1"
 	Proto          streams.Protocol        // TCP, UDP
 	tableHolder    *holder.Widget          // hold the chunk UI table
@@ -241,7 +241,7 @@ func MakeConvMenu() (*holder.Widget, *menu.Widget) {
 
 func (w *Widget) updateConvMenuWidget(app gowid.IApp) {
 	convListBox := w.makeConvMenuWidget()
-	w.convMenuHolder.SetSubWidget(convListBox, app) // gcla later todo
+	w.convMenuHolder.SetSubWidget(convListBox, app)
 	w.setConvButtonText(app)
 	w.setTurnText(app)
 }
@@ -538,7 +538,6 @@ func (w *Widget) construct() {
 	)
 
 	searchBoxStyled := styled.New(searchBox2,
-		// gcla later todo
 		gowid.MakePaletteRef("stream-search"),
 	)
 
@@ -554,7 +553,6 @@ func (w *Widget) construct() {
 	}
 
 	streamsFooter1 := columns.NewWithDim(
-		//gowid.RenderWithWeight{1},
 		fixed,
 		hpad,
 		hpadding.New(
@@ -571,8 +569,6 @@ func (w *Widget) construct() {
 		},
 		hpad,
 		hpadding.New(
-			//styled.NewInvertedFocus(nextBtn, gowid.MakePaletteRef("default")),
-			//styled.NewExt(nextBtn, gowid.MakePaletteRef("default"), gowid.
 			clicktracker.New(
 				styled.NewExt(
 					nextBtn,
@@ -1165,7 +1161,6 @@ func (c rawChunkList) CellWidgets(row table.RowId) []gowid.IWidget {
 	return res
 }
 
-// gcla later todo - duplicate of below, fix
 func (c asciiChunkList) Widths() []gowid.IWidgetDimension {
 	return []gowid.IWidgetDimension{gowid.RenderWithWeight{W: 1}}
 }

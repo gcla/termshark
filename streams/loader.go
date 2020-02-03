@@ -59,10 +59,10 @@ type Loader struct {
 	mainCtx      context.Context // cancelling this cancels the dependent contexts
 	mainCancelFn context.CancelFunc
 
-	streamCtx      context.Context // cancels the iface reader process
+	streamCtx      context.Context // cancels the stream chunk reader process
 	streamCancelFn context.CancelFunc
 
-	indexerCtx      context.Context // cancels the stream indexer process
+	indexerCtx      context.Context // cancels the stream indexer (pdml) process
 	indexerCancelFn context.CancelFunc
 
 	streamCmd  pcap.IPcapCommand
@@ -77,6 +77,8 @@ func NewLoader(cmds ILoaderCmds, ctx context.Context) *Loader {
 	return res
 }
 
+// Called by user to cancel a stream reassembly op. Stops both processes straight away.
+// Note that typically, the indexer will be further behind.
 func (c *Loader) StopLoad() {
 	c.SuppressErrors = true
 	if c.streamCancelFn != nil {
@@ -178,8 +180,6 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 			log.Infof("Stream parser reported error: %v", err)
 		}
 	}()
-
-	c.StopLoad()
 }
 
 func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, app gowid.IApp, cb IIndexerCallbacks) {
@@ -240,8 +240,6 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 	}, Goroutinewg)
 
 	res = decodeStreamXml(streamOut, proto, c.indexerCtx, cb)
-
-	c.indexerCancelFn()
 }
 
 func decodeStreamXml(streamOut io.Reader, proto string, ctx context.Context, cb ITrackPayload) bool {
