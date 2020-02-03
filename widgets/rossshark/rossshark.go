@@ -92,7 +92,7 @@ func (w *Widget) Advance() {
 }
 
 func (w *Widget) Activate() {
-	w.ticker = time.NewTicker(time.Duration(100) * time.Millisecond)
+	w.ticker = time.NewTicker(time.Duration(150) * time.Millisecond)
 }
 
 func (w *Widget) Deactivate() {
