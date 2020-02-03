@@ -29,6 +29,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/adam-hanna/arrayOperations"
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
@@ -550,6 +551,25 @@ func SafePid(p IProcess) int {
 		return -1
 	}
 	return p.Pid()
+}
+
+func SetConvTypes(convs []string) {
+	SetConf("main.conv-types", convs)
+}
+
+func ConvTypes() []string {
+	defs := []string{"eth", "ip", "ipv6", "tcp", "udp"}
+	ctypes := ConfStrings("main.conv-types")
+	if len(ctypes) > 0 {
+		z, ok := arrayOperations.Intersect(defs, ctypes)
+		if ok {
+			res, ok := z.Interface().([]string)
+			if ok {
+				return res
+			}
+		}
+	}
+	return defs
 }
 
 func AddToRecentFiles(pcap string) {

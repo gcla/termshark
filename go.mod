@@ -2,6 +2,7 @@ module github.com/gcla/termshark/v2
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/adam-hanna/arrayOperations v0.2.5
 	github.com/antchfx/xmlquery v1.0.0
 	github.com/antchfx/xpath v1.0.0 // indirect
 	github.com/blang/semver v3.5.1+incompatible
@@ -20,7 +21,7 @@ require (
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.3.2
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
 	github.com/tevino/abool v0.0.0-20170917061928-9b9efcf221b5
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 	golang.org/x/sys v0.0.0-20191010194322-b09406accb47
