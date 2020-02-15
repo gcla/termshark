@@ -290,11 +290,11 @@ To display a table of conversations represented in the current pcap, go to the "
 
 ![convs1](/../gh-pages/images/convs1.png?raw=true)
 
-You have have termshark filter the packets displayed according to the current conversation selected. The "Prepare..." button will set termshark's display filter field, but *not* apply it, letting you futher edit it first. The "Apply..." button will set the display filter and apply it immediately. Navigate to the interesting conversation, then click either "Prepare..." or "Apply..."
+You can make termshark filter the packets displayed according to the current conversation selected. The "Prepare..." button will set termshark's display filter field, but *not* apply it, letting you futher edit it first. The "Apply..." button will set the display filter and apply it immediately. Navigate to the interesting conversation, then click either "Prepare..." or "Apply..."
 
 ![convs2](/../gh-pages/images/convs2.png?raw=true)
 
-In the first pop-up menu, you can choose how to extend the current display filter, if there is in. In the second pop-up menu, you can choose whether to filter by the conversation bidirectionally, unidirectionally, or just using the source or destination. These menus mirror those used in Wireshark. When you hit enter, the filter will be adjusted. Hit 'q' to quit the conversations screen.
+In the first pop-up menu, you can choose how to extend the current display filter, if there is one. In the second pop-up menu, you can choose whether to filter by the conversation bidirectionally, unidirectionally, or just using the source or destination. These menus mirror those used in Wireshark. When you hit enter, the filter will be adjusted. Hit 'q' to quit the conversations screen.
 
 ![convs3](/../gh-pages/images/convs3.png?raw=true)
 
