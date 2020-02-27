@@ -2381,6 +2381,29 @@ func Build() (*gowid.App, error) {
 		},
 		menuutil.MakeMenuDivider(),
 		menuutil.SimpleMenuItem{
+			Txt: "Found a Bug?",
+			Key: gowid.MakeKey('B'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				generalMenu.Close(app)
+				if !termshark.RunningRemotely() {
+					termshark.BrowseUrl(termshark.BugURL)
+				}
+				openResultsAfterCopy("UIBug", termshark.BugURL, app)
+			},
+		},
+		menuutil.SimpleMenuItem{
+			Txt: "Feature Request?",
+			Key: gowid.MakeKey('F'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				generalMenu.Close(app)
+				if !termshark.RunningRemotely() {
+					termshark.BrowseUrl(termshark.FeatureURL)
+				}
+				openResultsAfterCopy("UIFeature", termshark.FeatureURL, app)
+			},
+		},
+		menuutil.MakeMenuDivider(),
+		menuutil.SimpleMenuItem{
 			Txt: "Quit",
 			Key: gowid.MakeKey('q'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {

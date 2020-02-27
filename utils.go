@@ -96,6 +96,8 @@ var InternalErr = InternalError{}
 var (
 	UserGuideURL string = "https://termshark.io/userguide"
 	FAQURL       string = "https://termshark.io/faq"
+	BugURL       string = "https://github.com/gcla/termshark/issues/new?assignees=&labels=&template=bug_report.md&title="
+	FeatureURL   string = "https://github.com/gcla/termshark/issues/new?assignees=&labels=&template=feature_request.md&title="
 )
 
 //======================================================================
