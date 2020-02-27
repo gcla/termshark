@@ -47,6 +47,14 @@ $ termshark -r file.pcap -T psml -n | less{{end}}
 
 {{.CopyCommandMessage}}{{end}}
 
+{{define "UIBug"}}{{.BugURL}}
+
+{{.CopyCommandMessage}}{{end}}
+
+{{define "UIFeature"}}{{.FeatureURL}}
+
+{{.CopyCommandMessage}}{{end}}
+
 {{define "UIHelp"}}{{template "NameVer" .}}
 
 A wireshark-inspired tui for tshark. Analyze network traffic interactively from your terminal.
@@ -87,6 +95,8 @@ func init() {
 		"Version":      termshark.Version,
 		"FAQURL":       termshark.FAQURL,
 		"UserGuideURL": termshark.UserGuideURL,
+		"BugURL": termshark.BugURL,
+		"FeatureURL": termshark.FeatureURL,
 	}
 }
 
