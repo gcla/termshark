@@ -877,12 +877,17 @@ func cmain() int {
 	inactiveDuration := 30 * time.Second
 	inactivityTimer := time.NewTimer(inactiveDuration)
 
+	checkedPcapCache := false
+	checkPcapCacheDuration := 5 * time.Second
+	checkPcapCacheTimer := time.NewTimer(checkPcapCacheDuration)
+
 Loop:
 	for {
 		var finChan <-chan time.Time
 		var opsChan <-chan pcap.RunFn
 		var tickChan <-chan time.Time
 		var inactivityChan <-chan time.Time
+		var checkPcapCacheChan <-chan time.Time
 		var emptyStructViewChan <-chan time.Time
 		var emptyHexViewChan <-chan time.Time
 		var psmlFinChan <-chan struct{}
@@ -957,6 +962,10 @@ Loop:
 			inactivityChan = inactivityTimer.C
 		}
 
+		if !checkedPcapCache {
+			checkPcapCacheChan = checkPcapCacheTimer.C
+		}
+
 		// (User) operations are enabled by default (the test predicate is nil), or if the predicate returns true
 		// meaning the operation has reached its desired state. Only one operation can be in progress at a time.
 		if ui.PcapScheduler.IsEnabled() {
@@ -985,6 +994,9 @@ Loop:
 		prevstate = ui.Loader.State()
 
 		select {
+
+		case <-checkPcapCacheChan:
+			termshark.PrunePcapCache()
 
 		case <-inactivityChan:
 			ui.Fin.Activate()
@@ -1191,6 +1203,7 @@ Loop:
 		case ev := <-tcellEvents:
 			app.HandleTCellEvent(ev, gowid.IgnoreUnhandledInput)
 			inactivityTimer.Reset(inactiveDuration)
+			checkPcapCacheTimer.Reset(checkPcapCacheDuration)
 
 		case ev, ok := <-afterRenderEvents:
 			// This means app.Quit() has been called, which closes the AfterRenderEvents

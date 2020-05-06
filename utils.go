@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -633,6 +634,69 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 	}
 	// Hack to make viper save if I only deleted from the map
 	SetConf("main.lastupdate", time.Now().String())
+}
+
+//======================================================================
+
+func PrunePcapCache() error {
+	// This is a new option. Best to err on the side of caution and, if not, present
+	// assume the cache can grow indefinitely - in case users are now relying on this
+	// to keep old pcaps around. I don't want to delete any files without the user's
+	// explicit permission.
+	var diskCacheSize int64 = int64(ConfInt("main.disk-cache-size-mb", -1))
+
+	if diskCacheSize == -1 {
+		log.Infof("No pcap disk cache size set. Skipping cache pruning.")
+		return nil
+	}
+
+	// Let user use MB as the most sensible unit of disk size. Convert to
+	// bytes for comparing to file sizes.
+	diskCacheSize = diskCacheSize * 1024 * 1024
+
+	log.Infof("Pruning termshark's pcap disk cache at %s...", PcapDir())
+
+	var totalSize int64
+	var fileInfos []os.FileInfo
+	err := filepath.Walk(PcapDir(),
+		func(path string, info os.FileInfo, err error) error {
+			if err == nil {
+				totalSize += info.Size()
+				fileInfos = append(fileInfos, info)
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	sort.Slice(fileInfos, func(i, j int) bool {
+		return fileInfos[i].ModTime().Before(fileInfos[j].ModTime())
+	})
+
+	filesRemoved := 0
+	curCacheSize := totalSize
+	for len(fileInfos) > 0 && curCacheSize > diskCacheSize {
+		err = os.Remove(filepath.Join(PcapDir(), fileInfos[0].Name()))
+		if err != nil {
+			log.Warnf("Could not remove pcap cache file %s while pruning - %v", fileInfos[0].Name(), err)
+		} else {
+			curCacheSize = curCacheSize - fileInfos[0].Size()
+			filesRemoved++
+		}
+		fileInfos = fileInfos[1:]
+	}
+
+	if filesRemoved > 0 {
+		log.Infof("Pruning complete. Removed %d old pcaps. Cache size is now %d MB",
+			filesRemoved, curCacheSize/(1024*1024))
+	} else {
+		log.Infof("Pruning complete. No old pcaps removed. Cache size is %d MB",
+			curCacheSize/(1024*1024))
+	}
+
+	return nil
 }
 
 //======================================================================
