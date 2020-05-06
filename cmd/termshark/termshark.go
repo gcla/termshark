@@ -997,6 +997,7 @@ Loop:
 
 		case <-checkPcapCacheChan:
 			termshark.PrunePcapCache()
+			checkedPcapCache = true
 
 		case <-inactivityChan:
 			ui.Fin.Activate()
