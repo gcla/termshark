@@ -34,7 +34,7 @@ archives:
     format: zip
   files:
   - none*    
-sign:
+signs:
    artifacts: checksum
 checksum:
   name_template: 'checksums.txt'
