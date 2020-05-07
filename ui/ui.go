@@ -3002,18 +3002,30 @@ func Build() (*gowid.App, error) {
 	Fin = rossshark.New(appViewWithKeys)
 
 	if !termshark.ConfBool("main.disable-shark-fin", false) {
-		steerableFin := appkeys.New(
-			Fin,
-			func(evk *tcell.EventKey, app gowid.IApp) bool {
-				if Fin.Active() {
-					switch evk.Key() {
-					case tcell.KeyLeft:
-						Fin.Dir = rossshark.Backward
-					case tcell.KeyRight:
-						Fin.Dir = rossshark.Forward
-					default:
-						Fin.Deactivate()
+		steerableFin := appkeys.NewMouse(
+			appkeys.New(
+				Fin,
+				func(evk *tcell.EventKey, app gowid.IApp) bool {
+					if Fin.Active() {
+						switch evk.Key() {
+						case tcell.KeyLeft:
+							Fin.Dir = rossshark.Backward
+						case tcell.KeyRight:
+							Fin.Dir = rossshark.Forward
+						default:
+							Fin.Deactivate()
+						}
+						return true
 					}
+					return false
+				},
+				appkeys.Options{
+					ApplyBefore: true,
+				},
+			),
+			func(evm *tcell.EventMouse, app gowid.IApp) bool {
+				if Fin.Active() {
+					Fin.Deactivate()
 					return true
 				}
 				return false
