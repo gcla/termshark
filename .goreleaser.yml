@@ -35,7 +35,7 @@ archives:
   files:
   - none*    
 signs:
-   artifacts: checksum
+  - artifacts: checksum
 checksum:
   name_template: 'checksums.txt'
 snapshot:
