@@ -378,6 +378,6 @@ If termshark is running slowly or otherwise misbehaving, you might be able to na
 2. On receipt of SIGUSR1, termshark will start a Golang CPU profile that runs for 20 seconds.
 3. On receipt of SIGUSR2, termshark will create a Golang memory/heap profile.
 
-Profiles are stored under `$XDG_CONFIG_CACHE/termshark` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
+Profiles are stored under `$XDG_CACHE_HOME/termshark` (e.g. `~/.cache/termshark/`). If you open a termshark issue on github, these profiles will be useful for debugging.
 
 For commonly asked questions, check out the [FAQ](/docs/FAQ.md).

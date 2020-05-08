@@ -159,7 +159,7 @@ When the user types in termshark's display filter widget, termshark issues the f
 tshark -Y '<expression from ui>' -r empty.pcap
 ```
 
-and checks the return code of the process. If it's zero, termshark assumes the filter expression is valid, and turns the widget green. If the return code is non-zero, termshark assumes the expression is invalid and turns the widget red. The file `empty.pcap` is generated once on startup and cached in `$XDG_CONFIG_CACHE/termshark/empty.pcap` (on Linux, `~/.cache/termshark/empty.pcap`) On slower systems like the Raspberry Pi, you might see this widget go orange for a couple of seconds while termshark waits for tshark to finish.
+and checks the return code of the process. If it's zero, termshark assumes the filter expression is valid, and turns the widget green. If the return code is non-zero, termshark assumes the expression is invalid and turns the widget red. The file `empty.pcap` is generated once on startup and cached in `$XDG_CACHE_HOME/termshark/empty.pcap` (on Linux, `~/.cache/termshark/empty.pcap`) On slower systems like the Raspberry Pi, you might see this widget go orange for a couple of seconds while termshark waits for tshark to finish.
 
 If the user selects the "Analysis -> Reassemble stream" menu option, termshark starts two more tshark processes to gather the data to display. First, tshark is invoked with the '-z' option to generate the reassembled stream information. Termshark knows the protocol and stream index to supply to tshark because it saves this information when processing the PDML to populate the packet structure view:
 
@@ -209,7 +209,7 @@ Finally, termshark uses tshark in one more way - to generate the possible comple
 tshark -G fields
 ```
 
-then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CONFIG_CACHE/termshark/tsharkfieldsv2.gob.gz`.
+then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv2.gob.gz`.
 
 Termshark also uses the `capinfos` binary to compute the information displayed via the menu "Analysis -> Capture file properties". `capinfos` is typically distributed with tshark. 
 
@@ -281,7 +281,7 @@ or a heap/memory profile with
 pkill -SIGUSR2 termshark
 ```
 
-The profiles are stored under `$XDG_CONFIG_CACHE/termshark` (e.g. ~/.cache/termshark/). You can investigate with `go tool pprof` like this:
+The profiles are stored under `$XDG_CACHE_HOME/termshark` (e.g. ~/.cache/termshark/). You can investigate with `go tool pprof` like this:
 
 ```bash
 go tool pprof -http=:6061 $(which termshark) ~/.cache/termshark/mem-20190929122218.prof
