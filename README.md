@@ -10,20 +10,6 @@ A terminal user-interface for tshark, inspired by Wireshark.
 
 If you're debugging on a remote machine with a large pcap and no desire to scp it back to your desktop, termshark can help!
 
-## Table of Contents
-
-* [Table of Contents](#table-of-contents)
-* [Features](#features)
-* [Install Packages](#install-packages)
-* [Building](#building)
-* [Quick Start](#quick-start)
-* [Downloads](#downloads)
-* [User Guide](#user-guide)
-* [Dependencies](#dependencies)
-* [Contributors](#contributors)
-* [Contact](#contact)
-* [License](#license)
-
 ## Features
 
 - Read pcap files or sniff live interfaces (where tshark is permitted)
