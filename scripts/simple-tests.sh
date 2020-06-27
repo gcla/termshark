@@ -43,7 +43,8 @@ EOF
 echo Running termshark cli tests.
 
 # if timeout is invoked because termshark is stuck, the exit code will be non-zero
-export TS="timeout 10s $GOPATH/bin/termshark"
+#export TS="timeout 10s $GOPATH/bin/termshark"
+export TS="$GOPATH/bin/termshark"
 
 # stdout is not a tty, so falls back to tshark
 $TS -r /tmp/test.pcap | grep '192.168.44.213 TFTP 77'
@@ -63,24 +64,29 @@ cat version.go | grep -o -E "v[0-9]+\.[0-9]+(\.[0-9]+)?" | \
 
 echo Running termshark UI tests.
 
+echo UI test 1
 # Load a pcap, quit
 { sleep 5s ; echo q ; echo ; } | \
     socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap\\\"",pty,setsid,ctty 
 
+echo UI test 2
 # Run with stdout not a tty, but disable the pass-thru to tshark
 { sleep 5s ; echo q ; echo ; } | \
     socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap --pass-thru=false | cat\\\"",pty,setsid,ctty 
 
+echo UI test 3
 # Load a pcap, very rudimentary scrape for an IP, quit
 { sleep 5s ; echo q ; echo ; } | \
     socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap\\\"",pty,setsid,ctty | \
     grep -a 192.168.44.123 > /dev/null
 
+echo UI test 4
 # Load a pcap from stdin
 { sleep 5s ; echo q ; echo ; } | \
     socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && cat /tmp/test.pcap | TERM=xterm $TS -i -\\\"",pty,setsid,ctty | \
     grep -a 192.168.44.123 > /dev/null
 
+echo UI test 5
 # Display filter at end of command line
 { sleep 5s ; echo q ; echo ; } | \
     socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r scripts/pcaps/telnet-cooked.pcap \'frame.number == 2\'\\\"",pty,setsid,ctty | \
