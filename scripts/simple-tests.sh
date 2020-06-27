@@ -43,8 +43,7 @@ EOF
 echo Running termshark cli tests.
 
 # if timeout is invoked because termshark is stuck, the exit code will be non-zero
-#export TS="timeout 10s $GOPATH/bin/termshark"
-export TS="$GOPATH/bin/termshark"
+export TS="timeout 10s $GOPATH/bin/termshark"
 
 # stdout is not a tty, so falls back to tshark
 $TS -r /tmp/test.pcap | grep '192.168.44.213 TFTP 77'
