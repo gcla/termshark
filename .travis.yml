@@ -21,7 +21,7 @@ notifications:
 before_install:
 - openssl aes-256-cbc -K $encrypted_1286cb654632_key -iv $encrypted_1286cb654632_iv
   -in configs/termshark-dd01307f2423.json.enc -out /tmp/google.json -d
-- sudo apt-get install -y tshark socat
+- sudo apt-get install -y tshark socat coreutils
 addons:
   apt:
     update: true
