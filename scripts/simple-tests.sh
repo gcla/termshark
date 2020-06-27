@@ -8,6 +8,8 @@ echo Installing termshark for test use.
 
 go install ./...
 
+env
+
 echo Making a test pcap.
 
 cat <<EOF | xxd -r -p > /tmp/test.pcap
