@@ -44,6 +44,6 @@ EOF
 
 echo Running termshark.
 
-~/go/bin/termshark -r /tmp/test.pcap | grep 192.168.44.123
+$GOPATH/bin/termshark -r /tmp/test.pcap | grep 192.168.44.123
 
 echo Tests were successful.
