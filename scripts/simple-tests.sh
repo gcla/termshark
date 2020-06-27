@@ -8,8 +8,6 @@ echo Installing termshark for test use.
 
 go install ./...
 
-env
-
 echo Making a test pcap.
 
 cat <<EOF | xxd -r -p > /tmp/test.pcap
@@ -45,5 +43,16 @@ EOF
 echo Running termshark.
 
 $GOPATH/bin/termshark -r /tmp/test.pcap | grep 192.168.44.123
+
+echo Running basic UI tests.
+
+# Load a pcap, quit
+{ sleep 5s ; echo q ; echo ; } | \
+    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $GOPATH/bin/termshark -r /tmp/test.pcap\\\"",pty,setsid,ctty 
+
+# Load a pcap, very rudimentary scrape for an IP, quit
+{ sleep 5s ; echo q ; echo ; } | \
+    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $GOPATH/bin/termshark -r /tmp/test.pcap\\\"",pty,setsid,ctty | \
+    grep -a 192.168.44.123 > /dev/null
 
 echo Tests were successful.
