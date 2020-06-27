@@ -81,9 +81,10 @@ echo UI test 3
 
 echo UI test 4
 # Load a pcap from stdin
-# { sleep 5s ; echo q ; echo ; } | \
-#     socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && cat /tmp/test.pcap | TERM=xterm $TS -i -\\\"",pty,setsid,ctty | \
-#     grep -a 192.168.44.123 > /dev/null
+{ sleep 5s ; echo q ; echo ; } | \
+    socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && cat /tmp/test.pcap | TERM=xterm $TS -i -\\\"",pty,setsid,ctty
+#    | \
+#    grep -a 192.168.44.123 > /dev/null
 
 echo UI test 5
 # Display filter at end of command line
