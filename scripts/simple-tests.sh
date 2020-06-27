@@ -40,19 +40,50 @@ a82c7bc0a82cd5f9
 7400
 EOF
 
-echo Running termshark.
+echo Running termshark cli tests.
 
-$GOPATH/bin/termshark -r /tmp/test.pcap | grep 192.168.44.123
+# if timeout is invoked because termshark is stuck, the exit code will be non-zero
+export TS="timeout 10s $GOPATH/bin/termshark"
 
-echo Running basic UI tests.
+# stdout is not a tty, so falls back to tshark
+$TS -r /tmp/test.pcap | grep '192.168.44.213 TFTP 77'
+
+[[ $($TS -r /tmp/test.pcap -T psml -n | grep '<packet>' | wc -l) == 2 ]]
+
+# only display the second line via tshark
+[[ $($TS -r /tmp/test.pcap 'frame.number == 2' | wc -l) == 1 ]]
+
+[[ $($TS -r /tmp/test.pcap --pass-thru | wc -l) == 2 ]]
+
+[[ $($TS -r /tmp/test.pcap --pass-thru=true | wc -l) == 2 ]]
+
+# run in script so termshark thinks it's in a tty
+cat version.go | grep -o -E "v[0-9]+\.[0-9]+(\.[0-9]+)?" | \
+    xargs -i bash -c "script -q -e -c \"$TS -v\" | grep {}"
+
+echo Running termshark UI tests.
 
 # Load a pcap, quit
 { sleep 5s ; echo q ; echo ; } | \
-    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $GOPATH/bin/termshark -r /tmp/test.pcap\\\"",pty,setsid,ctty 
+    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap\\\"",pty,setsid,ctty 
+
+# Run with stdout not a tty, but disable the pass-thru to tshark
+{ sleep 5s ; echo q ; echo ; } | \
+    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap --pass-thru=false | cat\\\"",pty,setsid,ctty 
 
 # Load a pcap, very rudimentary scrape for an IP, quit
 { sleep 5s ; echo q ; echo ; } | \
-    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $GOPATH/bin/termshark -r /tmp/test.pcap\\\"",pty,setsid,ctty | \
+    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap\\\"",pty,setsid,ctty | \
     grep -a 192.168.44.123 > /dev/null
+
+# Load a pcap from stdin
+{ sleep 5s ; echo q ; echo ; } | \
+    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && cat /tmp/test.pcap | TERM=xterm $TS -i -\\\"",pty,setsid,ctty | \
+    grep -a 192.168.44.123 > /dev/null
+
+# Display filter at end of command line
+{ sleep 5s ; echo q ; echo ; } | \
+    socat - EXEC:"sh -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r scripts/pcaps/telnet-cooked.pcap \'frame.number == 2\'\\\"",pty,setsid,ctty | \
+    grep -a "Frame 2: 74 bytes" > /dev/null
 
 echo Tests were successful.
