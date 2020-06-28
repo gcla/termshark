@@ -345,6 +345,71 @@ func cmain() int {
 		}
 	}
 
+	// - means read from stdin. But termshark uses stdin for interacting with the UI. So if the
+	// iface is -, then dup stdin to a free descriptor, adjust iface to read from that descriptor,
+	// then open /dev/tty on stdin.
+	newinputfd := -1
+
+	// Here we check for
+	// (a) sources named '-' - these need rewritten to /dev/fd/N and stdin needs to be moved
+	// (b) fifo sources - these are switched from -r to -i because that's what tshark needs
+	renamedStdin := false
+	for pi, psrc := range psrcs {
+		switch {
+		case psrc.Name() == "-":
+			if renamedStdin {
+				fmt.Fprintf(os.Stderr, "Requested live capture %v (\"stdin\") cannot be supplied more than once.\n", psrc.Name())
+				return 1
+			}
+			if termshark.IsTerminal(os.Stdin.Fd()) {
+				fmt.Fprintf(os.Stderr, "Requested live capture is %v (\"stdin\") but stdin is a tty.\n", psrc.Name())
+				fmt.Fprintf(os.Stderr, "Perhaps you intended to pipe packet input to termshark?\n")
+				return 1
+			}
+			if runtime.GOOS != "windows" {
+				newinputfd, err = system.MoveStdin()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%v\n", err)
+					return 1
+				}
+				psrcs[pi] = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd), Fd: newinputfd}
+				renamedStdin = true
+			} else {
+				fmt.Fprintf(os.Stderr, "Sorry, termshark does not yet support piped input on Windows.\n")
+				return 1
+			}
+		default:
+			stat, err := os.Stat(psrc.Name())
+			if err != nil {
+				if psrc.IsFile() || psrc.IsFifo() {
+					// Means this was supplied with -r - since any file sources means there's (a) 1 and (b)
+					// no other sources. So it must stat. Note if we started with -i fifo, this check
+					// isn't done... but it still ought to exist.
+					fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", psrc.Name(), err)
+					return 1
+				}
+				continue
+			}
+			if stat.Mode()&os.ModeNamedPipe != 0 {
+				// If termshark was invoked with -r myfifo, switch to -i myfifo, which tshark uses. This
+				// also puts termshark in "interface" mode where it assumes the source is unbounded
+				// (e.g. a different spinner)
+				psrcs[pi] = pcap.FifoSource{Filename: psrc.Name()}
+			} else {
+				if pcapffile, err := os.Open(psrc.Name()); err != nil {
+					// Do this up front before the UI starts to catch simple errors quickly - like
+					// the file not being readable. It's possible that tshark would be able to read
+					// it and the termshark user not, but unlikely.
+					fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", psrc.Name(), err)
+					return 1
+				} else {
+					pcapffile.Close()
+				}
+			}
+		}
+	}
+
+	// Means files
 	fileSrcs := pcap.FileSystemSources(psrcs)
 	if len(fileSrcs) == 1 {
 		if len(psrcs) > 1 {
@@ -391,70 +456,6 @@ func cmain() int {
 				return 1
 			}
 			displayFilter = argsFilter
-		}
-	}
-
-	// - means read from stdin. But termshark uses stdin for interacting with the UI. So if the
-	// iface is -, then dup stdin to a free descriptor, adjust iface to read from that descriptor,
-	// then open /dev/tty on stdin.
-	newinputfd := -1
-
-	// Here we check for
-	// (a) sources named '-' - these need rewritten to /dev/fd/N and stdin needs to be moved
-	// (b) fifo sources
-	renamedStdin := false
-	for pi, psrc := range psrcs {
-		switch {
-		case psrc.Name() == "-":
-			if renamedStdin {
-				fmt.Fprintf(os.Stderr, "Requested live capture %v (\"stdin\") cannot be supplied more than once.\n", psrc.Name())
-				return 1
-			}
-			if termshark.IsTerminal(os.Stdin.Fd()) {
-				fmt.Fprintf(os.Stderr, "Requested live capture is %v (\"stdin\") but stdin is a tty.\n", psrc.Name())
-				fmt.Fprintf(os.Stderr, "Perhaps you intended to pipe packet input to termshark?\n")
-				return 1
-			}
-			if runtime.GOOS != "windows" {
-				newinputfd, err = system.MoveStdin()
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%v\n", err)
-					return 1
-				}
-				psrcs[pi] = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd), Fd: newinputfd}
-				renamedStdin = true
-			} else {
-				fmt.Fprintf(os.Stderr, "Sorry, termshark does not yet support piped input on Windows.\n")
-				return 1
-			}
-		default:
-			stat, err := os.Stat(psrc.Name())
-			if err != nil {
-				if len(fileSrcs) > 0 {
-					// Means this was supplied with -r - since any file sources means there's (a) 1 and (b)
-					// no other sources. So it must stat. Note if we started with -i fifo, this check
-					// isn't done... but it still ought to exist.
-					fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", psrc.Name(), err)
-					return 1
-				}
-				continue
-			}
-			if stat.Mode()&os.ModeNamedPipe != 0 {
-				// If termshark was invoked with -r myfifo, switch to -i myfifo, which tshark uses. This
-				// also puts termshark in "interface" mode where it assumes the source is unbounded
-				// (e.g. a different spinner)
-				psrcs[pi] = pcap.FifoSource{Filename: psrc.Name()}
-			} else {
-				if pcapffile, err := os.Open(psrc.Name()); err != nil {
-					// Do this up front before the UI starts to catch simple errors quickly - like
-					// the file not being readable. It's possible that tshark would be able to read
-					// it and the termshark user not, but unlikely.
-					fmt.Fprintf(os.Stderr, "Error reading file %s: %v.\n", psrc.Name(), err)
-					return 1
-				} else {
-					pcapffile.Close()
-				}
-			}
 		}
 	}
 
@@ -642,7 +643,7 @@ func cmain() int {
 		// fifo. In all cases, we save the packets to a file so that if a
 		// filter is applied, we can restart - and so that we preserve the
 		// capture at the end of running termshark.
-		if len(fileSrcs) == 0 && startedSuccessfully {
+		if len(pcap.FileSystemSources(psrcs)) == 0 && startedSuccessfully {
 			fmt.Printf("Packets read from %s have been saved in %s\n", pcap.SourcesString(psrcs), ifacePcapFilename)
 		}
 	}()
@@ -710,7 +711,7 @@ func cmain() int {
 	var iwatcher *fsnotify.Watcher
 	var ifaceTmpFile string
 
-	if len(fileSrcs) == 0 {
+	if len(pcap.FileSystemSources(psrcs)) == 0 {
 		srcNames := make([]string, 0, len(psrcs))
 		for _, psrc := range psrcs {
 			srcNames = append(srcNames, psrc.Name())
@@ -793,6 +794,8 @@ func cmain() int {
 		},
 	}
 
+	// Refresh
+	fileSrcs = pcap.FileSystemSources(psrcs)
 	if len(fileSrcs) > 0 {
 		psrc := fileSrcs[0]
 		absfile, err := filepath.Abs(psrc.Name())
