@@ -2,6 +2,13 @@
 
 set -e
 
+cleanup() {
+    rm /tmp/test.pcap
+    rm /tmp/fifo
+}
+
+trap cleanup EXIT
+
 echo Started some simple termshark tests.
 
 echo Installing termshark for test use.
@@ -48,14 +55,26 @@ export TS="$GOPATH/bin/termshark"
 # stdout is not a tty, so falls back to tshark
 $TS -r /tmp/test.pcap | grep '192.168.44.213 TFTP 77'
 
+# prove that options provided are passed through to tshark 
 [[ $($TS -r /tmp/test.pcap -T psml -n | grep '<packet>' | wc -l) == 2 ]]
+
+# Must choose either a file or an interface
+! $TS -r /tmp/test.pcap -i eth0
 
 # only display the second line via tshark
 [[ $($TS -r /tmp/test.pcap 'frame.number == 2' | wc -l) == 1 ]]
 
-[[ $($TS -r /tmp/test.pcap --pass-thru | wc -l) == 2 ]]
+# test fifos
+mkfifo /tmp/fifo
+cat /tmp/test.pcap > /tmp/fifo &
+$TS -r /tmp/fifo | grep '192.168.44.213 TFTP 77'
+wait
+rm /tmp/fifo
 
-[[ $($TS -r /tmp/test.pcap --pass-thru=true | wc -l) == 2 ]]
+# Check pass-thru option works. Make termshark run in a tty to ensure it's taking effect
+[[ $(script -q -e -c "$TS -r /tmp/test.pcap --pass-thru" | wc -l) == 2 ]]
+
+[[ $(script -q -e -c "$TS -r /tmp/test.pcap --pass-thru=true" | wc -l) == 2 ]]
 
 # run in script so termshark thinks it's in a tty
 cat version.go | grep -o -E "v[0-9]+\.[0-9]+(\.[0-9]+)?" | \
@@ -63,33 +82,46 @@ cat version.go | grep -o -E "v[0-9]+\.[0-9]+(\.[0-9]+)?" | \
 
 echo Running termshark UI tests.
 
+in_tty() {
+    ARGS=$@    # make into one token
+    socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && TERM=xterm && $ARGS\\\"",pty,setsid,ctty 
+}
+
 echo UI test 1
 # Load a pcap, quit
-{ sleep 5s ; echo q ; echo ; } | \
-    socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap\\\"",pty,setsid,ctty 
+{ sleep 5s ; echo q ; echo ; } | in_tty $TS -r /tmp/test.pcap
 
 echo UI test 2
 # Run with stdout not a tty, but disable the pass-thru to tshark
-{ sleep 5s ; echo q ; echo ; } | \
-    socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap --pass-thru=false | cat\\\"",pty,setsid,ctty 
+{ sleep 5s ; echo q ; echo ; } | in_tty "$TS -r /tmp/test.pcap --pass-thru=false | cat"
 
 echo UI test 3
 # Load a pcap, very rudimentary scrape for an IP, quit
-{ sleep 5s ; echo q ; echo ; } | \
-    socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r /tmp/test.pcap\\\"",pty,setsid,ctty | \
-    grep -a 192.168.44.123 > /dev/null
+{ sleep 5s ; echo q ; echo ; } | in_tty "$TS -r /tmp/test.pcap" | grep -a 192.168.44.123 > /dev/null
+
+# Ensure -r flag isn't needed
+{ sleep 5s ; echo q ; echo ; } | in_tty "$TS /tmp/test.pcap" | grep -a 192.168.44.123 > /dev/null
 
 echo UI test 4
 # Load a pcap from stdin
-{ sleep 5s ; echo q ; echo ; } | \
-    socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && cat /tmp/test.pcap | TERM=xterm $TS -i -\\\"",pty,setsid,ctty
-#    | \
-#    grep -a 192.168.44.123 > /dev/null
+{ sleep 5s ; echo q ; echo ; } | in_tty "cat /tmp/test.pcap | TERM=xterm $TS -i -"
+{ sleep 5s ; echo q ; echo ; } | in_tty "cat /tmp/test.pcap | TERM=xterm $TS -r -"
+{ sleep 5s ; echo q ; echo ; } | in_tty "cat /tmp/test.pcap | TERM=xterm $TS"
 
 echo UI test 5
 # Display filter at end of command line
-{ sleep 5s ; echo q ; echo ; } | \
-    socat - EXEC:"bash -c \\\"stty rows 50 cols 80 && TERM=xterm $TS -r scripts/pcaps/telnet-cooked.pcap \'frame.number == 2\'\\\"",pty,setsid,ctty | \
-    grep -a "Frame 2: 74 bytes" > /dev/null
+{ sleep 5s ; echo q ; echo ; } | in_tty "$TS -r scripts/pcaps/telnet-cooked.pcap \'frame.number == 2\'" | grep -a "Frame 2: 74 bytes" > /dev/null
+
+echo UI test 6
+mkfifo /tmp/fifo
+cat /tmp/test.pcap > /tmp/fifo &
+{ sleep 5s ; echo q ; echo ; } | in_tty "$TS -r /tmp/fifo"
+wait
+cat /tmp/test.pcap > /tmp/fifo &
+{ sleep 5s ; echo q ; echo ; } | in_tty "$TS -i /tmp/fifo"
+wait
+cat /tmp/test.pcap > /tmp/fifo &
+{ sleep 5s ; echo q ; echo ; } | in_tty "$TS /tmp/fifo \'frame.number == 2\'" | grep -a "Frame 2: 74 bytes" > /dev/null
+wait
 
 echo Tests were successful.
