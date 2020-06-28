@@ -33,17 +33,17 @@ Termshark is inspired by Wireshark, and depends on tshark for all its intelligen
 
 ```console
 $ termshark -h
-termshark v2.1.0
+termshark v2.1.1
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
 
 Usage:
-  termshark [FilterOrFile]
+  termshark [FilterOrPcap]
 
 Application Options:
   -i=<interfaces>                                            Interface(s) to read.
-  -r=<file>                                                  Pcap file to read.
+  -r=<file/fifo>                                             Pcap file/fifo to read. Use - for stdin.
   -d=<layer type>==<selector>,<decode-as protocol>           Specify dissection of layer type.
   -D                                                         Print a list of the interfaces on which termshark can capture.
   -Y=<displaY filter>                                        Apply display filter.
@@ -56,7 +56,7 @@ Application Options:
   -v, --version                                              Show version information.
 
 Arguments:
-  FilterOrFile:                                              Filter (capture for iface, display for pcap), or pcap file to read.
+  FilterOrPcap:                                              Filter (capture for iface, display for pcap), or pcap to read.
 
 If --pass-thru is true (or auto, and stdout is not a tty), tshark will be
 executed with the supplied command-line flags. You can provide

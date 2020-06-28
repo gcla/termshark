@@ -290,7 +290,7 @@ func cmain() int {
 	// If no interface specified, and no pcap specified via -r, then we assume the first
 	// argument is a pcap file e.g. termshark foo.pcap
 	if pcapf == "" && len(opts.Ifaces) == 0 {
-		pcapf = string(opts.Args.FilterOrFile)
+		pcapf = string(opts.Args.FilterOrPcap)
 		// `termshark` => `termshark -i 1` (livecapture on default interface if no args)
 		if pcapf == "" {
 			if termshark.IsTerminal(os.Stdin.Fd()) {
@@ -325,7 +325,7 @@ func cmain() int {
 		}
 	} else {
 		// Add it to filter args. Figure out later if they're capture or display.
-		filterArgs = append(filterArgs, opts.Args.FilterOrFile)
+		filterArgs = append(filterArgs, opts.Args.FilterOrPcap)
 	}
 
 	if pcapf != "" && len(opts.Ifaces) > 0 {
