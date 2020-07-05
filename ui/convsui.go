@@ -200,7 +200,8 @@ func (p pleaseWait) ClosePleaseWait(app gowid.IApp) {
 	ClosePleaseWait(app)
 }
 
-// Dynamically load conv
+// Dynamically load conv. If the convs window was last opened with a different filter, and the "limit to
+// filter" checkbox is checked, then the data needs to be reloaded.
 func openConvsUi(app gowid.IApp) {
 
 	var convCtx context.Context
@@ -227,6 +228,8 @@ func openConvsUi(app gowid.IApp) {
 		)
 
 		convsView = holder.New(convsUi)
+	} else if convsUi.FilterValue() != Loader.DisplayFilter() && convsUi.UseFilter() {
+		convsUi.ReloadNeeded()
 	}
 
 	convsUi.ctx = convCtx
