@@ -4,7 +4,7 @@
 
 package termshark
 
-var Version string = "v2.1.1"
+var Version string = "v2.1.2"
 
 //======================================================================
 // Local Variables:
