@@ -69,6 +69,7 @@ A wireshark-inspired tui for tshark. Analyze network traffic interactively from 
 't'   - In bytes view, switch hex ⟷ ascii
 '+/-' - Adjust horizontal split
 '</>' - Adjust vertical split
+':'   - Last line mode (minibuffer)
 '?'   - Display help
 
 In the filter, type a wireshark display filter expression.

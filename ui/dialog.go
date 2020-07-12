@@ -17,6 +17,7 @@ import (
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
+	"github.com/gcla/termshark/v2/widgets/minibuffer"
 )
 
 //======================================================================
@@ -27,6 +28,7 @@ var (
 	hmiddle    gowid.HAlignMiddle
 	vmiddle    gowid.VAlignMiddle
 	YesNo      *dialog.Widget
+	MiniBuffer *minibuffer.Widget
 	PleaseWait *dialog.Widget
 )
 

@@ -56,6 +56,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/filter"
 	"github.com/gcla/termshark/v2/widgets/hexdumper2"
 	"github.com/gcla/termshark/v2/widgets/ifwidget"
+	"github.com/gcla/termshark/v2/widgets/minibuffer"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gcla/termshark/v2/widgets/rossshark"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
@@ -938,6 +939,72 @@ func reallyQuit(app gowid.IApp) {
 	YesNo.Open(appView, units(len(msgt)+20), app)
 }
 
+func lastLineMode(app gowid.IApp) {
+	MiniBuffer = minibuffer.New()
+
+	MiniBuffer.Register("quit", minibufferFn(func(gowid.IApp, ...string) error {
+		// Delay because when control returns to the minibuffer, it closes itself
+		// if there is no error, but that has the side effect of closing this
+		// dialog too :-(
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			reallyQuit(app)
+		}))
+		return nil
+	}))
+
+	// force quit
+	MiniBuffer.Register("q!", quietMinibufferFn(func(gowid.IApp, ...string) error {
+		QuitRequestedChan <- struct{}{}
+		return nil
+	}))
+
+	MiniBuffer.Register("help", minibufferFn(func(gowid.IApp, ...string) error {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			OpenTemplatedDialog(appView, "UIHelp", app)
+		}))
+		return nil
+	}))
+
+	MiniBuffer.Register("?", quietMinibufferFn(func(gowid.IApp, ...string) error {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			OpenTemplatedDialog(appView, "UIHelp", app)
+		}))
+		return nil
+	}))
+
+	MiniBuffer.Register("convs", minibufferFn(func(gowid.IApp, ...string) error {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			openConvsUi(app)
+		}))
+		return nil
+	}))
+
+	MiniBuffer.Register("streams", minibufferFn(func(gowid.IApp, ...string) error {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			startStreamReassembly(app)
+		}))
+		return nil
+	}))
+
+	MiniBuffer.Register("capinfo", minibufferFn(func(gowid.IApp, ...string) error {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			startCapinfo(app)
+		}))
+		return nil
+	}))
+
+	MiniBuffer.Register("clear", minibufferFn(func(gowid.IApp, ...string) error {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			reallyClear(app)
+		}))
+		return nil
+	}))
+
+	MiniBuffer.Register("set", setCommand{})
+
+	minibuffer.Open(MiniBuffer, appView, ratio(1.0), flow, app)
+}
+
 //======================================================================
 
 // getCurrentStructModel will return a termshark model of a packet section of PDML given a row number,
@@ -1404,6 +1471,8 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		app.Sync()
 	} else if evk.Rune() == 'q' || evk.Rune() == 'Q' {
 		reallyQuit(app)
+	} else if evk.Rune() == ':' {
+		lastLineMode(app)
 	} else if evk.Key() == tcell.KeyEscape {
 		gowid.SetFocusPath(mainview, menuPathMain, app)
 		gowid.SetFocusPath(altview1, menuPathAlt, app)
