@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+### Added 
+
+- Termshark is now available for linux/arm64.
+
+### Changed
+
+- Fixed a race condition that allowed an invalid Wireshark display filter to be applied.
+
 ## [2.1.1] - 2020-02-02
 ### Added
 
