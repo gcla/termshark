@@ -346,6 +346,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "sean-abbott",
+      "name": "Sean Abbott",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/1402071?v=4",
+      "profile": "https://github.com/sean-abbott",
+      "contributions": [
+        "platform"
+      ]
     }
   ],
   "contributorsPerLine": 7
