@@ -95,8 +95,8 @@ func init() {
 		"Version":      termshark.Version,
 		"FAQURL":       termshark.FAQURL,
 		"UserGuideURL": termshark.UserGuideURL,
-		"BugURL": termshark.BugURL,
-		"FeatureURL": termshark.FeatureURL,
+		"BugURL":       termshark.BugURL,
+		"FeatureURL":   termshark.FeatureURL,
 	}
 }
 
