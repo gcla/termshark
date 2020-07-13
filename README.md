@@ -56,9 +56,9 @@ Run ```termshark -h``` for options.
 
 Pre-compiled executables are available via [Github releases](https://github.com/gcla/termshark/releases). Or download the latest build from the master branch - [![Build Status](https://travis-ci.org/gcla/termshark.svg?branch=master)](https://travis-ci.org/gcla/termshark).
 
-## User Guide
+## Documentation
 
-See the [termshark user guide](docs/UserGuide.md) (and my best guess at some [FAQs](docs/FAQ.md))
+See the [termshark user guide](docs/UserGuide.md), and my best guess at some [FAQs](docs/FAQ.md). For a summary of updates, see the [ChangeLog](CHANGELOG.md#changelog).
 
 ## Dependencies
 
