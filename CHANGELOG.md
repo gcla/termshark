@@ -4,6 +4,7 @@
 ### Added 
 
 - Termshark is now available for linux/arm64.
+- Termshark now provides last-line mode/a minibuffer for issuing commands. Access it with the ":" key.
 
 ### Changed
 
