@@ -16,6 +16,7 @@ import (
 	"github.com/gcla/gowid/widgets/edit"
 	"github.com/gcla/gowid/widgets/holder"
 	"github.com/gcla/gowid/widgets/hpadding"
+	"github.com/gcla/gowid/widgets/isselected"
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/null"
 	"github.com/gcla/gowid/widgets/overlay"
@@ -23,6 +24,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
+	"github.com/gcla/termshark/v2/widgets/keepselected"
 	"github.com/gdamore/tcell"
 )
 
@@ -73,6 +75,27 @@ type partial struct {
 	word string
 	line string
 	cp   int
+}
+
+// keysWidget redirects printable characters to the edit widget (the lower), but navigational
+// commands like up/down will control the selection widget.
+type keysWidget struct {
+	*pile.Widget
+	top    gowid.IWidget
+	bottom gowid.IWidget
+}
+
+var _ gowid.IWidget = (*keysWidget)(nil)
+
+func (w *keysWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	switch ev := ev.(type) {
+	case *tcell.EventKey:
+		switch ev.Key() {
+		case tcell.KeyRune:
+			return w.bottom.UserInput(ev, size, focus, app)
+		}
+	}
+	return w.Widget.UserInput(ev, size, focus, app)
 }
 
 func New() *Widget {
@@ -166,16 +189,17 @@ func New() *Widget {
 		},
 	)
 
-	hold := holder.New(nullw)
+	top := holder.New(nullw)
+	bottom := hpadding.New(editKeysW, gowid.HAlignLeft{}, gowid.RenderFlow{})
 
 	bufferW := pile.New(
 		[]gowid.IContainerWidget{
 			&gowid.ContainerWidget{
-				IWidget: hold,
+				IWidget: top,
 				D:       gowid.RenderFlow{},
 			},
 			&gowid.ContainerWidget{
-				IWidget: hpadding.New(editKeysW, gowid.HAlignLeft{}, gowid.RenderFlow{}),
+				IWidget: bottom,
 				D:       gowid.RenderFlow{},
 			},
 		},
@@ -184,9 +208,15 @@ func New() *Widget {
 		},
 	)
 
+	keys := &keysWidget{
+		Widget: bufferW,
+		top:    top,
+		bottom: bottom,
+	}
+
 	*res = Widget{
 		Widget: dialog.New(
-			bufferW,
+			keys,
 			dialog.Options{
 				Buttons:         []dialog.Button{},
 				NoShadow:        true,
@@ -195,7 +225,7 @@ func New() *Widget {
 				ButtonStyle:     gowid.MakePaletteRef("minibuffer-buttons"),
 			},
 		),
-		compl:   hold,
+		compl:   top,
 		ed:      editW,
 		pl:      bufferW,
 		actions: make(map[string]IAction),
@@ -302,13 +332,22 @@ func (w *Widget) updateCompletions(app gowid.IApp) {
 			w.pl.SetFocus(app, 1)
 		}))
 
-		complWidgets = append(complWidgets, styled.NewInvertedFocus(compBtn, gowid.MakePaletteRef("minibuffer")))
+		complWidgets = append(complWidgets,
+			isselected.New(
+				compBtn,
+				styled.New(compBtn, gowid.MakePaletteRef("minibuffer-buttons")),
+				styled.New(compBtn, gowid.MakePaletteRef("minibuffer-buttons")),
+			),
+		)
+
 	}
 
 	walker := list.NewSimpleListWalker(complWidgets)
 	if len(complWidgets) > 0 {
 		walker.SetFocus(walker.Last(), app)
-		w.compl.SetSubWidget(list.New(walker), app)
+		l := list.New(walker)
+		sl2 := keepselected.New(l)
+		w.compl.SetSubWidget(sl2, app)
 	} else {
 		// don't want anything to take focus if there are no completions
 		w.compl.SetSubWidget(nullw, app)
