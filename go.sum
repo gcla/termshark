@@ -30,6 +30,8 @@ github.com/gcla/gowid v1.1.1-0.20200202174024-45eed270dfd5 h1:e/Jk8oCfaWdXtXHcUC
 github.com/gcla/gowid v1.1.1-0.20200202174024-45eed270dfd5/go.mod h1:kwHYNePmuaNa60IAkHfd/OfPeZuoSuz7ww+CeA5q/aQ=
 github.com/gcla/gowid v1.1.1-0.20200712174529-1aaf972b6b24 h1:3HtbyNv8YmxlC8fgC3rhUMIC1tyS2qIVZuSTsLefHf8=
 github.com/gcla/gowid v1.1.1-0.20200712174529-1aaf972b6b24/go.mod h1:kwHYNePmuaNa60IAkHfd/OfPeZuoSuz7ww+CeA5q/aQ=
+github.com/gcla/gowid v1.1.1-0.20200719021337-44a91c16b29b h1:ZdOA8iq7tP3kBSX/SgUFuJkS55PVqPot8rPEJkWf7oA=
+github.com/gcla/gowid v1.1.1-0.20200719021337-44a91c16b29b/go.mod h1:kwHYNePmuaNa60IAkHfd/OfPeZuoSuz7ww+CeA5q/aQ=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359 h1:3xEhacR7pIJV8daurdBygptxhzTJeYFqJp1V6SDl+pE=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
 github.com/gcla/tcell v1.1.2-0.20200115035344-b90e69b9dbe0 h1:6fMu73gAbCSAYAGFhMU1G9h5IilNI9wlvEdV4KMF93U=
@@ -59,6 +61,7 @@ github.com/konsorten/go-windows-terminal-sequences v1.0.2/go.mod h1:T0+1ngSBFLxv
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
+github.com/kr/pty v1.1.4 h1:5Myjjh3JY/NaAi4IsUbHADytDyl1VE1Y9PXDlL+P/VQ=
 github.com/kr/pty v1.1.4/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
