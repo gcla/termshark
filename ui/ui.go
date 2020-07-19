@@ -1000,6 +1000,15 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
+	if runtime.GOOS != "windows" {
+		MiniBuffer.Register("logs", minibufferFn(func(gowid.IApp, ...string) error {
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				openLogsUi(app)
+			}))
+			return nil
+		}))
+	}
+
 	MiniBuffer.Register("set", setCommand{})
 
 	// read new pcap
@@ -2393,7 +2402,9 @@ func Build() (*gowid.App, error) {
 
 	//======================================================================
 
-	generalMenuItems := []menuutil.SimpleMenuItem{
+	generalMenuItems := make([]menuutil.SimpleMenuItem, 0)
+
+	generalMenuItems = append(generalMenuItems, []menuutil.SimpleMenuItem{
 		menuutil.SimpleMenuItem{
 			Txt: "Refresh Screen",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlL, ' '),
@@ -2420,7 +2431,20 @@ func Build() (*gowid.App, error) {
 				generalMenu.Close(app)
 				reallyClear(app)
 			},
-		},
+		}}...)
+
+	if runtime.GOOS != "windows" {
+		generalMenuItems = append(generalMenuItems, menuutil.SimpleMenuItem{
+			Txt: "Show Log",
+			Key: gowid.MakeKey('l'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				analysisMenu.Close(app)
+				openLogsUi(app)
+			},
+		})
+	}
+
+	generalMenuItems = append(generalMenuItems, []menuutil.SimpleMenuItem{
 		menuutil.MakeMenuDivider(),
 		menuutil.SimpleMenuItem{
 			Txt: "Help",
@@ -2484,7 +2508,7 @@ func Build() (*gowid.App, error) {
 				reallyQuit(app)
 			},
 		},
-	}
+	}...)
 
 	if PacketColorsSupported {
 		generalMenuItems = append(
