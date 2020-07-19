@@ -169,12 +169,16 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 			if b, err = parseOnOff(args[2]); err == nil {
 				AutoScroll = b
 				termshark.SetConf("main.auto-scroll", AutoScroll)
-				OpenMessage(fmt.Sprintf("Packet auto-scroll is now %s", gwutil.If(b, "on", "off").(string)), appView, app)
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					OpenMessage(fmt.Sprintf("Packet auto-scroll is now %s", gwutil.If(b, "on", "off").(string)), appView, app)
+				}))
 			}
 		case "copy-command-timeout":
 			if i, err = strconv.ParseUint(args[2], 10, 32); err == nil {
 				termshark.SetConf("main.copy-command-timeout", i)
-				OpenMessage(fmt.Sprintf("Copy command timeout is now %ds", i), appView, app)
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					OpenMessage(fmt.Sprintf("Copy command timeout is now %ds", i), appView, app)
+				}))
 			}
 		case "dark-mode":
 			if b, err = parseOnOff(args[2]); err == nil {
@@ -184,13 +188,17 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 		case "disable-shark-fin":
 			if b, err = strconv.ParseBool(args[2]); err == nil {
 				termshark.SetConf("main.disable-shark-fin", DarkMode)
-				OpenMessage(fmt.Sprintf("Shark-saver is now %s", gwutil.If(b, "off", "on").(string)), appView, app)
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					OpenMessage(fmt.Sprintf("Shark-saver is now %s", gwutil.If(b, "off", "on").(string)), appView, app)
+				}))
 			}
 		case "packet-colors":
 			if b, err = parseOnOff(args[2]); err == nil {
 				PacketColors = b
 				termshark.SetConf("main.packet-colors", PacketColors)
-				OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
+				}))
 			}
 		case "term":
 			if err = validateTerm(args[2]); err == nil {
