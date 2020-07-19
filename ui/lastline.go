@@ -119,6 +119,8 @@ func (s setArg) Completions() []string {
 		"dark-mode",
 		"disable-shark-fin",
 		"packet-colors",
+		"pager",
+		"nopager",
 		"term",
 		"noterm",
 	}
@@ -207,6 +209,11 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 					OpenMessage(fmt.Sprintf("Terminal type is now %s\n(Requires restart)", args[2]), appView, app)
 				}))
 			}
+		case "pager":
+			termshark.SetConf("main.pager", args[2])
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				OpenMessage(fmt.Sprintf("Pager is now %s", args[2]), appView, app)
+			}))
 		default:
 			err = invalidSetCommandErr
 		}
@@ -216,6 +223,11 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 			termshark.DeleteConf("main.term")
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				OpenMessage("Terminal type is now unset\n(Requires restart)", appView, app)
+			}))
+		case "nopager":
+			termshark.DeleteConf("main.pager")
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				OpenMessage("Pager is now unset", appView, app)
 			}))
 		default:
 			err = invalidSetCommandErr
