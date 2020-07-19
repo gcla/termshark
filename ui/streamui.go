@@ -427,7 +427,7 @@ func (s simpleOnError) OnError(msg string, app gowid.IApp) {
 
 func makeStreamWidget(previousFilter string, filter string, cap string, proto streams.Protocol) *streamwidget.Widget {
 	return streamwidget.New(filter, cap, proto,
-		conversationMenu, conversationMenuHolder,
+		conversationMenu, conversationMenuHolder, &keyState,
 		streamwidget.Options{
 			DefaultDisplay: func() streamwidget.DisplayFormat {
 				view := streamwidget.Hex

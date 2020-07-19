@@ -48,6 +48,7 @@ import (
 	"github.com/gcla/termshark/v2/psmlmodel"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/ui/menuutil"
+	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/copymodetree"
@@ -154,6 +155,9 @@ var CacheRequests []pcap.LoadPcapSlice
 var CacheRequestsChan chan struct{} // false means started, true means finished
 var QuitRequestedChan chan struct{}
 
+// Store this for vim-like keypresses that are a sequence e.g. "ZZ"
+var keyState termshark.KeyState
+
 var Loader *pcap.Loader
 var PcapScheduler *pcap.Scheduler
 var DarkMode bool              // global state in app
@@ -170,6 +174,7 @@ func init() {
 	QuitRequestedChan = make(chan struct{}, 1) // buffered because send happens from ui goroutine, which runs global select
 	CacheRequestsChan = make(chan struct{}, 1000)
 	CacheRequests = make([]pcap.LoadPcapSlice, 0)
+	keyState.NumberPrefix = -1 // 0 might be meaningful
 }
 
 // Runs in app goroutine
@@ -513,11 +518,12 @@ type iRowFocusTableWidgetNeeds interface {
 	table.IFocus
 	table.IGoToMiddle
 	table.ISetFocus
+	table.ISetPos
 	list.IWalkerHome
 	list.IWalkerEnd
-	SetModel(table.IModel, gowid.IApp)
 	FocusXY() (table.Coords, error)
 	SetFocusXY(gowid.IApp, table.Coords)
+	SetModel(table.IModel, gowid.IApp)
 	Lower() *table.ListWithPreferedColumn
 	SetFocusOnData(app gowid.IApp) bool
 	OnFocusChanged(f gowid.IWidgetChangedCallback)
@@ -1370,9 +1376,91 @@ func setFocusOnDisplayFilter(app gowid.IApp) {
 	gowid.SetFocusPath(viewOnlyPacketHex, filterPathMax, app)
 }
 
+func clearOffsets(app gowid.IApp) {
+	if mainViewNoKeys.SubWidget() == mainview {
+		mainviewRows.SetOffsets([]resizable.Offset{}, app)
+	} else if mainViewNoKeys.SubWidget() == altview1 {
+		altview1Cols.SetOffsets([]resizable.Offset{}, app)
+		altview1Pile.SetOffsets([]resizable.Offset{}, app)
+	} else {
+		altview2Cols.SetOffsets([]resizable.Offset{}, app)
+		altview2Pile.SetOffsets([]resizable.Offset{}, app)
+	}
+}
+
+// These only apply to the traditional wireshark-like main view
+func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
+	handled := true
+
+	if evk.Key() == tcell.KeyCtrlW && keyState.PartialCtrlWCmd {
+		cycleView(app, true, tabViewsForward)
+		keyState.PartialCtrlWCmd = false
+	} else if evk.Key() == tcell.KeyRune && evk.Rune() == '=' && keyState.PartialCtrlWCmd {
+		clearOffsets(app)
+		keyState.PartialCtrlWCmd = false
+	} else {
+		handled = false
+	}
+
+	return handled
+}
+
+// Move focus among the packet list view, structure view and hex view
+func cycleView(app gowid.IApp, forward bool, tabMap map[gowid.IWidget]gowid.IWidget) {
+	if v, ok := tabMap[mainViewNoKeys.SubWidget()]; ok {
+		mainViewNoKeys.SetSubWidget(v, app)
+	}
+
+	gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
+	gowid.SetFocusPath(viewOnlyPacketStructure, maxViewPath, app)
+	gowid.SetFocusPath(viewOnlyPacketHex, maxViewPath, app)
+
+	if packetStructureViewHolder.SubWidget() == MissingMsgw {
+		setFocusOnPacketList(app)
+	} else {
+		newidx := -1
+		if mainViewNoKeys.SubWidget() == mainview {
+			v1p := gowid.FocusPath(mainview)
+			if deep.Equal(v1p, mainviewPaths[0]) == nil {
+				newidx = gwutil.If(forward, 1, 2).(int)
+			} else if deep.Equal(v1p, mainviewPaths[1]) == nil {
+				newidx = gwutil.If(forward, 2, 0).(int)
+			} else {
+				newidx = gwutil.If(forward, 0, 1).(int)
+			}
+		} else if mainViewNoKeys.SubWidget() == altview1 {
+			v2p := gowid.FocusPath(altview1)
+			if deep.Equal(v2p, altview1Paths[0]) == nil {
+				newidx = gwutil.If(forward, 1, 2).(int)
+			} else if deep.Equal(v2p, altview1Paths[1]) == nil {
+				newidx = gwutil.If(forward, 2, 0).(int)
+			} else {
+				newidx = gwutil.If(forward, 0, 1).(int)
+			}
+		} else if mainViewNoKeys.SubWidget() == altview2 {
+			v3p := gowid.FocusPath(altview2)
+			if deep.Equal(v3p, altview2Paths[0]) == nil {
+				newidx = gwutil.If(forward, 1, 2).(int)
+			} else if deep.Equal(v3p, altview2Paths[1]) == nil {
+				newidx = gwutil.If(forward, 2, 0).(int)
+			} else {
+				newidx = gwutil.If(forward, 0, 1).(int)
+			}
+		}
+
+		if newidx != -1 {
+			// Keep the views in sync
+			gowid.SetFocusPath(mainview, mainviewPaths[newidx], app)
+			gowid.SetFocusPath(altview1, altview1Paths[newidx], app)
+			gowid.SetFocusPath(altview2, altview2Paths[newidx], app)
+		}
+	}
+}
+
 // Keys for the main view - packet list, structure, etc
 func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
+
 	if evk.Key() == tcell.KeyCtrlC && Loader.State()&pcap.LoadingPsml != 0 {
 		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // iface and psml
 	} else if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyBacktab {
@@ -1384,54 +1472,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			tabMap = tabViewsBackward
 		}
 
-		if v, ok := tabMap[mainViewNoKeys.SubWidget()]; ok {
-			mainViewNoKeys.SetSubWidget(v, app)
-		}
-
-		gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
-		gowid.SetFocusPath(viewOnlyPacketStructure, maxViewPath, app)
-		gowid.SetFocusPath(viewOnlyPacketHex, maxViewPath, app)
-
-		if packetStructureViewHolder.SubWidget() == MissingMsgw {
-			setFocusOnPacketList(app)
-		} else {
-			newidx := -1
-			if mainViewNoKeys.SubWidget() == mainview {
-				v1p := gowid.FocusPath(mainview)
-				if deep.Equal(v1p, mainviewPaths[0]) == nil {
-					newidx = gwutil.If(isTab, 1, 2).(int)
-				} else if deep.Equal(v1p, mainviewPaths[1]) == nil {
-					newidx = gwutil.If(isTab, 2, 0).(int)
-				} else {
-					newidx = gwutil.If(isTab, 0, 1).(int)
-				}
-			} else if mainViewNoKeys.SubWidget() == altview1 {
-				v2p := gowid.FocusPath(altview1)
-				if deep.Equal(v2p, altview1Paths[0]) == nil {
-					newidx = gwutil.If(isTab, 1, 2).(int)
-				} else if deep.Equal(v2p, altview1Paths[1]) == nil {
-					newidx = gwutil.If(isTab, 2, 0).(int)
-				} else {
-					newidx = gwutil.If(isTab, 0, 1).(int)
-				}
-			} else if mainViewNoKeys.SubWidget() == altview2 {
-				v3p := gowid.FocusPath(altview2)
-				if deep.Equal(v3p, altview2Paths[0]) == nil {
-					newidx = gwutil.If(isTab, 1, 2).(int)
-				} else if deep.Equal(v3p, altview2Paths[1]) == nil {
-					newidx = gwutil.If(isTab, 2, 0).(int)
-				} else {
-					newidx = gwutil.If(isTab, 0, 1).(int)
-				}
-			}
-
-			if newidx != -1 {
-				// Keep the views in sync
-				gowid.SetFocusPath(mainview, mainviewPaths[newidx], app)
-				gowid.SetFocusPath(altview1, altview1Paths[newidx], app)
-				gowid.SetFocusPath(altview2, altview2Paths[newidx], app)
-			}
-		}
+		cycleView(app, isTab, tabMap)
 
 	} else if evk.Rune() == '|' {
 		if mainViewNoKeys.SubWidget() == mainview {
@@ -1467,8 +1508,6 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		}
 	} else if evk.Rune() == '/' {
 		setFocusOnDisplayFilter(app)
-	} else if evk.Key() == tcell.KeyCtrlW {
-		reallyClear(app)
 	} else {
 		handled = false
 	}
@@ -1478,6 +1517,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 // Keys for the whole app, applicable whichever view is frontmost
 func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
+	// gcla later todo - check for rune!
 	if evk.Key() == tcell.KeyCtrlC {
 		reallyQuit(app)
 	} else if evk.Key() == tcell.KeyCtrlL {
@@ -1497,6 +1537,20 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		generalMenu.Open(openMenuSite, app)
 	} else if evk.Rune() == '?' {
 		OpenTemplatedDialog(appView, "UIHelp", app)
+	} else if evk.Key() == tcell.KeyRune && evk.Rune() == 'Z' && keyState.PartialZCmd {
+		QuitRequestedChan <- struct{}{}
+	} else if evk.Rune() == 'Z' {
+		keyState.PartialZCmd = true
+	} else if evk.Rune() == 'g' {
+		keyState.PartialgCmd = true
+	} else if evk.Key() == tcell.KeyCtrlW {
+		keyState.PartialCtrlWCmd = true
+	} else if evk.Rune() >= '0' && evk.Rune() <= '9' {
+		if keyState.NumberPrefix == -1 {
+			keyState.NumberPrefix = int(evk.Rune() - '0')
+		} else {
+			keyState.NumberPrefix = (10 * keyState.NumberPrefix) + (int(evk.Rune() - '0'))
+		}
 	} else {
 		handled = false
 	}
@@ -1739,7 +1793,16 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 	withScrollbar := withscrollbar.New(packetListView, withscrollbar.Options{
 		HideIfContentFits: true,
 	})
-	packetListViewHolder.SetSubWidget(enableselected.New(withScrollbar), app)
+	selme := enableselected.New(withScrollbar)
+	keys := appkeys.New(
+		selme,
+		tableutil.GotoHandler(&tableutil.GoToAdapter{
+			BoundedWidget: packetListTable,
+			KeyState:      &keyState,
+		}),
+	)
+
+	packetListViewHolder.SetSubWidget(keys, app)
 }
 
 func expandStructWidgetAtPosition(row int, pos int, app gowid.IApp) {
@@ -2286,6 +2349,45 @@ func SetHexViewMissing(app gowid.IApp) {
 func assignTo(wp interface{}, w gowid.IWidget) gowid.IWidget {
 	reflect.ValueOf(wp).Elem().Set(reflect.ValueOf(w))
 	return w
+}
+
+//======================================================================
+
+// prefixKeyWidget wraps a widget, and adjusts the state of the variables tracking
+// "partial" key chords e.g. the first Z in ZZ, the first g in gg. It also resets
+// the number prefix (which some commands use) - this is done if they key is not
+// a number, and the last keypress wasn't the start of a key chord.
+type prefixKeyWidget struct {
+	gowid.IWidget
+}
+
+func (w *prefixKeyWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	// Save these first. If they are enabled now, any key should cancel them, so cancel
+	// at the end.
+	startingKeyState := keyState
+
+	handled := w.IWidget.UserInput(ev, size, focus, app)
+	switch ev := ev.(type) {
+	case *tcell.EventKey:
+		// If it was set this time around, whatever key was pressed resets it
+		if startingKeyState.PartialgCmd {
+			keyState.PartialgCmd = false
+		}
+		if startingKeyState.PartialZCmd {
+			keyState.PartialZCmd = false
+		}
+		if startingKeyState.PartialCtrlWCmd {
+			keyState.PartialCtrlWCmd = false
+		}
+
+		if ev.Key() != tcell.KeyRune || ev.Rune() < '0' || ev.Rune() > '9' {
+			if !keyState.PartialZCmd && !keyState.PartialgCmd && !keyState.PartialCtrlWCmd {
+				keyState.NumberPrefix = -1
+			}
+		}
+
+	}
+	return handled
 }
 
 //======================================================================
@@ -3081,7 +3183,16 @@ func Build() (*gowid.App, error) {
 	buildStreamUi()
 	buildFilterConvsMenu()
 
-	mainView = appkeys.New(mainViewNoKeys, mainKeyPress)
+	mainView = appkeys.New(
+		appkeys.New(
+			mainViewNoKeys,
+			mainKeyPress,
+		),
+		vimKeysMainView,
+		appkeys.Options{
+			ApplyBefore: true,
+		},
+	)
 
 	//======================================================================
 
@@ -3091,10 +3202,12 @@ func Build() (*gowid.App, error) {
 		ChooseOne: &DarkMode,
 	}
 
-	appViewWithKeys := appkeys.New(
-		assignTo(&appViewNoKeys, holder.New(mainView)),
-		appKeyPress,
-	)
+	appViewWithKeys := &prefixKeyWidget{
+		IWidget: appkeys.New(
+			assignTo(&appViewNoKeys, holder.New(mainView)),
+			appKeyPress,
+		),
+	}
 
 	Fin = rossshark.New(appViewWithKeys)
 

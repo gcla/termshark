@@ -39,6 +39,7 @@ import (
 	"github.com/gcla/termshark/v2/format"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/ui/menuutil"
+	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/copymodetable"
@@ -121,11 +122,13 @@ type Widget struct {
 	convMenuHolder *holder.Widget          // actually holds the listbox used for the open "menu" - entire, client, server
 	convMenu       *menu.Widget            // the menu that opens when you hit the conversation button (entire, client, server)
 	clickActive    bool                    // if true, clicking in stream list will display packet selected
+	keyState       *termshark.KeyState     // for vim key chords that are intended for table navigation
 	searchState                            // track the current highlighted search term
 }
 
 func New(displayFilter string, captureDevice string, proto streams.Protocol,
-	convMenu *menu.Widget, convMenuHolder *holder.Widget, opts ...Options) *Widget {
+	convMenu *menu.Widget, convMenuHolder *holder.Widget, keyState *termshark.KeyState,
+	opts ...Options) *Widget {
 	var opt Options
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -147,6 +150,7 @@ func New(displayFilter string, captureDevice string, proto streams.Protocol,
 		tblWidgets:     make([]*copymodetable.Widget, 3),
 		viewWidgets:    make([]gowid.IWidget, 3),
 		clickActive:    true,
+		keyState:       keyState,
 	}
 
 	res.construct()
@@ -299,21 +303,31 @@ func (w *Widget) makeConvMenuWidget() gowid.IWidget {
 // Turns an array of stream chunks into a pair of (a) a scrollable table
 // widget to be displayed, and (b) the underlying table so that its model
 // can be manipulated.
-func makeTable(data chunkList) (gowid.IWidget, *copymodetable.Widget) {
+func (w *Widget) makeTable(i int) (gowid.IWidget, *copymodetable.Widget) {
+	data := w.data.vdata[i].hexChunks
+
+	btbl := &table.BoundedWidget{Widget: table.New(data)}
+
 	cmtbl := copymodetable.New(
-		table.BoundedWidget{Widget: table.New(data)},
+		btbl,
 		data,
 		data,
 		"streamtable",
 		copyModePalette{},
 	)
-	sc := keepselected.New(
-		withscrollbar.New(
-			scrollabletable.New(cmtbl),
-			withscrollbar.Options{
-				HideIfContentFits: true,
-			},
+	sc := appkeys.New(
+		keepselected.New(
+			withscrollbar.New(
+				scrollabletable.New(cmtbl),
+				withscrollbar.Options{
+					HideIfContentFits: true,
+				},
+			),
 		),
+		tableutil.GotoHandler(&tableutil.GoToAdapter{
+			BoundedWidget: btbl,
+			KeyState:      w.keyState,
+		}),
 	)
 
 	return sc, cmtbl
@@ -696,7 +710,7 @@ func (w *Widget) construct() {
 
 	for i := 0; i < len(w.tblWidgets); i++ {
 		j := i // avoid loop variable gotcha
-		w.viewWidgets[i], w.tblWidgets[i] = makeTable(w.data.vdata[i].hexChunks)
+		w.viewWidgets[i], w.tblWidgets[i] = w.makeTable(i)
 
 		w.tblWidgets[i].OnFocusChanged(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w2 gowid.IWidget) {
 			// reset search on manual moving of table

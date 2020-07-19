@@ -34,6 +34,7 @@ import (
 	"github.com/gcla/termshark/v2/convs"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/psmlmodel"
+	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/copymodetable"
 	"github.com/gcla/termshark/v2/widgets/enableselected"
@@ -743,22 +744,29 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 			var _ gowid.IWidget = boundedTbl
 			var _ table.IBoundedModel = tblModel
 
-			w.convs[w.tabIndex[currentShortName]].IWidget = enableselected.New(
-				withscrollbar.New(
-					scrollabletable.New(
-						copymodetable.New(
-							boundedTbl,
-							CsvTableCopier{hdrs, datas},
-							CsvTableCopier{hdrs, datas},
-							"convstable",
-							copyModePalette{},
+			w.convs[w.tabIndex[currentShortName]].IWidget = appkeys.New(
+				enableselected.New(
+					withscrollbar.New(
+						scrollabletable.New(
+							copymodetable.New(
+								boundedTbl,
+								CsvTableCopier{hdrs, datas},
+								CsvTableCopier{hdrs, datas},
+								"convstable",
+								copyModePalette{},
+							),
 						),
+						withscrollbar.Options{
+							HideIfContentFits: true,
+						},
 					),
-					withscrollbar.Options{
-						HideIfContentFits: true,
-					},
 				),
+				tableutil.GotoHandler(&tableutil.GoToAdapter{
+					BoundedWidget: tbl,
+					KeyState:      &keyState,
+				}),
 			)
+
 			w.convs[w.tabIndex[currentShortName]].tbl = tbl
 			w.convs[w.tabIndex[currentShortName]].model = model
 			w.buttonLabels[currentShortName].SetText(fmt.Sprintf(" %s (%d) ", cur, len(datas)), app)
