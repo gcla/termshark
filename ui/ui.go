@@ -1002,6 +1002,10 @@ func lastLineMode(app gowid.IApp) {
 
 	MiniBuffer.Register("set", setCommand{})
 
+	// read new pcap
+	MiniBuffer.Register("r", readCommand{complete: false})
+	MiniBuffer.Register("load", readCommand{complete: true})
+
 	minibuffer.Open(MiniBuffer, appView, ratio(1.0), flow, app)
 }
 

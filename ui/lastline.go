@@ -7,6 +7,7 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gcla/gowid"
@@ -21,6 +22,7 @@ import (
 
 var notEnoughArgumentsErr = fmt.Errorf("Not enough arguments provided")
 var invalidSetCommandErr = fmt.Errorf("Invalid set command")
+var invalidReadCommandErr = fmt.Errorf("Invalid read command")
 
 type minibufferFn func(gowid.IApp, ...string) error
 
@@ -124,6 +126,26 @@ func (s setArg) Completions() []string {
 		"term",
 		"noterm",
 	}
+}
+
+//======================================================================
+
+type fileArg struct {
+	prefix string
+}
+
+var _ minibuffer.IArg = fileArg{}
+
+func (s fileArg) OfferCompletion() bool {
+	return true
+}
+
+func (s fileArg) Completions() []string {
+	matches, _ := filepath.Glob(s.prefix + "*")
+	if matches == nil {
+		return []string{}
+	}
+	return matches[0:gwutil.Min(16, len(matches))]
 }
 
 //======================================================================
@@ -263,6 +285,44 @@ func (d setCommand) Arguments(toks []string) []minibuffer.IArg {
 		}
 	}
 
+	return res
+}
+
+//======================================================================
+
+type readCommand struct {
+	complete bool
+}
+
+var _ minibuffer.IAction = readCommand{}
+
+func (d readCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	if len(args) != 2 {
+		err = invalidReadCommandErr
+	} else {
+		RequestLoadPcapWithCheck(args[1], FilterWidget.Value(), app)
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	}
+
+	return err
+}
+
+func (d readCommand) OfferCompletion() bool {
+	return d.complete
+}
+
+func (d readCommand) Arguments(toks []string) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	pref := ""
+	if len(toks) > 0 {
+		pref = toks[0]
+	}
+	res = append(res, fileArg{prefix: pref})
 	return res
 }
 
