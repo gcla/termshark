@@ -152,7 +152,7 @@ func ConfStrings(name string) []string {
 func DeleteConf(name string) {
 	confMutex.Lock()
 	defer confMutex.Unlock()
-	delete(viper.Get("main").(map[string]interface{}), name)
+	viper.Set(name, "")
 	viper.WriteConfig()
 }
 
@@ -623,7 +623,7 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 		}
 	}
 	if len(offsets) == 0 {
-		DeleteConf(name)
+		DeleteConf("main." + name)
 	} else {
 		offs, err := json.Marshal(offsets)
 		if err != nil {
