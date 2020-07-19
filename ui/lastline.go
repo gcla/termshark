@@ -13,11 +13,14 @@ import (
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
+	"github.com/gdamore/tcell/terminfo"
+	"github.com/gdamore/tcell/terminfo/dynamic"
 )
 
 //======================================================================
 
 var notEnoughArgumentsErr = fmt.Errorf("Not enough arguments provided")
+var invalidSetCommandErr = fmt.Errorf("Invalid set command")
 
 type minibufferFn func(gowid.IApp, ...string) error
 
@@ -100,9 +103,7 @@ func (s unhelpfulArg) Completions() []string {
 
 //======================================================================
 
-type setArg struct {
-	arg string
-}
+type setArg struct{}
 
 var _ minibuffer.IArg = setArg{}
 
@@ -118,6 +119,8 @@ func (s setArg) Completions() []string {
 		"dark-mode",
 		"disable-shark-fin",
 		"packet-colors",
+		"term",
+		"noterm",
 	}
 }
 
@@ -142,6 +145,15 @@ func parseOnOff(str string) (bool, error) {
 	return false, strconv.ErrSyntax
 }
 
+func validateTerm(term string) error {
+	var err error
+	_, err = terminfo.LookupTerminfo(term)
+	if err != nil {
+		_, _, err = dynamic.LoadTerminfo(term)
+	}
+	return err
+}
+
 type setCommand struct{}
 
 var _ minibuffer.IAction = setCommand{}
@@ -150,7 +162,8 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 	var err error
 	var b bool
 	var i uint64
-	if len(args) == 3 {
+	switch len(args) {
+	case 3:
 		switch args[1] {
 		case "auto-scroll":
 			if b, err = parseOnOff(args[2]); err == nil {
@@ -179,9 +192,26 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 				termshark.SetConf("main.packet-colors", PacketColors)
 				OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
+		case "term":
+			if err = validateTerm(args[2]); err == nil {
+				termshark.SetConf("main.term", args[2])
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					OpenMessage(fmt.Sprintf("Terminal type is now %s\n(Requires restart)", args[2]), appView, app)
+				}))
+			}
+		default:
+			err = invalidSetCommandErr
 		}
-	} else {
-		err = notEnoughArgumentsErr
+	case 2:
+		switch args[1] {
+		case "noterm":
+			termshark.DeleteConf("main.term")
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				OpenMessage("Terminal type is now unset\n(Requires restart)", appView, app)
+			}))
+		default:
+			err = invalidSetCommandErr
+		}
 	}
 
 	if err != nil {
