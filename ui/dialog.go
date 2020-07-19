@@ -48,15 +48,15 @@ func (w *copyable) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid
 	return w.wrapper.UserInput(ev, size, focus, app)
 }
 
-func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
-	openMessage(msgt, openOver, false, app)
+func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) *dialog.Widget {
+	return openMessage(msgt, openOver, false, app)
 }
 
-func OpenMessageForCopy(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
-	openMessage(msgt, openOver, true, app)
+func OpenMessageForCopy(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) *dialog.Widget {
+	return openMessage(msgt, openOver, true, app)
 }
 
-func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget bool, app gowid.IApp) {
+func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget bool, app gowid.IApp) *dialog.Widget {
 	var al gowid.IHAlignment = hmiddle
 	if strings.Count(msgt, "\n") > 0 {
 		al = gowid.HAlignLeft{}
@@ -111,6 +111,8 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 			wrapper: wrapper,
 		}, openOver, fixed, fixed, app,
 	)
+
+	return YesNo
 }
 
 func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) {
