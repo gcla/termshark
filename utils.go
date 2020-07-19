@@ -896,6 +896,15 @@ func BrowseUrl(url string) error {
 
 //======================================================================
 
+type KeyState struct {
+	NumberPrefix    int
+	PartialgCmd     bool
+	PartialZCmd     bool
+	PartialCtrlWCmd bool
+}
+
+//======================================================================
+
 type ICommandOutput interface {
 	ProcessOutput(output string) error
 }
