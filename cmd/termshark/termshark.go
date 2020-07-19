@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/blang/semver"
+	"github.com/fsnotify/fsnotify"
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/capinfo"
@@ -34,7 +35,6 @@ import (
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"gopkg.in/fsnotify.v1"
 
 	"net/http"
 	_ "net/http"
@@ -1205,6 +1205,10 @@ Loop:
 			app.RunThenRenderEvent(ev)
 
 		case <-watcher.ConfigChanged():
+			// Re-read so changes that can take effect immediately do so
+			if err := viper.ReadInConfig(); err != nil {
+				log.Warnf("Unexpected error re-reading toml config: %v", err)
+			}
 			ui.UpdateRecentMenu(app)
 		}
 
