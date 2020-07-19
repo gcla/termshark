@@ -52,7 +52,7 @@ var wordExp *regexp.Regexp
 
 func init() {
 	nullw = null.New()
-	wordExp = regexp.MustCompile(`( *)([0-9A-Za-z-_!]*)`)
+	wordExp = regexp.MustCompile(`( *)((?:")[^"]*(?:")|[^\s]*)`)
 }
 
 // IAction represents a command that can be run in the minibuffer e.g. "set". It
@@ -127,9 +127,10 @@ func New() *Widget {
 				words := make([]string, 0, len(wordMatchesS))
 				for _, m := range wordMatchesS {
 					if m[2] != "" {
-						words = append(words, m[2]) // make a list of the words in the minibuffer
+						words = append(words, strings.TrimPrefix(strings.TrimSuffix(m[2], "\""), "\"")) // make a list of the words in the minibuffer
 					}
 				}
+
 				switch {
 				case len(words) > 1: // a command with args, so command itself must be provided in full.
 					if act, ok := res.actions[words[0]]; ok {
