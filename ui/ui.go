@@ -799,9 +799,9 @@ func (h userCopiedCallbacks) ProcessOutput(output string) error {
 
 //======================================================================
 
-func OpenError(msgt string, app gowid.IApp) {
+func OpenError(msgt string, app gowid.IApp) *dialog.Widget {
 	// the same, for now
-	OpenMessage(msgt, appView, app)
+	return OpenMessage(msgt, appView, app)
 }
 
 func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
