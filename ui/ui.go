@@ -363,6 +363,16 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 
 //======================================================================
 
+// psmlSummary is used to generate a summary for the marks dialog
+type psmlSummary []string
+
+func (p psmlSummary) String() string {
+	// Skip packet number
+	return strings.Join([]string(p)[1:], " : ")
+}
+
+//======================================================================
+
 type RenderWeightUpTo struct {
 	gowid.RenderWithWeight
 	max int
