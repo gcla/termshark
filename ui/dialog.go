@@ -18,6 +18,8 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
+	"github.com/gcla/termshark/v2/widgets/scrollabletext"
+	"github.com/gcla/termshark/v2/widgets/withscrollbar"
 )
 
 //======================================================================
@@ -115,9 +117,35 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 	return YesNo
 }
 
-func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) {
+func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) *dialog.Widget {
+	YesNo = dialog.New(
+		framed.NewSpace(
+			text.New(termshark.TemplateToString(Templates, tmplName, TemplateData)),
+		),
+		dialog.Options{
+			Buttons:         dialog.CloseOnly,
+			NoShadow:        true,
+			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+		},
+	)
+
+	YesNo.Open(container, ratio(0.5), app)
+
+	return YesNo
+}
+
+func OpenTemplatedDialogExt(container gowid.ISettableComposite, tmplName string, width gowid.IWidgetDimension, height gowid.IWidgetDimension, app gowid.IApp) *dialog.Widget {
 	YesNo = dialog.New(framed.NewSpace(
-		text.New(termshark.TemplateToString(Templates, tmplName, TemplateData)),
+		withscrollbar.New(
+			scrollabletext.New(
+				termshark.TemplateToString(Templates, tmplName, TemplateData),
+			),
+			withscrollbar.Options{
+				HideIfContentFits: true,
+			},
+		),
 	),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
@@ -127,7 +155,8 @@ func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, ap
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
-	YesNo.Open(container, ratio(0.5), app)
+	dialog.OpenExt(YesNo, container, width, height, app)
+	return YesNo
 }
 
 func OpenPleaseWait(container gowid.ISettableComposite, app gowid.IApp) {
