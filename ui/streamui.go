@@ -328,7 +328,7 @@ func (t *streamParseHandler) OnError(err error, closeMe chan<- struct{}) {
 	log.Error(err)
 	if !Running {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		QuitRequestedChan <- struct{}{}
+		RequestQuit()
 	} else {
 
 		var errstr string

@@ -177,6 +177,17 @@ func init() {
 	keyState.NumberPrefix = -1 // 0 might be meaningful
 }
 
+func RequestQuit() {
+	select {
+	case QuitRequestedChan <- struct{}{}:
+	default:
+		// Ok for the send not to succeed - there is a buffer of one, and it only
+		// needs one message to start the shutdown sequence. So this means a
+		// message has already been sent (before the main loop gets round to processing
+		// this channel)
+	}
+}
+
 // Runs in app goroutine
 func UpdateProgressBarForInterface(c *pcap.Loader, app gowid.IApp) {
 	SetProgressIndeterminate(app)
@@ -931,7 +942,7 @@ func reallyQuit(app gowid.IApp) {
 				dialog.Button{
 					Msg: "Ok",
 					Action: func(app gowid.IApp, widget gowid.IWidget) {
-						QuitRequestedChan <- struct{}{}
+						RequestQuit()
 					},
 				},
 				dialog.Cancel,
@@ -960,7 +971,7 @@ func lastLineMode(app gowid.IApp) {
 
 	// force quit
 	MiniBuffer.Register("q!", quietMinibufferFn(func(gowid.IApp, ...string) error {
-		QuitRequestedChan <- struct{}{}
+		RequestQuit()
 		return nil
 	}))
 
@@ -1159,7 +1170,7 @@ func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
 	log.Error(err)
 	if !Running {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		QuitRequestedChan <- struct{}{}
+		RequestQuit()
 	} else {
 
 		var errstr string
@@ -1538,7 +1549,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	} else if evk.Rune() == '?' {
 		OpenTemplatedDialog(appView, "UIHelp", app)
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() == 'Z' && keyState.PartialZCmd {
-		QuitRequestedChan <- struct{}{}
+		RequestQuit()
 	} else if evk.Rune() == 'Z' {
 		keyState.PartialZCmd = true
 	} else if evk.Rune() == 'g' {

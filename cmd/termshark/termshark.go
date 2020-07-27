@@ -784,7 +784,7 @@ func cmain() int {
 			Fn: func(app gowid.IApp) {
 				if !ui.Running {
 					fmt.Fprintf(os.Stderr, "Invalid filter: %s\n", displayFilter)
-					ui.QuitRequestedChan <- struct{}{}
+					ui.RequestQuit()
 				} else {
 					app.Run(gowid.RunFunction(func(app gowid.IApp) {
 						ui.OpenError(fmt.Sprintf("Invalid filter: %s", displayFilter), app)
@@ -1115,14 +1115,14 @@ Loop:
 
 			} else {
 				log.Infof("Starting termination via signal %v", sig)
-				ui.QuitRequestedChan <- struct{}{}
+				ui.RequestQuit()
 			}
 
 		case fn := <-opsChan:
 			// We run the requested operation - because operations are now enabled, since this channel
 			// is listening - and the result tells us when operations can be re-enabled (i.e. the target
 			// state of the operation just started, for example). This means we can let an operation
-			// "complete", moving through a sequence of states to the final state, befpre accepting
+			// "complete", moving through a sequence of states to the final state, before accepting
 			// another request.
 			fn()
 
