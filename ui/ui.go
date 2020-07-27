@@ -162,6 +162,7 @@ var QuitRequestedChan chan struct{}
 var keyState termshark.KeyState
 var marksMap map[rune]termshark.JumpPos
 var globalMarksMap map[rune]termshark.GlobalJumpPos
+var savedGlobalJumpPos int
 
 var Loader *pcap.Loader
 var PcapScheduler *pcap.Scheduler
@@ -182,6 +183,8 @@ func init() {
 	keyState.NumberPrefix = -1 // 0 might be meaningful
 	marksMap = make(map[rune]termshark.JumpPos)
 	globalMarksMap = make(map[rune]termshark.GlobalJumpPos)
+	savedGlobalJumpPos = -1
+
 	EnsureTemplateData()
 	TemplateData["Marks"] = marksMap
 	TemplateData["GlobalMarks"] = globalMarksMap
@@ -2148,20 +2151,67 @@ func (t SaveRecents) AfterEnd(closeMe chan<- struct{}) {
 
 //======================================================================
 
+type checkForJump struct {
+	App gowid.IApp
+}
+
+var _ pcap.IAfterEnd = checkForJump{}
+var _ pcap.IOnError = checkForJump{}
+var _ pcap.INewSource = checkForJump{}
+
+func MakeCheckForJump(app gowid.IApp) checkForJump {
+	return checkForJump{
+		App: app,
+	}
+}
+
+func (t checkForJump) OnNewSource(closeMe chan<- struct{}) {
+	for k := range marksMap {
+		delete(marksMap, k)
+	}
+	close(closeMe)
+}
+
+func (t checkForJump) OnError(err error, closeMe chan<- struct{}) {
+	close(closeMe)
+	savedGlobalJumpPos = -1
+}
+
+func (t checkForJump) AfterEnd(closeMe chan<- struct{}) {
+	close(closeMe)
+	// Run on main goroutine to avoid problems flagged by -race
+	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
+		if savedGlobalJumpPos != -1 {
+			if packetListView != nil {
+				col := 0
+				pos, err := packetListView.FocusXY()
+				if err == nil {
+					col = pos.Column
+				}
+				packetListView.SetFocusXY(app, table.Coords{Column: col, Row: savedGlobalJumpPos})
+			}
+			savedGlobalJumpPos = -1
+		}
+	}))
+}
+
+//======================================================================
+
 // Call from app goroutine context
 func RequestLoadPcapWithCheck(pcapf string, displayFilter string, app gowid.IApp) {
+	handlers := pcap.HandlerList{
+		MakeSaveRecents(pcapf, displayFilter, app),
+		MakePacketViewUpdater(app),
+		MakeUpdateCurrentCaptureInTitle(app),
+		ManageStreamCache{},
+		ManageCapinfoCache{},
+		MakeCheckForJump(app),
+	}
+
 	if _, err := os.Stat(pcapf); os.IsNotExist(err) {
-		OpenError(fmt.Sprintf("File %s not found.", pcapf), app)
+		pcap.HandleError(err, handlers)
 	} else {
-		PcapScheduler.RequestLoadPcap(pcapf, displayFilter,
-			pcap.HandlerList{
-				MakeSaveRecents(pcapf, displayFilter, app),
-				MakePacketViewUpdater(app),
-				MakeUpdateCurrentCaptureInTitle(app),
-				ManageStreamCache{},
-				ManageCapinfoCache{},
-			},
-		)
+		PcapScheduler.RequestLoadPcap(pcapf, displayFilter, handlers)
 	}
 }
 
