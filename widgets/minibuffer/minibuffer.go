@@ -23,7 +23,6 @@ import (
 	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/keepselected"
 	"github.com/gdamore/tcell"
 )
@@ -35,10 +34,11 @@ import (
 // supports tab completion and listing completions.
 type Widget struct {
 	*dialog.Widget
-	compl   *holder.Widget
-	ed      *edit.Widget
-	pl      *pile.Widget
-	showAll bool // true if the user hits tab with nothing in the minibuffer. I don't
+	compl      *holder.Widget
+	selections *list.Widget
+	ed         *edit.Widget
+	pl         *pile.Widget
+	showAll    bool // true if the user hits tab with nothing in the minibuffer. I don't
 	// want to display all completions if the buffer is empty because it fills the screen
 	// and looks ugly. So this is a hack to allow the completions to be displayed
 	// via the tab key
@@ -83,19 +83,37 @@ type keysWidget struct {
 	*pile.Widget
 	top    gowid.IWidget
 	bottom gowid.IWidget
+	outer  *Widget
 }
 
 var _ gowid.IWidget = (*keysWidget)(nil)
 
 func (w *keysWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	res := false
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
 		switch ev.Key() {
 		case tcell.KeyRune:
-			return w.bottom.UserInput(ev, size, focus, app)
+			res = w.bottom.UserInput(ev, size, focus, app)
+		case tcell.KeyDown, tcell.KeyCtrlN, tcell.KeyUp, tcell.KeyCtrlP:
+			res = w.top.UserInput(ev, size, focus, app)
+		case tcell.KeyTAB, tcell.KeyEnter:
+			w.outer.handleEnter(ev.Key() == tcell.KeyEnter, app)
+			res = true
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			if w.outer.ed.Text() == "" {
+				if w.outer.IsOpen() {
+					w.outer.Close(app)
+				}
+				res = true
+			}
 		}
 	}
-	return w.Widget.UserInput(ev, size, focus, app)
+	if !res {
+		res = w.Widget.UserInput(ev, size, focus, app)
+	}
+	w.Widget.SetFocus(app, 1)
+	return res
 }
 
 func New() *Widget {
@@ -112,86 +130,8 @@ func New() *Widget {
 		res.updateCompletions(app)
 	})))
 
-	editKeysW := appkeys.New(editW,
-		func(evk *tcell.EventKey, app gowid.IApp) bool {
-			handled := false
-
-			// Disable the display of all completions if the buffer is empty. It looks ugly. If
-			// the user hits tab, display will be re-enabled.
-			res.showAll = false
-
-			switch evk.Key() {
-			case tcell.KeyEnter:
-
-				wordMatchesS := wordExp.FindAllStringSubmatch(editW.Text(), -1)
-				words := make([]string, 0, len(wordMatchesS))
-				for _, m := range wordMatchesS {
-					if m[2] != "" {
-						words = append(words, strings.TrimPrefix(strings.TrimSuffix(m[2], "\""), "\"")) // make a list of the words in the minibuffer
-					}
-				}
-
-				switch {
-				case len(words) > 1: // a command with args, so command itself must be provided in full.
-					if act, ok := res.actions[words[0]]; ok {
-						err := act.Run(app, words...)
-						if err == nil {
-							// Run the command, let it handle errors
-							if res.IsOpen() {
-								res.Close(app)
-							}
-						}
-					}
-				case len(words) == 1: // command itself may be partially provided. If there is only
-					// one way for the command to be completed, allow it to be run.
-					partials := res.getPartialsCompletions(false, app)
-					if len(partials) == 1 {
-						act := res.actions[partials[0].word]
-						if len(act.Arguments([]string{})) == 0 {
-							err := res.actions[partials[0].word].Run(app, partials[0].word)
-							if err == nil {
-								if res.IsOpen() {
-									res.Close(app)
-								}
-							}
-						}
-					}
-				}
-
-				handled = true
-
-			case tcell.KeyTAB:
-
-				partials := res.getPartialsCompletions(true, app)
-				if len(partials) == 1 {
-					// Expand the only completable option, ready for next enter
-					res.ed.SetText(partials[0].line, app)
-					res.ed.SetCursorPos(partials[0].cp, app)
-				} else {
-					res.showAll = true
-					res.updateCompletions(app)
-				}
-
-				handled = true
-
-			case tcell.KeyBackspace, tcell.KeyBackspace2:
-				if res.ed.Text() == "" {
-					if res.IsOpen() {
-						res.Close(app)
-					}
-					handled = true
-				}
-			}
-
-			return handled
-		},
-		appkeys.Options{
-			ApplyBefore: true,
-		},
-	)
-
 	top := holder.New(nullw)
-	bottom := hpadding.New(editKeysW, gowid.HAlignLeft{}, gowid.RenderFlow{})
+	bottom := hpadding.New(editW, gowid.HAlignLeft{}, gowid.RenderFlow{})
 
 	bufferW := pile.New(
 		[]gowid.IContainerWidget{
@@ -213,6 +153,7 @@ func New() *Widget {
 		Widget: bufferW,
 		top:    top,
 		bottom: bottom,
+		outer:  res,
 	}
 
 	*res = Widget{
@@ -232,6 +173,105 @@ func New() *Widget {
 		actions: make(map[string]IAction),
 	}
 	return res
+}
+
+func (w *Widget) handleEnter(enter bool, app gowid.IApp) {
+	// Break edit text up into "words"
+
+	// gcla later todo - need to check it's not nil
+	selectedIdx := 0
+	if w.selections != nil {
+		selectedIdx = int(w.selections.Walker().Focus().(list.ListPos))
+	}
+
+	wordMatchesS := wordExp.FindAllStringSubmatch(w.ed.Text(), -1)
+	words := make([]string, 0, len(wordMatchesS))
+	for _, m := range wordMatchesS {
+		if m[2] != "" {
+			words = append(words, strings.TrimPrefix(strings.TrimSuffix(m[2], "\""), "\"")) // make a list of the words in the minibuffer
+		}
+	}
+
+	switch {
+	// how many words are in the edit box
+	case len(words) > 1: // a command with args, so command itself must be provided in full.
+		partials := w.getPartialsCompletions(false, app)
+		switch len(partials) {
+		//					case 1:
+		case 0:
+			// "load /tmp/foo" and []  - just run what the user typed if the key was enter
+			if act, ok := w.actions[words[0]]; ok && enter {
+				err := act.Run(app, words...)
+				if err == nil {
+					// Run the command, let it handle errors
+					if w.IsOpen() {
+						w.Close(app)
+					}
+				}
+			}
+		default:
+			// if the last word exactly equals the one selected in the partials, just run on enter
+			if words[len(words)-1] == partials[selectedIdx].word && enter {
+				// "load /tmp/foo.pcap" and ["/tmp/foo.pcap"]
+				if act, ok := w.actions[words[0]]; ok {
+					err := act.Run(app, words...)
+					if err == nil {
+						// Run the command, let it handle errors
+						if w.IsOpen() {
+							w.Close(app)
+						}
+					}
+				}
+			} else {
+				// Otherwise, tab complete
+				//
+				// "load /tmp/foo" and ["/tmp/foo2.pcap", "/tmp/foo.pcap"]
+				//                                         ^^^^^^^^^^^^^
+				w.ed.SetText(partials[selectedIdx].line, app)
+				w.ed.SetCursorPos(partials[selectedIdx].cp, app)
+			}
+			//default:
+		}
+
+	case len(words) == 1: // command itself may be partially provided. If there is only
+		// one way for the command to be completed, allow it to be run.
+		partials := w.getPartialsCompletions(false, app)
+		switch len(partials) {
+		case 0:
+			if act, ok := w.actions[words[0]]; ok && enter {
+				err := act.Run(app, words...)
+				if err == nil {
+					// Run the command, let it handle errors
+					if w.IsOpen() {
+						w.Close(app)
+					}
+				}
+			}
+		default:
+			//act := w.actions[partials[len(partials)-1].word]
+			if words[len(words)-1] == partials[selectedIdx].word && enter {
+				act := w.actions[partials[selectedIdx].word]
+				if len(act.Arguments([]string{})) == 0 {
+					err := w.actions[partials[selectedIdx].word].Run(app, partials[selectedIdx].word)
+					if err == nil {
+						if w.IsOpen() {
+							w.Close(app)
+						}
+					}
+				}
+			} else {
+				w.ed.SetText(partials[selectedIdx].line, app)
+				w.ed.SetCursorPos(partials[selectedIdx].cp, app)
+			}
+		}
+
+	default:
+		// Nothing typed, hitting tab or enter shows all commands
+		w.showAll = true
+		w.updateCompletions(app)
+
+	}
+
 }
 
 // Not thread-safe, manage via App perhaps
@@ -282,13 +322,15 @@ func (w *Widget) getPartialsCompletions(checkOffer bool, app gowid.IApp) []parti
 					for _, complV := range wordArgs[argIdx].Completions() {
 						// to bind properly
 						compl := complV
-						if strings.HasPrefix(compl, wordMatchesS[wordIdx][2]) {
-							partials = append(partials, partial{
-								word: compl,
-								line: txt[0:wordStart] + compl + txt[wordEnd:len(txt)], // what to use for line if user completes this
-								cp:   wordStart + len(compl),
-							})
+						qcompl := compl
+						if strings.Contains(qcompl, " ") {
+							qcompl = "\"" + qcompl + "\""
 						}
+						partials = append(partials, partial{
+							word: compl,
+							line: txt[0:wordStart] + qcompl + txt[wordEnd:len(txt)], // what to use for line if user completes this
+							cp:   wordStart + len(qcompl),
+						})
 					}
 				}
 			}
@@ -346,12 +388,14 @@ func (w *Widget) updateCompletions(app gowid.IApp) {
 	walker := list.NewSimpleListWalker(complWidgets)
 	if len(complWidgets) > 0 {
 		walker.SetFocus(walker.Last(), app)
-		l := list.New(walker)
-		sl2 := keepselected.New(l)
+		selections := list.New(walker)
+		sl2 := keepselected.New(selections)
 		w.compl.SetSubWidget(sl2, app)
+		w.selections = selections
 	} else {
 		// don't want anything to take focus if there are no completions
 		w.compl.SetSubWidget(nullw, app)
+		w.selections = nil
 	}
 }
 
