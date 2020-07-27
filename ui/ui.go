@@ -1151,8 +1151,8 @@ func (t updatePacketViews) OnClear(closeMe chan<- struct{}) {
 }
 
 func (t updatePacketViews) BeforeBegin(ch chan<- struct{}) {
+	close(ch)
 	ch2 := Loader.PsmlFinishedChan
-
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		clearPacketViews(app)
 		t.Ld.Lock()
@@ -1173,8 +1173,6 @@ func (t updatePacketViews) BeforeBegin(ch chan<- struct{}) {
 				time.Duration(2000)*time.Millisecond,
 				10)
 		}, Goroutinewg)
-
-		close(ch)
 	}))
 }
 
