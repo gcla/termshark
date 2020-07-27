@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 	"text/template"
 
 	"github.com/blang/semver"
@@ -86,18 +87,33 @@ ctrl-c   - Copy from selected widget
 left     - Widen selection
 right    - Narrow selection{{end}}
 '?'      - Display copy-mode help
+{{define "Marks"}}{{if not .Marks}}No local marks are set{{else}}Mark Packet Summary{{range $key, $value := .Marks }}
+{{printf " %c" $key}}{{printf "%6d" $value.Pos}}    {{printf "%s" $value.Summary}}{{end}}{{end}}
+
+{{if not .GlobalMarks}}No cross-file marks are set{{else}}Mark Packet  File              Summary{{range $key, $value := .GlobalMarks }}
+{{printf " %-4c" $key}} {{printf "%-7d" $value.Pos}}{{printf "%-18s" $value.Base}}{{printf "%s" $value.Summary}}{{end}}{{end}}{{end}}
+{{define "Key Mappings"}}{{if .Maps.None}}No key mappings are set{{else}}  From          To   {{range $mapping := .Maps.Get }}
+{{printf "  %-14v" $mapping.From}}{{printf "%v" $mapping.To}}   {{end}}{{end}}
+{{end}}
 `))
 
 //======================================================================
 
+var DoOnce sync.Once
+
+func EnsureTemplateData() {
+	DoOnce.Do(func() {
+		TemplateData = make(map[string]interface{})
+	})
+}
+
 func init() {
-	TemplateData = map[string]interface{}{
-		"Version":      termshark.Version,
-		"FAQURL":       termshark.FAQURL,
-		"UserGuideURL": termshark.UserGuideURL,
-		"BugURL":       termshark.BugURL,
-		"FeatureURL":   termshark.FeatureURL,
-	}
+	EnsureTemplateData()
+	TemplateData["Version"] = termshark.Version
+	TemplateData["FAQURL"] = termshark.FAQURL
+	TemplateData["UserGuideURL"] = termshark.UserGuideURL
+	TemplateData["BugURL"] = termshark.BugURL
+	TemplateData["FeatureURL"] = termshark.FeatureURL
 }
 
 func WriteHelp(p *flags.Parser, w io.Writer) {
@@ -128,6 +144,14 @@ func WriteTsharkVersion(p *flags.Parser, bin string, ver semver.Version, w io.Wr
 	TemplateData["TsharkVersion"] = ver.String()
 	TemplateData["TsharkAbsolutePath"] = bin
 	if err := Templates.ExecuteTemplate(w, "TsharkVer", TemplateData); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Fprintln(w)
+}
+
+func WriteMarks(p *flags.Parser, marks map[rune]int, w io.Writer) {
+	if err := Templates.ExecuteTemplate(w, "Marks", TemplateData); err != nil {
 		log.Fatal(err)
 	}
 

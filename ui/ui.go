@@ -157,6 +157,8 @@ var QuitRequestedChan chan struct{}
 
 // Store this for vim-like keypresses that are a sequence e.g. "ZZ"
 var keyState termshark.KeyState
+var marksMap map[rune]termshark.JumpPos
+var globalMarksMap map[rune]termshark.GlobalJumpPos
 
 var Loader *pcap.Loader
 var PcapScheduler *pcap.Scheduler
@@ -175,6 +177,22 @@ func init() {
 	CacheRequestsChan = make(chan struct{}, 1000)
 	CacheRequests = make([]pcap.LoadPcapSlice, 0)
 	keyState.NumberPrefix = -1 // 0 might be meaningful
+	marksMap = make(map[rune]termshark.JumpPos)
+	globalMarksMap = make(map[rune]termshark.GlobalJumpPos)
+	EnsureTemplateData()
+	TemplateData["Marks"] = marksMap
+	TemplateData["GlobalMarks"] = globalMarksMap
+	TemplateData["Maps"] = getMappings{}
+}
+
+type getMappings struct{}
+
+func (g getMappings) Get() []termshark.KeyMapping {
+	return termshark.LoadKeyMappings()
+}
+
+func (g getMappings) None() bool {
+	return len(termshark.LoadKeyMappings()) == 0
 }
 
 func RequestQuit() {
