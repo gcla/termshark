@@ -637,6 +637,69 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 
 //======================================================================
 
+// Need to publish fields for template use
+type JumpPos struct {
+	Summary string `json:"summary"`
+	Pos     int    `json:"position"`
+}
+
+type GlobalJumpPos struct {
+	JumpPos
+	Filename string `json:"filename"`
+}
+
+// For ease of use in the template
+func (g GlobalJumpPos) Base() string {
+	return filepath.Base(g.Filename)
+}
+
+type globalJumpPosMapping struct {
+	Key           rune `json:"key"`
+	GlobalJumpPos      // embedding without a field name makes the json more concise
+}
+
+func LoadGlobalMarks(m map[rune]GlobalJumpPos) error {
+	marksStr := ConfString("main.marks", "")
+	if marksStr == "" {
+		return nil
+	}
+
+	mappings := make([]globalJumpPosMapping, 0)
+	err := json.Unmarshal([]byte(marksStr), &mappings)
+	if err != nil {
+		return errors.WithStack(gowid.WithKVs(ConfigErr, map[string]interface{}{
+			"name": "marks",
+			"msg":  "Could not unmarshal marks",
+		}))
+	}
+
+	for _, mapping := range mappings {
+		m[mapping.Key] = mapping.GlobalJumpPos
+	}
+
+	return nil
+}
+
+func SaveGlobalMarks(m map[rune]GlobalJumpPos) {
+	marks := make([]globalJumpPosMapping, 0)
+	for k, v := range m {
+		marks = append(marks, globalJumpPosMapping{Key: k, GlobalJumpPos: v})
+	}
+	if len(marks) == 0 {
+		DeleteConf("main.marks")
+	} else {
+		marksJ, err := json.Marshal(marks)
+		if err != nil {
+			log.Fatal(err)
+		}
+		SetConf("main.marks", string(marksJ))
+	}
+	// Hack to make viper save if I only deleted from the map
+	SetConf("main.lastupdate", time.Now().String())
+}
+
+//======================================================================
+
 var cpuProfileRunning *abool.AtomicBool
 
 func init() {
