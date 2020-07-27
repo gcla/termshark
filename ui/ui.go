@@ -1489,8 +1489,22 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'A' && evk.Rune() <= 'Z' && keyState.PartialQuoteCmd {
 		gpos, ok := globalMarksMap[evk.Rune()]
 		if ok {
-			savedGlobalJumpPos = gpos.Pos
-			RequestLoadPcapWithCheck(gpos.Filename, FilterWidget.Value(), app)
+			if Loader.Pcap() != gpos.Filename {
+				savedGlobalJumpPos = gpos.Pos
+				RequestLoadPcapWithCheck(gpos.Filename, FilterWidget.Value(), app)
+			} else {
+				if packetListView != nil {
+					pos, err := packetListView.FocusXY()
+					if err == nil {
+						lastJumpPos = pos.Row
+						packetListView.SetFocusXY(app, table.Coords{Column: pos.Column, Row: gpos.Pos})
+					} else {
+						OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+					}
+				}
+			}
+		} else {
+			OpenError("Mark not found.", app)
 		}
 
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() == '\'' && keyState.PartialQuoteCmd {
