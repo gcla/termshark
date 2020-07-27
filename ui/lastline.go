@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
+	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/widgets/mapkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
 	"github.com/gdamore/tcell/terminfo"
 	"github.com/gdamore/tcell/terminfo/dynamic"
@@ -23,6 +26,9 @@ import (
 var notEnoughArgumentsErr = fmt.Errorf("Not enough arguments provided")
 var invalidSetCommandErr = fmt.Errorf("Invalid set command")
 var invalidReadCommandErr = fmt.Errorf("Invalid read command")
+var invalidRecentsCommandErr = fmt.Errorf("Invalid recents command")
+var invalidMapCommandErr = fmt.Errorf("Invalid map command")
+var invalidFilterCommandErr = fmt.Errorf("Invalid filter command")
 
 type minibufferFn func(gowid.IApp, ...string) error
 
@@ -105,7 +111,9 @@ func (s unhelpfulArg) Completions() []string {
 
 //======================================================================
 
-type setArg struct{}
+type setArg struct {
+	substr string
+}
 
 var _ minibuffer.IArg = setArg{}
 
@@ -115,7 +123,8 @@ func (s setArg) OfferCompletion() bool {
 
 // return these in sorted order
 func (s setArg) Completions() []string {
-	return []string{
+	res := make([]string, 0)
+	for _, str := range []string{
 		"auto-scroll",
 		"copy-command-timeout",
 		"dark-mode",
@@ -125,13 +134,18 @@ func (s setArg) Completions() []string {
 		"nopager",
 		"term",
 		"noterm",
+	} {
+		if strings.Contains(str, s.substr) {
+			res = append(res, str)
+		}
 	}
+	return res
 }
 
 //======================================================================
 
 type fileArg struct {
-	prefix string
+	substr string
 }
 
 var _ minibuffer.IArg = fileArg{}
@@ -141,11 +155,65 @@ func (s fileArg) OfferCompletion() bool {
 }
 
 func (s fileArg) Completions() []string {
-	matches, _ := filepath.Glob(s.prefix + "*")
+	matches, _ := filepath.Glob(s.substr + "*")
 	if matches == nil {
 		return []string{}
 	}
-	return matches[0:gwutil.Min(16, len(matches))]
+	return matches
+}
+
+//======================================================================
+
+type recentsArg struct {
+	substr string
+}
+
+var _ minibuffer.IArg = recentsArg{}
+
+func (s recentsArg) OfferCompletion() bool {
+	return true
+}
+
+func (s recentsArg) Completions() []string {
+	matches := make([]string, 0)
+	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
+	if cfiles != nil {
+		for _, sc := range cfiles {
+			scopy := sc
+			if strings.Contains(scopy, s.substr) {
+				matches = append(matches, scopy)
+			}
+		}
+	}
+
+	return matches
+}
+
+//======================================================================
+
+type filterArg struct {
+	substr string
+}
+
+var _ minibuffer.IArg = filterArg{}
+
+func (s filterArg) OfferCompletion() bool {
+	return true
+}
+
+func (s filterArg) Completions() []string {
+	matches := make([]string, 0)
+	cfiles := termshark.ConfStringSlice("main.recent-filters", []string{})
+	if cfiles != nil {
+		for _, sc := range cfiles {
+			scopy := sc
+			if strings.Contains(scopy, s.substr) {
+				matches = append(matches, scopy)
+			}
+		}
+	}
+
+	return matches
 }
 
 //======================================================================
@@ -193,16 +261,12 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 			if b, err = parseOnOff(args[2]); err == nil {
 				AutoScroll = b
 				termshark.SetConf("main.auto-scroll", AutoScroll)
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					OpenMessage(fmt.Sprintf("Packet auto-scroll is now %s", gwutil.If(b, "on", "off").(string)), appView, app)
-				}))
+				OpenMessage(fmt.Sprintf("Packet auto-scroll is now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
 		case "copy-command-timeout":
 			if i, err = strconv.ParseUint(args[2], 10, 32); err == nil {
 				termshark.SetConf("main.copy-command-timeout", i)
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					OpenMessage(fmt.Sprintf("Copy command timeout is now %ds", i), appView, app)
-				}))
+				OpenMessage(fmt.Sprintf("Copy command timeout is now %ds", i), appView, app)
 			}
 		case "dark-mode":
 			if b, err = parseOnOff(args[2]); err == nil {
@@ -212,30 +276,22 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 		case "disable-shark-fin":
 			if b, err = strconv.ParseBool(args[2]); err == nil {
 				termshark.SetConf("main.disable-shark-fin", DarkMode)
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					OpenMessage(fmt.Sprintf("Shark-saver is now %s", gwutil.If(b, "off", "on").(string)), appView, app)
-				}))
+				OpenMessage(fmt.Sprintf("Shark-saver is now %s", gwutil.If(b, "off", "on").(string)), appView, app)
 			}
 		case "packet-colors":
 			if b, err = parseOnOff(args[2]); err == nil {
 				PacketColors = b
 				termshark.SetConf("main.packet-colors", PacketColors)
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
-				}))
+				OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
 		case "term":
 			if err = validateTerm(args[2]); err == nil {
 				termshark.SetConf("main.term", args[2])
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					OpenMessage(fmt.Sprintf("Terminal type is now %s\n(Requires restart)", args[2]), appView, app)
-				}))
+				OpenMessage(fmt.Sprintf("Terminal type is now %s\n(Requires restart)", args[2]), appView, app)
 			}
 		case "pager":
 			termshark.SetConf("main.pager", args[2])
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				OpenMessage(fmt.Sprintf("Pager is now %s", args[2]), appView, app)
-			}))
+			OpenMessage(fmt.Sprintf("Pager is now %s", args[2]), appView, app)
 		default:
 			err = invalidSetCommandErr
 		}
@@ -243,14 +299,10 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 		switch args[1] {
 		case "noterm":
 			termshark.DeleteConf("main.term")
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				OpenMessage("Terminal type is now unset\n(Requires restart)", appView, app)
-			}))
+			OpenMessage("Terminal type is now unset\n(Requires restart)", appView, app)
 		case "nopager":
 			termshark.DeleteConf("main.pager")
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				OpenMessage("Pager is now unset", appView, app)
-			}))
+			OpenMessage("Pager is now unset", appView, app)
 		default:
 			err = invalidSetCommandErr
 		}
@@ -269,7 +321,7 @@ func (d setCommand) OfferCompletion() bool {
 
 func (d setCommand) Arguments(toks []string) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
-	res = append(res, setArg{})
+	res = append(res, setArg{substr: toks[0]})
 
 	if len(toks) > 0 {
 		onOffCmds := []string{"auto-scroll", "dark-mode", "packet-colors"}
@@ -322,7 +374,164 @@ func (d readCommand) Arguments(toks []string) []minibuffer.IArg {
 	if len(toks) > 0 {
 		pref = toks[0]
 	}
-	res = append(res, fileArg{prefix: pref})
+	res = append(res, fileArg{substr: pref})
+	return res
+}
+
+//======================================================================
+
+type recentsCommand struct{}
+
+var _ minibuffer.IAction = recentsCommand{}
+
+func (d recentsCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	if len(args) != 2 {
+		err = invalidRecentsCommandErr
+	} else {
+		RequestLoadPcapWithCheck(args[1], FilterWidget.Value(), app)
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	}
+
+	return err
+}
+
+func (d recentsCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d recentsCommand) Arguments(toks []string) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	pref := ""
+	if len(toks) > 0 {
+		pref = toks[0]
+	}
+	res = append(res, recentsArg{substr: pref})
+	return res
+}
+
+//======================================================================
+
+type filterCommand struct{}
+
+var _ minibuffer.IAction = filterCommand{}
+
+func (d filterCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	if len(args) != 2 {
+		err = invalidFilterCommandErr
+	} else {
+		setFocusOnDisplayFilter(app)
+		FilterWidget.SetValue(args[1], app)
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	}
+
+	return err
+}
+
+func (d filterCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d filterCommand) Arguments(toks []string) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	pref := ""
+	if len(toks) > 0 {
+		pref = toks[0]
+	}
+	res = append(res, filterArg{substr: pref})
+	return res
+}
+
+//======================================================================
+
+type mapCommand struct {
+	w *mapkeys.Widget
+}
+
+var _ minibuffer.IAction = mapCommand{}
+
+func (d mapCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	if len(args) == 3 {
+		key1 := vim.VimStringToKeys(args[1])
+		keys2 := vim.VimStringToKeys(args[2])
+		termshark.AddKeyMapping(termshark.KeyMapping{From: key1[0], To: keys2})
+		mappings := termshark.LoadKeyMappings()
+		for _, mapping := range mappings {
+			d.w.AddMapping(mapping.From, mapping.To, app)
+		}
+	} else if len(args) == 1 {
+		OpenTemplatedDialogExt(appView, "Key Mappings", fixed, ratio(0.6), app)
+	} else {
+		err = invalidMapCommandErr
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	}
+
+	return err
+}
+
+func (d mapCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d mapCommand) Arguments(toks []string) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	if len(toks) == 2 {
+		res = append(res, unhelpfulArg{}, unhelpfulArg{})
+	}
+	return res
+}
+
+//======================================================================
+
+type unmapCommand struct {
+	w *mapkeys.Widget
+}
+
+var _ minibuffer.IAction = unmapCommand{}
+
+func (d unmapCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	if len(args) != 2 {
+		err = invalidMapCommandErr
+	} else {
+		key1 := vim.VimStringToKeys(args[1])
+		d.w.ClearMappings(app)
+		termshark.RemoveKeyMapping(key1[0])
+		mappings := termshark.LoadKeyMappings()
+		for _, mapping := range mappings {
+			d.w.AddMapping(mapping.From, mapping.To, app)
+		}
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	}
+
+	return err
+}
+
+func (d unmapCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d unmapCommand) Arguments(toks []string) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	res = append(res, unhelpfulArg{})
 	return res
 }
 

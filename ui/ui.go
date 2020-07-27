@@ -981,12 +981,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer = minibuffer.New()
 
 	MiniBuffer.Register("quit", minibufferFn(func(gowid.IApp, ...string) error {
-		// Delay because when control returns to the minibuffer, it closes itself
-		// if there is no error, but that has the side effect of closing this
-		// dialog too :-(
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			reallyQuit(app)
-		}))
+		reallyQuit(app)
 		return nil
 	}))
 
@@ -997,52 +992,43 @@ func lastLineMode(app gowid.IApp) {
 	}))
 
 	MiniBuffer.Register("help", minibufferFn(func(gowid.IApp, ...string) error {
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			OpenTemplatedDialog(appView, "UIHelp", app)
-		}))
+		OpenTemplatedDialog(appView, "UIHelp", app)
 		return nil
 	}))
 
 	MiniBuffer.Register("?", quietMinibufferFn(func(gowid.IApp, ...string) error {
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			OpenTemplatedDialog(appView, "UIHelp", app)
-		}))
+		OpenTemplatedDialog(appView, "UIHelp", app)
 		return nil
 	}))
 
 	MiniBuffer.Register("convs", minibufferFn(func(gowid.IApp, ...string) error {
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			openConvsUi(app)
-		}))
+		openConvsUi(app)
 		return nil
 	}))
 
 	MiniBuffer.Register("streams", minibufferFn(func(gowid.IApp, ...string) error {
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			startStreamReassembly(app)
-		}))
+		startStreamReassembly(app)
 		return nil
 	}))
 
 	MiniBuffer.Register("capinfo", minibufferFn(func(gowid.IApp, ...string) error {
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			startCapinfo(app)
-		}))
+		startCapinfo(app)
 		return nil
 	}))
 
 	MiniBuffer.Register("clear", minibufferFn(func(gowid.IApp, ...string) error {
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			reallyClear(app)
-		}))
+		reallyClear(app)
+		return nil
+	}))
+
+	MiniBuffer.Register("marks", minibufferFn(func(gowid.IApp, ...string) error {
+		OpenTemplatedDialogExt(appView, "Marks", fixed, ratio(0.6), app)
 		return nil
 	}))
 
 	if runtime.GOOS != "windows" {
 		MiniBuffer.Register("logs", minibufferFn(func(gowid.IApp, ...string) error {
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				openLogsUi(app)
-			}))
+			openLogsUi(app)
 			return nil
 		}))
 	}
@@ -1051,9 +1037,14 @@ func lastLineMode(app gowid.IApp) {
 
 	// read new pcap
 	MiniBuffer.Register("r", readCommand{complete: false})
+	MiniBuffer.Register("e", readCommand{complete: false})
 	MiniBuffer.Register("load", readCommand{complete: true})
+	MiniBuffer.Register("recents", recentsCommand{})
+	MiniBuffer.Register("filter", filterCommand{})
+	MiniBuffer.Register("map", mapCommand{w: keyMapper})
+	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
 
-	minibuffer.Open(MiniBuffer, appView, ratio(1.0), flow, app)
+	minibuffer.Open(MiniBuffer, mbView, ratio(1.0), fixed, app)
 }
 
 //======================================================================
