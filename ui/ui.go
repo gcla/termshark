@@ -57,6 +57,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/filter"
 	"github.com/gcla/termshark/v2/widgets/hexdumper2"
 	"github.com/gcla/termshark/v2/widgets/ifwidget"
+	"github.com/gcla/termshark/v2/widgets/mapkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gcla/termshark/v2/widgets/rossshark"
@@ -75,6 +76,7 @@ var Goroutinewg *sync.WaitGroup
 // test
 var appViewNoKeys *holder.Widget
 var appView *holder.Widget
+var mbView *holder.Widget
 var mainViewNoKeys *holder.Widget
 var mainView *appkeys.KeyWidget
 var pleaseWaitSpinner *spinner.Widget
@@ -123,6 +125,7 @@ var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
 var savedListBoxWidgetHolder *holder.Widget
 var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
+var keyMapper *mapkeys.Widget
 
 var tabViewsForward map[gowid.IWidget]gowid.IWidget
 var tabViewsBackward map[gowid.IWidget]gowid.IWidget
@@ -3238,7 +3241,10 @@ func Build() (*gowid.App, error) {
 		),
 	}
 
-	Fin = rossshark.New(appViewWithKeys)
+	// For minibuffer
+	mbView = holder.New(appViewWithKeys)
+
+	Fin = rossshark.New(mbView)
 
 	if !termshark.ConfBool("main.disable-shark-fin", false) {
 		steerableFin := appkeys.NewMouse(
@@ -3276,12 +3282,41 @@ func Build() (*gowid.App, error) {
 
 		appView = holder.New(steerableFin)
 	} else {
-		appView = holder.New(appViewWithKeys)
+		appView = holder.New(mbView)
+	}
+
+	var lastMenu gowid.IWidget = appView
+	menus := []gowid.IMenuCompatible{
+		savedMenu,
+		analysisMenu,
+		generalMenu,
+		conversationMenu,
+		filterConvsMenu1,
+		filterConvsMenu2,
+	}
+
+	menus = append(menus, FilterWidget.Menus()...)
+
+	for _, w := range menus {
+		w.SetSubWidget(lastMenu, app)
+		lastMenu = w
+	}
+
+	keyMapper = mapkeys.New(lastMenu)
+	keyMappings := termshark.LoadKeyMappings()
+	for _, km := range keyMappings {
+		log.Infof("Applying keymapping %v --> %v", km.From, km.To)
+		keyMapper.AddMapping(km.From, km.To, app)
+	}
+
+	if err = termshark.LoadGlobalMarks(globalMarksMap); err != nil {
+		// Not fatal
+		log.Error(err)
 	}
 
 	// Create app, etc, but don't init screen which sets ICANON, etc
 	app, err = gowid.NewApp(gowid.AppArgs{
-		View:         appView,
+		View:         keyMapper,
 		Palette:      palette,
 		DontActivate: true,
 		Log:          log.StandardLogger(),
@@ -3290,16 +3325,6 @@ func Build() (*gowid.App, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	for _, m := range FilterWidget.Menus() {
-		app.RegisterMenu(m)
-	}
-	app.RegisterMenu(savedMenu)
-	app.RegisterMenu(analysisMenu)
-	app.RegisterMenu(generalMenu)
-	app.RegisterMenu(conversationMenu)
-	app.RegisterMenu(filterConvsMenu1)
-	app.RegisterMenu(filterConvsMenu2)
 
 	gowid.SetFocusPath(mainview, mainviewPaths[0], app)
 	gowid.SetFocusPath(altview1, altview1Paths[0], app)
