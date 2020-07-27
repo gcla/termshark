@@ -1025,6 +1025,8 @@ type KeyState struct {
 	PartialgCmd     bool
 	PartialZCmd     bool
 	PartialCtrlWCmd bool
+	PartialmCmd     bool
+	PartialQuoteCmd bool
 }
 
 //======================================================================

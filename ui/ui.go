@@ -162,6 +162,7 @@ var QuitRequestedChan chan struct{}
 var keyState termshark.KeyState
 var marksMap map[rune]termshark.JumpPos
 var globalMarksMap map[rune]termshark.GlobalJumpPos
+var lastJumpPos int
 var savedGlobalJumpPos int
 
 var Loader *pcap.Loader
@@ -183,6 +184,7 @@ func init() {
 	keyState.NumberPrefix = -1 // 0 might be meaningful
 	marksMap = make(map[rune]termshark.JumpPos)
 	globalMarksMap = make(map[rune]termshark.GlobalJumpPos)
+	lastJumpPos = -1
 	savedGlobalJumpPos = -1
 
 	EnsureTemplateData()
@@ -1428,10 +1430,83 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 
 	if evk.Key() == tcell.KeyCtrlW && keyState.PartialCtrlWCmd {
 		cycleView(app, true, tabViewsForward)
-		keyState.PartialCtrlWCmd = false
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() == '=' && keyState.PartialCtrlWCmd {
 		clearOffsets(app)
-		keyState.PartialCtrlWCmd = false
+	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'a' && evk.Rune() <= 'z' && keyState.PartialmCmd {
+		if packetListView != nil {
+			pos, err := packetListView.FocusXY()
+			if err == nil {
+				var summary string
+				if len(Loader.PacketPsmlData) > pos.Row {
+					summary = psmlSummary(Loader.PacketPsmlData[pos.Row]).String()
+				}
+				marksMap[evk.Rune()] = termshark.JumpPos{Pos: pos.Row, Summary: summary}
+			} else {
+				OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+			}
+		}
+
+	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'A' && evk.Rune() <= 'Z' && keyState.PartialmCmd {
+
+		if Loader != nil {
+			if Loader.Pcap() != "" {
+				if packetListView != nil {
+					pos, err := packetListView.FocusXY()
+					if err == nil {
+						var summary string
+						if len(Loader.PacketPsmlData) > pos.Row {
+							summary = psmlSummary(Loader.PacketPsmlData[pos.Row]).String()
+						}
+						globalMarksMap[evk.Rune()] = termshark.GlobalJumpPos{
+							JumpPos: termshark.JumpPos{
+								Pos:     pos.Row,
+								Summary: summary,
+							},
+							Filename: Loader.Pcap(),
+						}
+						termshark.SaveGlobalMarks(globalMarksMap)
+					} else {
+						OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+					}
+				}
+			}
+		}
+
+	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'a' && evk.Rune() <= 'z' && keyState.PartialQuoteCmd {
+		if packetListView != nil {
+			pos, err := packetListView.FocusXY()
+			if err == nil {
+				npos, ok := marksMap[evk.Rune()]
+				if ok {
+					lastJumpPos = pos.Row
+					packetListView.SetFocusXY(app, table.Coords{Column: pos.Column, Row: npos.Pos})
+				}
+			} else {
+				OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+			}
+		}
+
+	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'A' && evk.Rune() <= 'Z' && keyState.PartialQuoteCmd {
+		gpos, ok := globalMarksMap[evk.Rune()]
+		if ok {
+			savedGlobalJumpPos = gpos.Pos
+			RequestLoadPcapWithCheck(gpos.Filename, FilterWidget.Value(), app)
+		}
+
+	} else if evk.Key() == tcell.KeyRune && evk.Rune() == '\'' && keyState.PartialQuoteCmd {
+		if packetListView != nil {
+			pos, err := packetListView.FocusXY()
+			if err == nil {
+				jpos := lastJumpPos
+				if jpos != -1 {
+					lastJumpPos = pos.Row
+					packetListView.SetFocusXY(app, table.Coords{Column: pos.Column, Row: jpos})
+				}
+			} else {
+				OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+			}
+		}
+
 	} else {
 		handled = false
 	}
@@ -1575,6 +1650,10 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		RequestQuit()
 	} else if evk.Rune() == 'Z' {
 		keyState.PartialZCmd = true
+	} else if evk.Rune() == 'm' {
+		keyState.PartialmCmd = true
+	} else if evk.Rune() == '\'' {
+		keyState.PartialQuoteCmd = true
 	} else if evk.Rune() == 'g' {
 		keyState.PartialgCmd = true
 	} else if evk.Key() == tcell.KeyCtrlW {
@@ -2459,6 +2538,12 @@ func (w *prefixKeyWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 		}
 		if startingKeyState.PartialCtrlWCmd {
 			keyState.PartialCtrlWCmd = false
+		}
+		if startingKeyState.PartialmCmd {
+			keyState.PartialmCmd = false
+		}
+		if startingKeyState.PartialQuoteCmd {
+			keyState.PartialQuoteCmd = false
 		}
 
 		if ev.Key() != tcell.KeyRune || ev.Rune() < '0' || ev.Rune() > '9' {
