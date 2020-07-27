@@ -197,9 +197,11 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 		return w.w.Render(size, focus, app)
 	}
 
-	box, ok := size.(gowid.IRenderBox)
+	var box gowid.IRenderBox
+	var ok bool
+	box, ok = size.(gowid.IRenderBox)
 	if !ok {
-		panic(gowid.WidgetSizeError{Widget: w, Size: size, Required: "gowid.IRenderBox"})
+		box = w.always.Render(size, focus, app)
 	}
 	ecols := box.BoxColumns() - 1
 	var x int
