@@ -599,6 +599,7 @@ func (w *Widget) Value() string {
 
 func (w *Widget) SetValue(v string, app gowid.IApp) {
 	w.ed.SetText(v, app)
+	w.ed.SetCursorPos(len(v), app)
 }
 
 func (w *Widget) Menus() []gowid.IMenuCompatible {
