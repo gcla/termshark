@@ -33,6 +33,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
+	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/mattn/go-isatty"
@@ -377,6 +378,66 @@ func TailCommand() []string {
 		def = []string{os.Args[0], "--tail"}
 	}
 	return ConfStringSlice("main.tail-command", def)
+}
+
+type KeyMapping struct {
+	From vim.KeyPress
+	To   vim.KeySequence
+}
+
+func AddKeyMapping(km KeyMapping) {
+	mappings := LoadKeyMappings()
+	newMappings := make([]KeyMapping, 0)
+	for _, mapping := range mappings {
+		if mapping.From != km.From {
+			newMappings = append(newMappings, mapping)
+		}
+	}
+	newMappings = append(newMappings, km)
+	SaveKeyMappings(newMappings)
+}
+
+func RemoveKeyMapping(kp vim.KeyPress) {
+	mappings := LoadKeyMappings()
+	newMappings := make([]KeyMapping, 0)
+	for _, mapping := range mappings {
+		if mapping.From != kp {
+			newMappings = append(newMappings, mapping)
+		}
+	}
+	SaveKeyMappings(newMappings)
+}
+
+func LoadKeyMappings() []KeyMapping {
+	mappings := ConfStringSlice("main.key-mappings", []string{})
+	res := make([]KeyMapping, 0)
+	for _, mapping := range mappings {
+		pair := strings.Split(mapping, " ")
+		if len(pair) != 2 {
+			log.Warnf("Could not parse vim key mapping (missing separator?): %s", mapping)
+			continue
+		}
+		from := vim.VimStringToKeys(pair[0])
+		if len(from) != 1 {
+			log.Warnf("Could not parse 'source' vim keypress: %s", pair[0])
+			continue
+		}
+		to := vim.VimStringToKeys(pair[1])
+		if len(to) < 1 {
+			log.Warnf("Could not parse 'target' vim keypresses: %s", pair[1])
+			continue
+		}
+		res = append(res, KeyMapping{From: from[0], To: to})
+	}
+	return res
+}
+
+func SaveKeyMappings(mappings []KeyMapping) {
+	ser := make([]string, 0, len(mappings))
+	for _, mapping := range mappings {
+		ser = append(ser, fmt.Sprintf("%v %v", mapping.From, vim.KeySequence(mapping.To)))
+	}
+	SetConf("main.key-mappings", ser)
 }
 
 func RemoveFromStringSlice(pcap string, comps []string) []string {
