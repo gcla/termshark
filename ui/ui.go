@@ -1441,6 +1441,7 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 					summary = psmlSummary(Loader.PacketPsmlData[pos.Row]).String()
 				}
 				marksMap[evk.Rune()] = termshark.JumpPos{Pos: pos.Row, Summary: summary}
+				OpenMessage(fmt.Sprintf("Local mark '%c' set.", evk.Rune()), appView, app)
 			} else {
 				OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
 			}
@@ -1465,6 +1466,8 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 							Filename: Loader.Pcap(),
 						}
 						termshark.SaveGlobalMarks(globalMarksMap)
+						OpenMessage(fmt.Sprintf("Global mark '%c' set.", evk.Rune()), appView, app)
+
 					} else {
 						OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
 					}
