@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1424,6 +1425,54 @@ func clearOffsets(app gowid.IApp) {
 	}
 }
 
+func packetNumberFromCurrentTableRow() (termshark.JumpPos, error) {
+	tablePos, err := packetListView.FocusXY() // e.g. table position 5
+	if err != nil {
+		return termshark.JumpPos{}, fmt.Errorf("No packet in focus: %v", err)
+	}
+	return packetNumberFromTableRow(tablePos.Row)
+}
+
+func tableRowFromPacketNumber(savedPacket int) (int, error) {
+	// Map e.g. packet number #123 to the index in the PSML array - e.g. index 10 (order of psml load)
+	packetRowId, ok := Loader.PacketNumberMap[savedPacket]
+	if !ok {
+		return -1, fmt.Errorf("Error mapping packet %v", savedPacket)
+	}
+	// This psml order is also the table RowId order. The table might be sorted though, so
+	// map this RowId to the actual table row, so we can change focus to it
+	tableRow, ok := packetListView.InvertedModel().IdentifierToRow(table.RowId(packetRowId))
+	if !ok {
+		return -1, fmt.Errorf("Error looking up packet %v", packetRowId)
+	}
+
+	return tableRow, nil
+}
+
+func packetNumberFromTableRow(tableRow int) (termshark.JumpPos, error) {
+	packetRowId, ok := packetListView.Model().RowIdentifier(tableRow)
+	if !ok {
+		return termshark.JumpPos{}, fmt.Errorf("Error looking up packet at row %v", tableRow)
+	}
+
+	// e.g. packet #123
+
+	var summary string
+	if len(Loader.PacketPsmlData) > int(packetRowId) {
+		summary = psmlSummary(Loader.PacketPsmlData[packetRowId]).String()
+	}
+
+	packetNum, err := strconv.Atoi(Loader.PacketPsmlData[packetRowId][0])
+	if err != nil {
+		return termshark.JumpPos{}, fmt.Errorf("Unexpected error determining no. of packet %d: %v.", tableRow, err)
+	}
+
+	return termshark.JumpPos{
+		Pos:     packetNum,
+		Summary: summary,
+	}, nil
+}
+
 // These only apply to the traditional wireshark-like main view
 func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
@@ -1434,16 +1483,17 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 		clearOffsets(app)
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'a' && evk.Rune() <= 'z' && keyState.PartialmCmd {
 		if packetListView != nil {
-			pos, err := packetListView.FocusXY()
-			if err == nil {
-				var summary string
-				if len(Loader.PacketPsmlData) > pos.Row {
-					summary = psmlSummary(Loader.PacketPsmlData[pos.Row]).String()
-				}
-				marksMap[evk.Rune()] = termshark.JumpPos{Pos: pos.Row, Summary: summary}
-				OpenMessage(fmt.Sprintf("Local mark '%c' set.", evk.Rune()), appView, app)
-			} else {
+			tablePos, err := packetListView.FocusXY() // e.g. table position 5
+			if err != nil {
 				OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+			} else {
+				jpos, err := packetNumberFromTableRow(tablePos.Row)
+				if err != nil {
+					OpenError(err.Error(), app)
+				} else {
+					marksMap[evk.Rune()] = jpos
+					OpenMessage(fmt.Sprintf("Local mark '%c' set to packet %v.", evk.Rune(), jpos.Pos), appView, app)
+				}
 			}
 		}
 
@@ -1452,24 +1502,20 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 		if Loader != nil {
 			if Loader.Pcap() != "" {
 				if packetListView != nil {
-					pos, err := packetListView.FocusXY()
-					if err == nil {
-						var summary string
-						if len(Loader.PacketPsmlData) > pos.Row {
-							summary = psmlSummary(Loader.PacketPsmlData[pos.Row]).String()
-						}
-						globalMarksMap[evk.Rune()] = termshark.GlobalJumpPos{
-							JumpPos: termshark.JumpPos{
-								Pos:     pos.Row,
-								Summary: summary,
-							},
-							Filename: Loader.Pcap(),
-						}
-						termshark.SaveGlobalMarks(globalMarksMap)
-						OpenMessage(fmt.Sprintf("Global mark '%c' set.", evk.Rune()), appView, app)
-
-					} else {
+					tablePos, err := packetListView.FocusXY()
+					if err != nil {
 						OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+					} else {
+						jpos, err := packetNumberFromTableRow(tablePos.Row)
+						if err != nil {
+							OpenError(err.Error(), app)
+						} else {
+							globalMarksMap[evk.Rune()] = termshark.GlobalJumpPos{
+								JumpPos:  jpos,
+								Filename: Loader.Pcap(),
+							}
+							OpenMessage(fmt.Sprintf("Global mark '%c' set to packet %v.", evk.Rune(), jpos.Pos), appView, app)
+						}
 					}
 				}
 			}
@@ -1477,50 +1523,83 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'a' && evk.Rune() <= 'z' && keyState.PartialQuoteCmd {
 		if packetListView != nil {
-			pos, err := packetListView.FocusXY()
-			if err == nil {
-				npos, ok := marksMap[evk.Rune()]
-				if ok {
-					lastJumpPos = pos.Row
-					packetListView.SetFocusXY(app, table.Coords{Column: pos.Column, Row: npos.Pos})
+			markedPacket, ok := marksMap[evk.Rune()]
+			if ok {
+				tableRow, err := tableRowFromPacketNumber(markedPacket.Pos)
+				if err != nil {
+					OpenError(err.Error(), app)
+				} else {
+
+					tableCol := 0
+					curTablePos, err := packetListView.FocusXY()
+					if err == nil {
+						tableCol = curTablePos.Column
+					}
+
+					pn, _ := packetNumberFromCurrentTableRow() // save for ''
+					lastJumpPos = pn.Pos
+
+					packetListView.SetFocusXY(app, table.Coords{Column: tableCol, Row: tableRow})
 				}
-			} else {
-				OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
 			}
 		}
 
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() >= 'A' && evk.Rune() <= 'Z' && keyState.PartialQuoteCmd {
-		gpos, ok := globalMarksMap[evk.Rune()]
-		if ok {
-			if Loader.Pcap() != gpos.Filename {
-				savedGlobalJumpPos = gpos.Pos
-				RequestLoadPcapWithCheck(gpos.Filename, FilterWidget.Value(), app)
+		markedPacket, ok := globalMarksMap[evk.Rune()]
+		if !ok {
+			OpenError("Mark not found.", app)
+		} else {
+			if Loader.Pcap() != markedPacket.Filename {
+				savedGlobalJumpPos = markedPacket.Pos
+				RequestLoadPcapWithCheck(markedPacket.Filename, FilterWidget.Value(), app)
 			} else {
+
 				if packetListView != nil {
-					pos, err := packetListView.FocusXY()
-					if err == nil {
-						lastJumpPos = pos.Row
-						packetListView.SetFocusXY(app, table.Coords{Column: pos.Column, Row: gpos.Pos})
+					tableRow, err := tableRowFromPacketNumber(markedPacket.Pos)
+					if err != nil {
+						OpenError(err.Error(), app)
 					} else {
-						OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+
+						tableCol := 0
+						curTablePos, err := packetListView.FocusXY()
+						if err == nil {
+							tableCol = curTablePos.Column
+						}
+
+						pn, _ := packetNumberFromCurrentTableRow() // save for ''
+						lastJumpPos = pn.Pos
+
+						packetListView.SetFocusXY(app, table.Coords{Column: tableCol, Row: tableRow})
 					}
 				}
 			}
-		} else {
-			OpenError("Mark not found.", app)
 		}
 
 	} else if evk.Key() == tcell.KeyRune && evk.Rune() == '\'' && keyState.PartialQuoteCmd {
 		if packetListView != nil {
-			pos, err := packetListView.FocusXY()
-			if err == nil {
-				jpos := lastJumpPos
-				if jpos != -1 {
-					lastJumpPos = pos.Row
-					packetListView.SetFocusXY(app, table.Coords{Column: pos.Column, Row: jpos})
-				}
-			} else {
+			tablePos, err := packetListView.FocusXY()
+			if err != nil {
 				OpenError(fmt.Sprintf("No packet in focus: %v", err), app)
+			} else {
+				// which packet number was saved as a mark
+				savedPacket := lastJumpPos
+				if savedPacket != -1 {
+					// Map that packet number #123 to the index in the PSML array - e.g. index 10 (order of psml load)
+					if packetRowId, ok := Loader.PacketNumberMap[savedPacket]; !ok {
+						OpenError(fmt.Sprintf("Error mapping packet %v", savedPacket), app)
+					} else {
+						// This psml order is also the table RowId order. The table might be sorted though, so
+						// map this RowId to the actual table row, so we can change focus to it
+						if tableRow, ok := packetListView.InvertedModel().IdentifierToRow(table.RowId(packetRowId)); !ok {
+							OpenError(fmt.Sprintf("Error looking up packet %v", packetRowId), app)
+						} else {
+							pn, _ := packetNumberFromCurrentTableRow() // save for ''
+							lastJumpPos = pn.Pos
+
+							packetListView.SetFocusXY(app, table.Coords{Column: tablePos.Column, Row: tableRow})
+						}
+					}
+				}
 			}
 		}
 
@@ -2265,6 +2344,7 @@ func (t checkForJump) OnNewSource(closeMe chan<- struct{}) {
 	for k := range marksMap {
 		delete(marksMap, k)
 	}
+	lastJumpPos = -1
 	close(closeMe)
 }
 
@@ -2279,12 +2359,19 @@ func (t checkForJump) AfterEnd(closeMe chan<- struct{}) {
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		if savedGlobalJumpPos != -1 {
 			if packetListView != nil {
-				col := 0
-				pos, err := packetListView.FocusXY()
-				if err == nil {
-					col = pos.Column
+				tableRow, err := tableRowFromPacketNumber(savedGlobalJumpPos)
+				if err != nil {
+					OpenError(err.Error(), app)
+				} else {
+
+					tableCol := 0
+					curTablePos, err := packetListView.FocusXY()
+					if err == nil {
+						tableCol = curTablePos.Column
+					}
+
+					packetListView.SetFocusXY(app, table.Coords{Column: tableCol, Row: tableRow})
 				}
-				packetListView.SetFocusXY(app, table.Coords{Column: col, Row: savedGlobalJumpPos})
 			}
 			savedGlobalJumpPos = -1
 		}

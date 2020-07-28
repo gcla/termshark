@@ -19,7 +19,7 @@ import (
 
 //======================================================================
 
-// For fixing off-by-one errors in packet marks
+// For fixing off-by-one errors in packet marks - NOT NEEDED now
 var funcMap = template.FuncMap{
 	"inc": func(i int) int {
 		return i + 1
@@ -95,10 +95,10 @@ left     - Widen selection
 right    - Narrow selection{{end}}
 '?'      - Display copy-mode help
 {{define "Marks"}}{{if not .Marks}}No local marks are set{{else}}Mark Packet Summary{{range $key, $value := .Marks }}
-{{printf " %c" $key}}{{printf "%6d" (inc $value.Pos)}}    {{printf "%s" $value.Summary}}{{end}}{{end}}
+{{printf " %c" $key}}{{printf "%6d" $value.Pos}}    {{printf "%s" $value.Summary}}{{end}}{{end}}
 
 {{if not .GlobalMarks}}No cross-file marks are set{{else}}Mark Packet  File              Summary{{range $key, $value := .GlobalMarks }}
-{{printf " %-4c" $key}} {{printf "%-7d" (inc $value.Pos)}}{{printf "%-18s" $value.Base}}{{printf "%s" $value.Summary}}{{end}}{{end}}{{end}}
+{{printf " %-4c" $key}} {{printf "%-7d" $value.Pos}}{{printf "%-18s" $value.Base}}{{printf "%s" $value.Summary}}{{end}}{{end}}{{end}}
 {{define "Key Mappings"}}{{if .Maps.None}}No key mappings are set{{else}}  From          To   {{range $mapping := .Maps.Get }}
 {{printf "  %-14v" $mapping.From}}{{printf "%v" $mapping.To}}   {{end}}{{end}}
 {{end}}
