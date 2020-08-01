@@ -144,6 +144,34 @@ func (s setArg) Completions() []string {
 
 //======================================================================
 
+type helpArg struct {
+	substr string
+}
+
+var _ minibuffer.IArg = helpArg{}
+
+func (s helpArg) OfferCompletion() bool {
+	return true
+}
+
+// return these in sorted order
+func (s helpArg) Completions() []string {
+	res := make([]string, 0)
+	for _, str := range []string{
+		"cmdline",
+		"map",
+		"set",
+		"vim",
+	} {
+		if strings.Contains(str, s.substr) {
+			res = append(res, str)
+		}
+	}
+	return res
+}
+
+//======================================================================
+
 type fileArg struct {
 	substr string
 }
@@ -263,10 +291,10 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 				termshark.SetConf("main.auto-scroll", AutoScroll)
 				OpenMessage(fmt.Sprintf("Packet auto-scroll is now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
-		case "copy-command-timeout":
+		case "copy-timeout":
 			if i, err = strconv.ParseUint(args[2], 10, 32); err == nil {
 				termshark.SetConf("main.copy-command-timeout", i)
-				OpenMessage(fmt.Sprintf("Copy command timeout is now %ds", i), appView, app)
+				OpenMessage(fmt.Sprintf("Copy timeout is now %ds", i), appView, app)
 			}
 		case "dark-mode":
 			if b, err = parseOnOff(args[2]); err == nil {
@@ -532,6 +560,46 @@ func (d unmapCommand) OfferCompletion() bool {
 func (d unmapCommand) Arguments(toks []string) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	res = append(res, unhelpfulArg{})
+	return res
+}
+
+//======================================================================
+
+type helpCommand struct{}
+
+var _ minibuffer.IAction = helpCommand{}
+
+func (d helpCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	switch len(args) {
+	case 2:
+		switch args[1] {
+		case "cmdline":
+			OpenTemplatedDialog(appView, "CmdLineHelp", app)
+		case "map":
+			OpenTemplatedDialog(appView, "MapHelp", app)
+		case "set":
+			OpenTemplatedDialog(appView, "SetHelp", app)
+		default:
+			OpenTemplatedDialog(appView, "VimHelp", app)
+		}
+	default:
+		OpenTemplatedDialog(appView, "UIHelp", app)
+	}
+
+	return err
+}
+
+func (d helpCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d helpCommand) Arguments(toks []string) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	if len(toks) == 1 {
+		res = append(res, helpArg{substr: toks[0]})
+	}
 	return res
 }
 

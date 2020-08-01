@@ -1012,11 +1012,6 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
-	MiniBuffer.Register("?", quietMinibufferFn(func(gowid.IApp, ...string) error {
-		OpenTemplatedDialog(appView, "UIHelp", app)
-		return nil
-	}))
-
 	MiniBuffer.Register("convs", minibufferFn(func(gowid.IApp, ...string) error {
 		openConvsUi(app)
 		return nil
@@ -1059,6 +1054,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("filter", filterCommand{})
 	MiniBuffer.Register("map", mapCommand{w: keyMapper})
 	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
+	MiniBuffer.Register("help", helpCommand{})
 
 	minibuffer.Open(MiniBuffer, mbView, ratio(1.0), fixed, app)
 }

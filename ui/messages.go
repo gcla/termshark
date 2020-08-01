@@ -67,23 +67,98 @@ $ termshark -r file.pcap -T psml -n | less{{end}}
 
 A wireshark-inspired tui for tshark. Analyze network traffic interactively from your terminal.
 
-'/'   - Go to display filter/stream search
-'q'   - Quit
-'tab' - Switch panes
-'c'   - Switch to copy-mode
-'|'   - Cycle through pane layouts
-'\'   - Toggle pane zoom
-'esc' - Activate menu
-'+/-' - Adjust horizontal split
-'</>' - Adjust vertical split
-':'   - Last line mode (minibuffer)
-'?'   - Display help
+/   - Go to display filter/stream search
+q   - Quit
+tab - Switch panes
+c   - Switch to copy-mode
+|   - Cycle through pane layouts
+\   - Toggle pane zoom
+esc - Activate menu
++/- - Adjust horizontal split
+</> - Adjust vertical split
+:   - Activate cmdline mode (see help cmdline)
+?   - Display help
 
 In the filter, type a wireshark display filter expression.
 
 Most terminals will support using the mouse! Try clicking the Close button.
 
 Use shift-left-mouse to copy and shift-right-mouse to paste.{{end}}
+
+{{define "VimHelp"}}{{template "NameVer" .}}
+
+Navigate the UI using vim-style keys.
+
+hjkl    - Move left/down/up/right in various views
+gg      - Go to the top of the current table
+G       - Go to the bottom of the current table
+5gg     - Go to the 5th row of the table
+C-w C-w - Switch panes (same as tab)
+C-w =   - Equalize pane spacing
+ma      - Mark current packet (use a through z)
+'a      - Jump to packet marked 'a'
+mA      - Mark current packet + pcap (use A through Z)
+'A      - Jump to packet + pcap marked 'A'
+''      - After a jump; jump back to prior packet
+ZZ      - Quit without confirmation
+
+See also help cmdline.{{end}}
+
+{{define "CmdLineHelp"}}{{template "NameVer" .}}
+
+Activate cmdline mode with the : key.
+
+Hit tab to see and choose possible completions.
+
+capinfo    - Capture file properties
+clear      - Clear current pcap
+convs      - Open conversations view
+filter     - Choose a display filter from recently-used
+help       - Various help dialogs
+load       - Load a pcap from the filesystem
+logs       - Show termshark's log file (Unix-only)
+map        - Map a keypress to a key sequence (see help map)
+marks      - Show file-local and global packet marks
+quit       - Quit termshark
+recents    - Load a pcap from those recently-used
+set        - Set various config properties (see help set)
+streams    - Open stream reassemably view
+unmap      - Remove a keypress mapping{{end}}
+
+{{define "SetHelp"}}{{template "NameVer" .}}
+
+Use the cmdline set command to change configuration.
+
+Type :set and hit tab for options.
+
+auto-scroll         - scroll during live captures
+copy-timeout        - wait this long before failing a copy
+dark-mode           - enable or disable dark-mode
+disable-shark-fin   - switch off the secret shark fin
+packet-colors       - use colors in the packet list view
+pager               - pager (used for termshark's log file)
+nopager             - disable the pager (use PAGER instead)
+term                - make termshark assume this terminal type
+noterm              - disable the terminal type (use TERM){{end}}
+
+{{define "MapHelp"}}{{template "NameVer" .}}
+
+Use the cmdline map command to set key macros e.g.
+
+map <f1> ZZ       - hit f1 key to quit
+
+Use vim-style syntax for key-presses. Printable characters
+represent themselves. Compound keys can be:
+
+<space>
+<esc>
+<enter>
+<f1>-<f12>
+<C-s>, <A-/>
+<pgup>, <pgdn>
+<home>, <end>
+
+Use the unmap command to remove a mapping.{{end}}
 
 {{define "CopyModeHelp"}}{{template "NameVer" .}}
 
@@ -92,15 +167,19 @@ termshark is in copy-mode. You can press:
 'q', 'c' - Exit copy-mode
 ctrl-c   - Copy from selected widget
 left     - Widen selection
-right    - Narrow selection{{end}}
+right    - Narrow selection
 '?'      - Display copy-mode help
+{{end}}
+
 {{define "Marks"}}{{if not .Marks}}No local marks are set{{else}}Mark Packet Summary{{range $key, $value := .Marks }}
 {{printf " %c" $key}}{{printf "%6d" $value.Pos}}    {{printf "%s" $value.Summary}}{{end}}{{end}}
 
 {{if not .GlobalMarks}}No cross-file marks are set{{else}}Mark Packet  File              Summary{{range $key, $value := .GlobalMarks }}
 {{printf " %-4c" $key}} {{printf "%-7d" $value.Pos}}{{printf "%-18s" $value.Base}}{{printf "%s" $value.Summary}}{{end}}{{end}}{{end}}
+
 {{define "Key Mappings"}}{{if .Maps.None}}No key mappings are set{{else}}  From          To   {{range $mapping := .Maps.Get }}
 {{printf "  %-14v" $mapping.From}}{{printf "%v" $mapping.To}}   {{end}}{{end}}
+
 {{end}}
 `))
 
