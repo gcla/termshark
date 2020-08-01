@@ -27,6 +27,11 @@ func SwallowMovementKeys(ev *tcell.EventKey, app gowid.IApp) bool {
 	switch ev.Key() {
 	case tcell.KeyDown, tcell.KeyCtrlN, tcell.KeyUp, tcell.KeyCtrlP, tcell.KeyRight, tcell.KeyCtrlF, tcell.KeyLeft, tcell.KeyCtrlB:
 		res = true
+	case tcell.KeyRune:
+		switch ev.Rune() {
+		case 'h', 'j', 'k', 'l':
+			res = true
+		}
 	}
 	return res
 }
