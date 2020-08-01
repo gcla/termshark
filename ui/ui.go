@@ -1234,6 +1234,7 @@ func reallyClear(app gowid.IApp) {
 								MakeUpdateCurrentCaptureInTitle(app),
 								ManageStreamCache{},
 								ManageCapinfoCache{},
+								MakeCheckForJump(app),
 							},
 						)
 					},
@@ -2336,11 +2337,20 @@ func MakeCheckForJump(app gowid.IApp) checkForJump {
 	}
 }
 
-func (t checkForJump) OnNewSource(closeMe chan<- struct{}) {
+func clearMarks() {
 	for k := range marksMap {
 		delete(marksMap, k)
 	}
 	lastJumpPos = -1
+}
+
+func (t checkForJump) OnNewSource(closeMe chan<- struct{}) {
+	clearMarks()
+	close(closeMe)
+}
+
+func (t checkForJump) OnClear(closeMe chan<- struct{}) {
+	clearMarks()
 	close(closeMe)
 }
 
