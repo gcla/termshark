@@ -8,7 +8,7 @@
 * [If I load a big pcap, termshark doesn't load all the packets at once - why?](#if-i-load-a-big-pcap-termshark-doesnt-load-all-the-packets-at-once---why)
 * [Termshark is too bright!](#termshark-is-too-bright)
 * [Termshark's colors are limited...](#termsharks-colors-are-limited)
-* [Where are the config and log files?](#config-and-log-files)
+* [Where are the config and log files?](#where-are-the-config-and-log-files)
 * [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
 * [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
