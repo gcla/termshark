@@ -98,7 +98,7 @@ func (w *keysWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gow
 		case tcell.KeyDown, tcell.KeyCtrlN, tcell.KeyUp, tcell.KeyCtrlP:
 			res = w.top.UserInput(ev, size, focus, app)
 		case tcell.KeyTAB, tcell.KeyEnter:
-			w.outer.handleEnter(ev.Key() == tcell.KeyEnter, app)
+			w.outer.handleSelection(ev.Key() == tcell.KeyEnter, app)
 			res = true
 		case tcell.KeyBackspace, tcell.KeyBackspace2:
 			if w.outer.ed.Text() == "" {
@@ -175,7 +175,7 @@ func New() *Widget {
 	return res
 }
 
-func (w *Widget) handleEnter(enter bool, app gowid.IApp) {
+func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 	// Break edit text up into "words"
 
 	// gcla later todo - need to check it's not nil
@@ -200,7 +200,7 @@ func (w *Widget) handleEnter(enter bool, app gowid.IApp) {
 		//					case 1:
 		case 0:
 			// "load /tmp/foo" and []  - just run what the user typed if the key was enter
-			if act, ok := w.actions[words[0]]; ok && enter {
+			if act, ok := w.actions[words[0]]; ok && keyIsEnter {
 				err := act.Run(app, words...)
 				if err == nil {
 					// Run the command, let it handle errors
@@ -211,7 +211,7 @@ func (w *Widget) handleEnter(enter bool, app gowid.IApp) {
 			}
 		default:
 			// if the last word exactly equals the one selected in the partials, just run on enter
-			if words[len(words)-1] == partials[selectedIdx].word && enter {
+			if words[len(words)-1] == partials[selectedIdx].word && keyIsEnter {
 				// "load /tmp/foo.pcap" and ["/tmp/foo.pcap"]
 				if act, ok := w.actions[words[0]]; ok {
 					err := act.Run(app, words...)
@@ -238,7 +238,7 @@ func (w *Widget) handleEnter(enter bool, app gowid.IApp) {
 		partials := w.getPartialsCompletions(false, app)
 		switch len(partials) {
 		case 0:
-			if act, ok := w.actions[words[0]]; ok && enter {
+			if act, ok := w.actions[words[0]]; ok && keyIsEnter {
 				err := act.Run(app, words...)
 				if err == nil {
 					// Run the command, let it handle errors
@@ -248,8 +248,7 @@ func (w *Widget) handleEnter(enter bool, app gowid.IApp) {
 				}
 			}
 		default:
-			//act := w.actions[partials[len(partials)-1].word]
-			if words[len(words)-1] == partials[selectedIdx].word && enter {
+			if words[len(words)-1] == partials[selectedIdx].word && keyIsEnter {
 				act := w.actions[partials[selectedIdx].word]
 				if len(act.Arguments([]string{})) == 0 {
 					err := w.actions[partials[selectedIdx].word].Run(app, partials[selectedIdx].word)
@@ -266,12 +265,16 @@ func (w *Widget) handleEnter(enter bool, app gowid.IApp) {
 		}
 
 	default:
-		// Nothing typed, hitting tab or enter shows all commands
-		w.showAll = true
-		w.updateCompletions(app)
-
+		if w.selections == nil {
+			w.showAll = true
+			w.updateCompletions(app)
+		} else if keyIsEnter {
+			// if the selections are being displayed and enter is hit, complete that selection
+			partials := w.getPartialsCompletions(true, app)
+			w.ed.SetText(partials[selectedIdx].line, app)
+			w.ed.SetCursorPos(partials[selectedIdx].cp, app)
+		}
 	}
-
 }
 
 // Not thread-safe, manage via App perhaps
@@ -365,6 +368,7 @@ func (w *Widget) updateCompletions(app gowid.IApp) {
 	if txt != "" || w.showAll {
 		partials = w.getPartialsCompletions(true, app)
 	}
+	w.showAll = false
 
 	for _, partialV := range partials {
 		partial := partialV // avoid gotcha
