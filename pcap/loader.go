@@ -177,7 +177,10 @@ type Loader struct {
 	PacketPsmlData    [][]string
 	PacketPsmlColors  []PacketColors
 	PacketPsmlHeaders []string
-	PacketCache       *lru.Cache // i -> [pdml(i * 1000)..pdml(i+1*1000)]
+	PacketNumberMap   map[int]int // map from actual packet row <section>12</section> to pos in unsorted table
+	// This would be affected by a display filter e.g. packet 12 might be the 1st packet in the table.
+	// I need this so that if the user jumps to a mark stored as "packet 12", I can find the right table row.
+	PacketCache *lru.Cache // i -> [pdml(i * 1000)..pdml(i+1*1000)]
 
 	onStateChange []runFnInState
 
@@ -1567,6 +1570,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	c.PacketPsmlData = make([][]string, 0)
 	c.PacketPsmlColors = make([]PacketColors, 0)
 	c.PacketPsmlHeaders = make([]string, 0, 10)
+	c.PacketNumberMap = make(map[int]int)
 	c.PacketCache.Purge()
 	c.LoadWasCancelled = false
 	c.StartStage2Chan = make(chan struct{}) // do this before signalling start
@@ -1836,6 +1840,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	var curPsml []string
 	var fg string
 	var bg string
+	var pidx int
 	ready := false
 	empty := true
 	structure := false
@@ -1859,6 +1864,16 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 			case "packet":
 				c.Lock()
 				c.PacketPsmlData = append(c.PacketPsmlData, curPsml)
+
+				// Track the mapping of packet number <section>12</section> to position
+				// in the table e.g. 5th element. This is so that I can jump to the correct
+				// row with marks even if a filter is currently applied.
+				pidx, err = strconv.Atoi(curPsml[0])
+				if err != nil {
+					log.Fatal(err)
+				}
+				c.PacketNumberMap[pidx] = len(c.PacketPsmlData) - 1
+
 				c.PacketPsmlColors = append(c.PacketPsmlColors, PacketColors{
 					FG: psmlColorToIColor(fg),
 					BG: psmlColorToIColor(bg),

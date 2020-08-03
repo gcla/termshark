@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+### Added 
+
+- Termshark is now available for linux/arm64.
+- Vim keys h, j, k and l can now be used in widgets that accept left, down, up and right user input.
+- Termshark's tables support vim-style navigation - use G to go to the bottom, gg to go to the top, or
+  add a numeric prefix.
+- Other vim-style navigation keypresses are now implemented :r/:e to load a pcap, :q! to quit, ZZ to quit,
+  C-w C-w to cycle through views and C-w = to reset spacing.
+- You can now set packet marks with the m key (e.g. ma, mb). Jump to packet marks with the ' key (e.g. 'a,
+  'b). Set cross-file packet marks with capital letters (e.g. mA, mB). Jump to last location with ''.
+- Display termshark's log file via the new menu option "Show Log"
+- Termshark now provides last-line mode/a minibuffer for issuing commands. Access it with the ":" key.
+- Termshark provides the following minibuffer commands:
+  - `recents` - pick a pcap from recently loaded files.
+  - `filter` - pick a display filter from the recently used list.
+  - `set` - set various config properties.
+  - `marks` - display currently set local and cross-file packet marks.
+- Map keys to other key sequences using a vim-style map command e.g. `map <f1> ZZ`. Use vim-syntax to express
+  keystrokes - alphanumeric characters, and angle brackets for compound keys (`<C-s>`, `<A-\>`, `<esc>`,
+  `<space>`, `<enter>`)
+
+### Changed
+
+- Fixed a race condition that allowed an invalid Wireshark display filter to be applied.
+
 ## [2.1.1] - 2020-02-02
 ### Added
 

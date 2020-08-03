@@ -33,6 +33,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
+	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/mattn/go-isatty"
@@ -152,7 +153,7 @@ func ConfStrings(name string) []string {
 func DeleteConf(name string) {
 	confMutex.Lock()
 	defer confMutex.Unlock()
-	delete(viper.Get("main").(map[string]interface{}), name)
+	viper.Set(name, "")
 	viper.WriteConfig()
 }
 
@@ -377,6 +378,66 @@ func TailCommand() []string {
 		def = []string{os.Args[0], "--tail"}
 	}
 	return ConfStringSlice("main.tail-command", def)
+}
+
+type KeyMapping struct {
+	From vim.KeyPress
+	To   vim.KeySequence
+}
+
+func AddKeyMapping(km KeyMapping) {
+	mappings := LoadKeyMappings()
+	newMappings := make([]KeyMapping, 0)
+	for _, mapping := range mappings {
+		if mapping.From != km.From {
+			newMappings = append(newMappings, mapping)
+		}
+	}
+	newMappings = append(newMappings, km)
+	SaveKeyMappings(newMappings)
+}
+
+func RemoveKeyMapping(kp vim.KeyPress) {
+	mappings := LoadKeyMappings()
+	newMappings := make([]KeyMapping, 0)
+	for _, mapping := range mappings {
+		if mapping.From != kp {
+			newMappings = append(newMappings, mapping)
+		}
+	}
+	SaveKeyMappings(newMappings)
+}
+
+func LoadKeyMappings() []KeyMapping {
+	mappings := ConfStringSlice("main.key-mappings", []string{})
+	res := make([]KeyMapping, 0)
+	for _, mapping := range mappings {
+		pair := strings.Split(mapping, " ")
+		if len(pair) != 2 {
+			log.Warnf("Could not parse vim key mapping (missing separator?): %s", mapping)
+			continue
+		}
+		from := vim.VimStringToKeys(pair[0])
+		if len(from) != 1 {
+			log.Warnf("Could not parse 'source' vim keypress: %s", pair[0])
+			continue
+		}
+		to := vim.VimStringToKeys(pair[1])
+		if len(to) < 1 {
+			log.Warnf("Could not parse 'target' vim keypresses: %s", pair[1])
+			continue
+		}
+		res = append(res, KeyMapping{From: from[0], To: to})
+	}
+	return res
+}
+
+func SaveKeyMappings(mappings []KeyMapping) {
+	ser := make([]string, 0, len(mappings))
+	for _, mapping := range mappings {
+		ser = append(ser, fmt.Sprintf("%v %v", mapping.From, vim.KeySequence(mapping.To)))
+	}
+	SetConf("main.key-mappings", ser)
 }
 
 func RemoveFromStringSlice(pcap string, comps []string) []string {
@@ -623,13 +684,76 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 		}
 	}
 	if len(offsets) == 0 {
-		DeleteConf(name)
+		DeleteConf("main." + name)
 	} else {
 		offs, err := json.Marshal(offsets)
 		if err != nil {
 			log.Fatal(err)
 		}
 		SetConf("main."+name, string(offs))
+	}
+	// Hack to make viper save if I only deleted from the map
+	SetConf("main.lastupdate", time.Now().String())
+}
+
+//======================================================================
+
+// Need to publish fields for template use
+type JumpPos struct {
+	Summary string `json:"summary"`
+	Pos     int    `json:"position"`
+}
+
+type GlobalJumpPos struct {
+	JumpPos
+	Filename string `json:"filename"`
+}
+
+// For ease of use in the template
+func (g GlobalJumpPos) Base() string {
+	return filepath.Base(g.Filename)
+}
+
+type globalJumpPosMapping struct {
+	Key           rune `json:"key"`
+	GlobalJumpPos      // embedding without a field name makes the json more concise
+}
+
+func LoadGlobalMarks(m map[rune]GlobalJumpPos) error {
+	marksStr := ConfString("main.marks", "")
+	if marksStr == "" {
+		return nil
+	}
+
+	mappings := make([]globalJumpPosMapping, 0)
+	err := json.Unmarshal([]byte(marksStr), &mappings)
+	if err != nil {
+		return errors.WithStack(gowid.WithKVs(ConfigErr, map[string]interface{}{
+			"name": "marks",
+			"msg":  "Could not unmarshal marks",
+		}))
+	}
+
+	for _, mapping := range mappings {
+		m[mapping.Key] = mapping.GlobalJumpPos
+	}
+
+	return nil
+}
+
+func SaveGlobalMarks(m map[rune]GlobalJumpPos) {
+	marks := make([]globalJumpPosMapping, 0)
+	for k, v := range m {
+		marks = append(marks, globalJumpPosMapping{Key: k, GlobalJumpPos: v})
+	}
+	if len(marks) == 0 {
+		DeleteConf("main.marks")
+	} else {
+		marksJ, err := json.Marshal(marks)
+		if err != nil {
+			log.Fatal(err)
+		}
+		SetConf("main.marks", string(marksJ))
 	}
 	// Hack to make viper save if I only deleted from the map
 	SetConf("main.lastupdate", time.Now().String())
@@ -892,6 +1016,17 @@ func BrowseUrl(url string) error {
 	cmd := exec.Command(urlCmdPP[0], urlCmdPP[1:]...)
 
 	return cmd.Run()
+}
+
+//======================================================================
+
+type KeyState struct {
+	NumberPrefix    int
+	PartialgCmd     bool
+	PartialZCmd     bool
+	PartialCtrlWCmd bool
+	PartialmCmd     bool
+	PartialQuoteCmd bool
 }
 
 //======================================================================

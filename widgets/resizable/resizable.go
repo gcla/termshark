@@ -48,6 +48,7 @@ func (w *ColumnsWidget) GetOffsets() []Offset {
 
 func (w *ColumnsWidget) SetOffsets(offs []Offset, app gowid.IApp) {
 	w.Offsets = offs
+	gowid.RunWidgetCallbacks(w.Callbacks, OffsetsCB{}, app, w)
 }
 
 func (w *ColumnsWidget) OnOffsetsSet(cb gowid.IWidgetChangedCallback) {
@@ -157,6 +158,7 @@ func (w *PileWidget) GetOffsets() []Offset {
 
 func (w *PileWidget) SetOffsets(offs []Offset, app gowid.IApp) {
 	w.Offsets = offs
+	gowid.RunWidgetCallbacks(w.Callbacks, OffsetsCB{}, app, w)
 }
 
 func (w *PileWidget) OnOffsetsSet(cb gowid.IWidgetChangedCallback) {

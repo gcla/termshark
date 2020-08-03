@@ -15,6 +15,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
+	"github.com/gcla/gowid/vim"
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/termshark/v2/format"
@@ -41,6 +42,10 @@ type Options struct {
 	LineNumUnselected string
 	LineNumSelected   string
 	PaletteIfCopying  string
+	DownKeys          []vim.KeyPress
+	UpKeys            []vim.KeyPress
+	LeftKeys          []vim.KeyPress
+	RightKeys         []vim.KeyPress
 }
 
 type Widget struct {
@@ -53,6 +58,7 @@ type Widget struct {
 	lineNumSelected   string
 	offset            int // scroll position, bit of a hack
 	paletteIfCopying  string
+	opt               Options
 	gowid.AddressProvidesID
 	styled.UsePaletteIfSelectedForCopy
 	Callbacks *gowid.Callbacks
@@ -72,6 +78,19 @@ func New(data []byte, opts ...Options) *Widget {
 		opt = opts[0]
 	}
 
+	if opt.DownKeys == nil {
+		opt.DownKeys = vim.AllDownKeys
+	}
+	if opt.UpKeys == nil {
+		opt.UpKeys = vim.AllUpKeys
+	}
+	if opt.LeftKeys == nil {
+		opt.LeftKeys = vim.AllLeftKeys
+	}
+	if opt.RightKeys == nil {
+		opt.RightKeys = vim.AllRightKeys
+	}
+
 	res := &Widget{
 		data:                        data,
 		layers:                      opt.StyledLayers,
@@ -81,6 +100,7 @@ func New(data []byte, opts ...Options) *Widget {
 		lineNumSelected:             opt.LineNumSelected,
 		paletteIfCopying:            opt.PaletteIfCopying,
 		UsePaletteIfSelectedForCopy: styled.UsePaletteIfSelectedForCopy{Entry: opt.PaletteIfCopying},
+		opt:                         opt,
 		Callbacks:                   gowid.NewCallbacks(),
 	}
 
@@ -459,23 +479,23 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
 
-		switch ev.Key() {
-		case tcell.KeyRight, tcell.KeyCtrlF:
+		switch {
+		case vim.KeyIn(ev, w.opt.RightKeys):
 			//res = Scroll(w, 1, w.Wrap(), app)
 			pos := w.Position()
 			if pos < len(w.data) {
 				w.SetPosition(pos+1, app)
 				res = true
 			}
-		case tcell.KeyLeft, tcell.KeyCtrlB:
+		case vim.KeyIn(ev, w.opt.LeftKeys):
 			pos := w.Position()
 			if pos > 0 {
 				w.SetPosition(pos-1, app)
 				res = true
 			}
-		case tcell.KeyDown, tcell.KeyCtrlN:
+		case vim.KeyIn(ev, w.opt.DownKeys):
 			scrollDown = true
-		case tcell.KeyUp, tcell.KeyCtrlP:
+		case vim.KeyIn(ev, w.opt.UpKeys):
 			scrollUp = true
 		}
 

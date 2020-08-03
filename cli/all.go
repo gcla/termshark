@@ -19,7 +19,7 @@ type Tshark struct {
 // Termshark's own command line arguments. Used if we don't pass through to tshark.
 type Termshark struct {
 	Ifaces          []string       `value-name:"<interfaces>" short:"i" description:"Interface(s) to read."`
-	Pcap            flags.Filename `value-name:"<file>" short:"r" description:"Pcap file to read."`
+	Pcap            flags.Filename `value-name:"<file/fifo>" short:"r" description:"Pcap file/fifo to read. Use - for stdin."`
 	DecodeAs        []string       `short:"d" description:"Specify dissection of layer type." value-name:"<layer type>==<selector>,<decode-as protocol>"`
 	PrintIfaces     bool           `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
 	DisplayFilter   string         `short:"Y" description:"Apply display filter." value-name:"<displaY filter>"`
@@ -33,7 +33,7 @@ type Termshark struct {
 	Version  []bool `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
 	Args struct {
-		FilterOrFile string `value-name:"<filter-or-file>" description:"Filter (capture for iface, display for pcap), or pcap file to read."`
+		FilterOrPcap string `value-name:"<filter-or-file>" description:"Filter (capture for iface, display for pcap), or pcap to read."`
 	} `positional-args:"yes"`
 }
 

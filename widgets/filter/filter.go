@@ -68,6 +68,7 @@ type Widget struct {
 	quitchan             chan struct{}
 	readytorunchan       chan struct{}
 	temporarilyDisabled  *bool // set to true right after submitting a new filter, so the menu disappears
+	enterPending         bool  // set to true if the user has hit enter; process if the filter goes to valid before another change. For slow validity processing.
 	*gowid.Callbacks
 	gowid.IsSelectable
 }
@@ -86,7 +87,14 @@ type Options struct {
 }
 
 func New(opt Options) *Widget {
+	res := &Widget{}
+
 	ed := edit.New()
+	ed.OnTextSet(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
+		// every time the filter changes, drop any pending enter - we don't want to
+		// apply a filter to a stale value
+		res.enterPending = false
+	}})
 
 	fixed := gowid.RenderFixed{}
 	filterList := list.New(list.NewSimpleListWalker([]gowid.IWidget{}))
@@ -121,8 +129,7 @@ func New(opt Options) *Widget {
 
 	cb := gowid.NewCallbacks()
 
-	temporarilyDisabled := false
-	onelineEd := appkeys.New(ed, handleEnter(cb, &temporarilyDisabled), appkeys.Options{
+	onelineEd := appkeys.New(ed, handleEnter(cb, res), appkeys.Options{
 		ApplyBefore: true,
 	})
 
@@ -148,7 +155,7 @@ func New(opt Options) *Widget {
 	readytorunchan := make(chan struct{})
 	filterchangedchan := make(chan *filtStruct)
 
-	res := &Widget{
+	*res = Widget{
 		wrapped:              wrapped,
 		opts:                 opt,
 		ed:                   ed,
@@ -166,7 +173,7 @@ func New(opt Options) *Widget {
 		runthisfilterchan:    runthisfilterchan,
 		quitchan:             quitchan,
 		readytorunchan:       readytorunchan,
-		temporarilyDisabled:  &temporarilyDisabled,
+		temporarilyDisabled:  new(bool),
 		Callbacks:            cb,
 	}
 
@@ -175,6 +182,14 @@ func New(opt Options) *Widget {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				res.validitySite.SetSubWidget(res.valid, app)
 				gowid.RunWidgetCallbacks(res.Callbacks, ValidCB{}, app, res)
+
+				if res.enterPending {
+					var dummy gowid.IWidget
+					gowid.RunWidgetCallbacks(cb, SubmitCB{}, app, dummy)
+					*res.temporarilyDisabled = true
+					res.enterPending = false
+				}
+
 			}))
 		},
 	}
@@ -184,6 +199,7 @@ func New(opt Options) *Widget {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				res.validitySite.SetSubWidget(res.invalid, app)
 				gowid.RunWidgetCallbacks(res.Callbacks, InvalidCB{}, app, res)
+				res.enterPending = false
 			}))
 		},
 	}
@@ -193,6 +209,7 @@ func New(opt Options) *Widget {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				res.validitySite.SetSubWidget(res.intermediate, app)
 				gowid.RunWidgetCallbacks(res.Callbacks, IntermediateCB{}, app, res)
+				res.enterPending = false
 			}))
 		},
 	}
@@ -337,18 +354,26 @@ func (f *Validator) Validate(filter string) {
 	}
 }
 
+type iFilterEnter interface {
+	setDisabled()
+	setEnterPending()
+	isValid() bool
+}
+
 // if the filter is valid when enter is pressed, submit the SubmitCB callback. Those
 // registered will be able to respond e.g. start handling the valid filter value.
-func handleEnter(cb *gowid.Callbacks, temporarilyDisabled *bool) appkeys.KeyInputFn {
+func handleEnter(cb *gowid.Callbacks, fe iFilterEnter) appkeys.KeyInputFn {
 	return func(evk *tcell.EventKey, app gowid.IApp) bool {
 		handled := false
 		switch evk.Key() {
 		case tcell.KeyEnter:
-
-			var dummy gowid.IWidget
-			gowid.RunWidgetCallbacks(cb, SubmitCB{}, app, dummy)
-			*temporarilyDisabled = true
-
+			if fe.isValid() {
+				var dummy gowid.IWidget
+				gowid.RunWidgetCallbacks(cb, SubmitCB{}, app, dummy)
+				fe.setDisabled()
+			} else {
+				fe.setEnterPending() // remember in case the filter goes valid shortly
+			}
 			handled = true
 		}
 		return handled
@@ -449,6 +474,19 @@ func makeCompletions(comp termshark.IPrefixCompleter, txt string, max int, app g
 		},
 	}
 	comp.Completions(txt, cb)
+}
+
+func (w *Widget) setDisabled() {
+	*w.temporarilyDisabled = true
+}
+
+func (w *Widget) setEnterPending() {
+	w.enterPending = true
+}
+
+// isCurrentlyValid returns true if the current state of the filter is valid (green)
+func (w *Widget) isValid() bool {
+	return w.validitySite.SubWidget() == w.valid
 }
 
 // Start an asynchronous routine to update the drop-down menu with completion
@@ -561,6 +599,7 @@ func (w *Widget) Value() string {
 
 func (w *Widget) SetValue(v string, app gowid.IApp) {
 	w.ed.SetText(v, app)
+	w.ed.SetCursorPos(len(v), app)
 }
 
 func (w *Widget) Menus() []gowid.IMenuCompatible {

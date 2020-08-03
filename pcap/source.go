@@ -5,6 +5,7 @@
 package pcap
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -26,7 +27,7 @@ type IPacketSource interface {
 func FileSystemSources(srcs []IPacketSource) []IPacketSource {
 	res := make([]IPacketSource, 0)
 	for _, src := range srcs {
-		if src.IsFile() || src.IsFifo() {
+		if src.IsFile() {
 			res = append(res, src)
 		}
 	}
@@ -85,6 +86,10 @@ func (p FileSource) IsPipe() bool {
 	return false
 }
 
+func (p FileSource) String() string {
+	return fmt.Sprintf("File:%s", p.Filename)
+}
+
 //======================================================================
 
 type TemporaryFileSource struct {
@@ -97,6 +102,10 @@ type ISourceRemover interface {
 
 func (p TemporaryFileSource) Remove() error {
 	return os.Remove(p.Filename)
+}
+
+func (p TemporaryFileSource) String() string {
+	return fmt.Sprintf("TempFile:%s", p.Filename)
 }
 
 //======================================================================
@@ -127,6 +136,10 @@ func (p InterfaceSource) IsPipe() bool {
 	return false
 }
 
+func (p InterfaceSource) String() string {
+	return fmt.Sprintf("Interface:%s", p.Iface)
+}
+
 //======================================================================
 
 type FifoSource struct {
@@ -153,6 +166,10 @@ func (p FifoSource) IsFifo() bool {
 
 func (p FifoSource) IsPipe() bool {
 	return false
+}
+
+func (p FifoSource) String() string {
+	return fmt.Sprintf("Fifo:%s", p.Filename)
 }
 
 //======================================================================
@@ -187,6 +204,10 @@ func (p PipeSource) IsPipe() bool {
 func (p PipeSource) Close() error {
 	system.CloseDescriptor(p.Fd)
 	return nil
+}
+
+func (p PipeSource) String() string {
+	return fmt.Sprintf("Pipe:%s(%d)", p.Descriptor, p.Fd)
 }
 
 //======================================================================

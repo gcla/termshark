@@ -8,6 +8,7 @@
 * [If I load a big pcap, termshark doesn't load all the packets at once - why?](#if-i-load-a-big-pcap-termshark-doesnt-load-all-the-packets-at-once---why)
 * [Termshark is too bright!](#termshark-is-too-bright)
 * [Termshark's colors are limited...](#termsharks-colors-are-limited)
+* [Where are the config and log files?](#where-are-the-config-and-log-files)
 * [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
 * [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
@@ -111,6 +112,20 @@ If you run termshark under tmux or screen and always have `TERM` set in a way th
 [main]
   term = "screen-256color"
 ```
+
+## Where are the config and log files?
+
+You can find the config file, `termshark.toml`, in:
+
+- `${XDG_CONFIG_HOME}/termshark/` `(${HOME}/.config/termshark/)` on Linux
+- `${HOME}/Library/Application Support/termshark/` on macOS
+- `%APPDATA%\termshark\` `(C:\Users\<User>\AppData\Roaming\termshark\)` on Windows
+
+You can find the log file, `termshark.log`, in:
+
+- `${XDG_CACHE_HOME}/termshark/` `(${HOME}/.cache//termshark/)` on Linux
+- `${HOME}/Library/Caches/termshark/` on macOS
+- `%LOCALAPPDATA%\termshark\` `(C:\Users\<User>\AppData\Local\termshark\)` on Windows
 
 ## The console is too narrow on Windows
 

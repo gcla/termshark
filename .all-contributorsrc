@@ -6,7 +6,7 @@
   "files": [
     "README.md"
   ],
-  "imageSize": 100,
+  "imageSize": 90,
   "commit": false,
   "commitConvention": "none",
   "contributors": [
@@ -343,6 +343,33 @@
       "name": "Matthew Giassa",
       "avatar_url": "https://avatars1.githubusercontent.com/u/8325672?v=4",
       "profile": "http://www.giassa.net",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "sean-abbott",
+      "name": "Sean Abbott",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/1402071?v=4",
+      "profile": "https://github.com/sean-abbott",
+      "contributions": [
+        "platform"
+      ]
+    },
+    {
+      "login": "linsong",
+      "name": "Vincent Wang",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/36017?v=4",
+      "profile": "http://www.linsong.org",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "Piping",
+      "name": "piping",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/12042284?v=4",
+      "profile": "https://github.com/Piping",
       "contributions": [
         "ideas"
       ]

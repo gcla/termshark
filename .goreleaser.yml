@@ -14,6 +14,7 @@ builds:
     - darwin
   goarch:
     - arm
+    - arm64
     - amd64
   ignore:
     - goos: darwin
@@ -22,6 +23,12 @@ builds:
       goarch: arm
     - goos: windows
       goarch: arm
+    - goos: darwin
+      goarch: arm64
+    - goos: freebsd
+      goarch: arm64
+    - goos: windows
+      goarch: arm64
 archives:
 - replacements:
     darwin: macOS

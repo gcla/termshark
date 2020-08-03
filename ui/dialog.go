@@ -17,6 +17,9 @@ import (
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
+	"github.com/gcla/termshark/v2/widgets/minibuffer"
+	"github.com/gcla/termshark/v2/widgets/scrollabletext"
+	"github.com/gcla/termshark/v2/widgets/withscrollbar"
 )
 
 //======================================================================
@@ -25,8 +28,10 @@ var (
 	fixed      gowid.RenderFixed
 	flow       gowid.RenderFlow
 	hmiddle    gowid.HAlignMiddle
+	hleft      gowid.HAlignLeft
 	vmiddle    gowid.VAlignMiddle
 	YesNo      *dialog.Widget
+	MiniBuffer *minibuffer.Widget
 	PleaseWait *dialog.Widget
 )
 
@@ -46,18 +51,30 @@ func (w *copyable) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid
 	return w.wrapper.UserInput(ev, size, focus, app)
 }
 
-func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
-	openMessage(msgt, openOver, false, app)
+func OpenMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) *dialog.Widget {
+	return openMessage(msgt, openOver, false, false, app)
 }
 
-func OpenMessageForCopy(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) {
-	openMessage(msgt, openOver, true, app)
+func OpenLongMessage(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) *dialog.Widget {
+	return openMessage(msgt, openOver, false, true, app)
 }
 
-func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget bool, app gowid.IApp) {
+func OpenMessageForCopy(msgt string, openOver gowid.ISettableComposite, app gowid.IApp) *dialog.Widget {
+	return openMessage(msgt, openOver, true, false, app)
+}
+
+func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget bool, doFlow bool, app gowid.IApp) *dialog.Widget {
+	var dh gowid.IWidgetDimension = fixed
+	var dw gowid.IWidgetDimension = fixed
+
+	if doFlow {
+		dh = flow
+		dw = ratio(0.7)
+	}
+
 	var al gowid.IHAlignment = hmiddle
-	if strings.Count(msgt, "\n") > 0 {
-		al = gowid.HAlignLeft{}
+	if strings.Count(msgt, "\n") > 0 || doFlow {
+		al = hleft
 	}
 
 	var view gowid.IWidget = text.NewCopyable(msgt, textID(msgt),
@@ -72,7 +89,7 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 	view = hpadding.New(
 		view,
 		hmiddle,
-		gowid.RenderFixed{},
+		dh,
 	)
 
 	view = framed.NewSpace(view)
@@ -107,13 +124,41 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 		&copyable{
 			Widget:  YesNo,
 			wrapper: wrapper,
-		}, openOver, fixed, fixed, app,
+		}, openOver, dw, dh, app,
 	)
+
+	return YesNo
 }
 
-func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) {
+func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) *dialog.Widget {
+	YesNo = dialog.New(
+		framed.NewSpace(
+			text.New(termshark.TemplateToString(Templates, tmplName, TemplateData)),
+		),
+		dialog.Options{
+			Buttons:         dialog.CloseOnly,
+			NoShadow:        true,
+			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+		},
+	)
+
+	YesNo.Open(container, ratio(0.5), app)
+
+	return YesNo
+}
+
+func OpenTemplatedDialogExt(container gowid.ISettableComposite, tmplName string, width gowid.IWidgetDimension, height gowid.IWidgetDimension, app gowid.IApp) *dialog.Widget {
 	YesNo = dialog.New(framed.NewSpace(
-		text.New(termshark.TemplateToString(Templates, tmplName, TemplateData)),
+		withscrollbar.New(
+			scrollabletext.New(
+				termshark.TemplateToString(Templates, tmplName, TemplateData),
+			),
+			withscrollbar.Options{
+				HideIfContentFits: true,
+			},
+		),
 	),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
@@ -123,7 +168,8 @@ func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, ap
 			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
 		},
 	)
-	YesNo.Open(container, ratio(0.5), app)
+	dialog.OpenExt(YesNo, container, width, height, app)
+	return YesNo
 }
 
 func OpenPleaseWait(container gowid.ISettableComposite, app gowid.IApp) {
