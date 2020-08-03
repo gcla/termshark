@@ -4,6 +4,7 @@
 ### Added 
 
 - Termshark is now available for linux/arm64.
+- Vim keys h, j, k and l can now be used in widgets that accept left, down, up and right user input.
 - Termshark's tables support vim-style navigation - use G to go to the bottom, gg to go to the top, or
   add a numeric prefix.
 - Other vim-style navigation keypresses are now implemented :r/:e to load a pcap, :q! to quit, ZZ to quit,
