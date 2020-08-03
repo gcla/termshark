@@ -156,6 +156,7 @@ represent themselves. Compound keys can be:
 <enter>
 <f1>-<f12>
 <C-s>, <A-/>
+<up>, <down>, <left>, <right>
 <pgup>, <pgdn>
 <home>, <end>
 
