@@ -858,6 +858,11 @@ func OpenError(msgt string, app gowid.IApp) *dialog.Widget {
 	return OpenMessage(msgt, appView, app)
 }
 
+func OpenLongError(msgt string, app gowid.IApp) *dialog.Widget {
+	// the same, for now
+	return OpenLongMessage(msgt, appView, app)
+}
+
 func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
 	v := urlCopiedCallbacks{
 		app:      app,
@@ -1208,7 +1213,7 @@ func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
 		}
 
 		t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-			OpenError(errstr, app)
+			OpenLongError(errstr, app)
 			StopEmptyStructViewTimer()
 			StopEmptyHexViewTimer()
 		}))
@@ -2552,7 +2557,7 @@ func (s SetStructWidgets) OnError(err error, closeMe chan<- struct{}) {
 	close(closeMe)
 	log.Error(err)
 	s.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		OpenError(fmt.Sprintf("%v", err), app)
+		OpenLongError(fmt.Sprintf("%v", err), app)
 	}))
 }
 
