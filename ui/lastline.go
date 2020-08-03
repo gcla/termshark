@@ -60,36 +60,71 @@ func (m quietMinibufferFn) Arguments([]string) []minibuffer.IArg {
 
 //======================================================================
 
-type boolArg struct {
-	arg string
+type substrArg struct {
+	candidates []string
+	sub        string
 }
 
-var _ minibuffer.IArg = boolArg{}
+var _ minibuffer.IArg = substrArg{}
 
-func (s boolArg) OfferCompletion() bool {
+func (s substrArg) OfferCompletion() bool {
 	return true
 }
 
 // return these in sorted order
-func (s boolArg) Completions() []string {
-	return []string{"false", "true"}
+func (s substrArg) Completions() []string {
+	res := make([]string, 0)
+	for _, str := range s.candidates {
+		if strings.Contains(str, s.sub) {
+			res = append(res, str)
+		}
+	}
+	return res
 }
 
 //======================================================================
 
-type onOffArg struct {
-	arg string
+func newBoolArg(sub string) substrArg {
+	return substrArg{
+		sub:        sub,
+		candidates: []string{"false", "true"},
+	}
 }
 
-var _ minibuffer.IArg = onOffArg{}
-
-func (s onOffArg) OfferCompletion() bool {
-	return true
+func newOnOffArg(sub string) substrArg {
+	return substrArg{
+		sub:        sub,
+		candidates: []string{"off", "on"},
+	}
 }
 
-// return these in sorted order
-func (s onOffArg) Completions() []string {
-	return []string{"off", "on"}
+func newSetArg(sub string) substrArg {
+	return substrArg{
+		sub: sub,
+		candidates: []string{
+			"auto-scroll",
+			"copy-command-timeout",
+			"dark-mode",
+			"disable-shark-fin",
+			"packet-colors",
+			"pager",
+			"nopager",
+			"term",
+			"noterm",
+		},
+	}
+}
+
+func newHelpArg(sub string) substrArg {
+	return substrArg{
+		sub: sub,
+		candidates: []string{
+			"cmdline",
+			"map",
+			"set",
+			"vim",
+		},
+	}
 }
 
 //======================================================================
@@ -107,67 +142,6 @@ func (s unhelpfulArg) OfferCompletion() bool {
 // return these in sorted order
 func (s unhelpfulArg) Completions() []string {
 	return nil
-}
-
-//======================================================================
-
-type setArg struct {
-	substr string
-}
-
-var _ minibuffer.IArg = setArg{}
-
-func (s setArg) OfferCompletion() bool {
-	return true
-}
-
-// return these in sorted order
-func (s setArg) Completions() []string {
-	res := make([]string, 0)
-	for _, str := range []string{
-		"auto-scroll",
-		"copy-command-timeout",
-		"dark-mode",
-		"disable-shark-fin",
-		"packet-colors",
-		"pager",
-		"nopager",
-		"term",
-		"noterm",
-	} {
-		if strings.Contains(str, s.substr) {
-			res = append(res, str)
-		}
-	}
-	return res
-}
-
-//======================================================================
-
-type helpArg struct {
-	substr string
-}
-
-var _ minibuffer.IArg = helpArg{}
-
-func (s helpArg) OfferCompletion() bool {
-	return true
-}
-
-// return these in sorted order
-func (s helpArg) Completions() []string {
-	res := make([]string, 0)
-	for _, str := range []string{
-		"cmdline",
-		"map",
-		"set",
-		"vim",
-	} {
-		if strings.Contains(str, s.substr) {
-			res = append(res, str)
-		}
-	}
-	return res
 }
 
 //======================================================================
@@ -349,19 +323,24 @@ func (d setCommand) OfferCompletion() bool {
 
 func (d setCommand) Arguments(toks []string) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
-	res = append(res, setArg{substr: toks[0]})
+	res = append(res, newSetArg(toks[0]))
 
 	if len(toks) > 0 {
 		onOffCmds := []string{"auto-scroll", "dark-mode", "packet-colors"}
 		boolCmds := []string{"disable-shark-fin"}
 		intCmds := []string{"disk-cache-size-mb", "copy-command-timeout"}
 
+		pref := ""
+		if len(toks) > 1 {
+			pref = toks[1]
+		}
+
 		if stringIn(toks[0], boolCmds) {
-			res = append(res, boolArg{})
+			res = append(res, newBoolArg(pref))
 		} else if stringIn(toks[0], intCmds) {
 			res = append(res, unhelpfulArg{})
 		} else if stringIn(toks[0], onOffCmds) {
-			res = append(res, onOffArg{})
+			res = append(res, newOnOffArg(pref))
 		}
 	}
 
@@ -598,7 +577,7 @@ func (d helpCommand) OfferCompletion() bool {
 func (d helpCommand) Arguments(toks []string) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	if len(toks) == 1 {
-		res = append(res, helpArg{substr: toks[0]})
+		res = append(res, newHelpArg(toks[0]))
 	}
 	return res
 }
