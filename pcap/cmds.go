@@ -160,7 +160,7 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 		// read from cmdline file
 		args = append(args, "-r", pcap.(string))
 	} else {
-		args = append(args, "-i", "-")
+		args = append(args, "-r", "-")
 		args = append(args, "-l") // provide data sooner to decoder routine in termshark
 	}
 
