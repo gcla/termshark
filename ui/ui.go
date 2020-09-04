@@ -3297,7 +3297,7 @@ func Build() (*gowid.App, error) {
 
 	altview1Pile = resizable.NewPile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
-			IWidget: packetListViewHolder,
+			IWidget: packetListViewWithKeys,
 			D:       weight(1),
 		},
 		&gowid.ContainerWidget{
@@ -3305,7 +3305,7 @@ func Build() (*gowid.App, error) {
 			D:       flow,
 		},
 		&gowid.ContainerWidget{
-			IWidget: packetStructureViewHolder,
+			IWidget: packetStructureViewWithKeys,
 			D:       weight(1),
 		},
 	})
@@ -3326,7 +3326,7 @@ func Build() (*gowid.App, error) {
 			D:       units(1),
 		},
 		&gowid.ContainerWidget{
-			IWidget: packetHexViewHolder,
+			IWidget: packetHexViewHolderWithKeys,
 			D:       weight(1),
 		},
 	})
@@ -3358,7 +3358,7 @@ func Build() (*gowid.App, error) {
 		assignTo(&altview2Cols,
 			resizable.NewColumns([]gowid.IContainerWidget{
 				&gowid.ContainerWidget{
-					IWidget: packetStructureViewHolder,
+					IWidget: packetStructureViewWithKeys,
 					D:       weight(1),
 				},
 				&gowid.ContainerWidget{
@@ -3366,7 +3366,7 @@ func Build() (*gowid.App, error) {
 					D:       units(1),
 				},
 				&gowid.ContainerWidget{
-					IWidget: packetHexViewHolder,
+					IWidget: packetHexViewHolderWithKeys,
 					D:       weight(1),
 				},
 			}),
@@ -3382,7 +3382,7 @@ func Build() (*gowid.App, error) {
 		assignTo(&altview2Pile,
 			resizable.NewPile([]gowid.IContainerWidget{
 				&gowid.ContainerWidget{
-					IWidget: packetListViewHolder,
+					IWidget: packetListViewWithKeys,
 					D:       weight(1),
 				},
 				&gowid.ContainerWidget{
