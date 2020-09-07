@@ -19,6 +19,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
+	"github.com/gcla/gowid/vim"
 	"github.com/gcla/gowid/widgets/button"
 	"github.com/gcla/gowid/widgets/cellmod"
 	"github.com/gcla/gowid/widgets/columns"
@@ -111,15 +112,20 @@ func New(opt Options) *Widget {
 		gowid.MakePaletteRef("filter-menu"),
 	)
 
+	ign := make([]gowid.IKey, 0, len(vim.AllDownKeys)+len(vim.AllUpKeys))
+	for _, k := range vim.AllDownKeys {
+		ign = append(ign, k)
+	}
+	for _, k := range vim.AllUpKeys {
+		ign = append(ign, k)
+	}
+
 	drop := menu.New("filter", menuListBox2, gowid.RenderWithUnits{U: opt.MaxCompletions + 2},
 		menu.Options{
 			IgnoreKeysProvided: true,
-			IgnoreKeys: []gowid.IKey{
-				gowid.MakeKeyExt(tcell.KeyUp),
-				gowid.MakeKeyExt(tcell.KeyDown),
-			},
-			CloseKeysProvided: true,
-			CloseKeys:         []gowid.IKey{},
+			IgnoreKeys:         ign,
+			CloseKeysProvided:  true,
+			CloseKeys:          []gowid.IKey{},
 		},
 	)
 
@@ -627,7 +633,7 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 // it go orange briefly, which is unpleasant.
 func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
 	if evk, ok := ev.(*tcell.EventKey); ok {
-		if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyDown {
+		if evk.Key() == tcell.KeyTAB || vim.KeyIn(evk, vim.AllDownKeys) {
 			return false
 		}
 	}
@@ -650,7 +656,7 @@ type activatorWidget struct {
 
 func (w *activatorWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
 	if ev, ok := ev.(*tcell.EventKey); ok && !w.active {
-		if ev.Key() == tcell.KeyDown {
+		if vim.KeyIn(ev, vim.AllDownKeys) {
 			w.active = true
 			return true
 		} else {
@@ -660,7 +666,7 @@ func (w *activatorWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 	res := w.IWidget.UserInput(ev, size, focus, app)
 	if !res {
 		if ev, ok := ev.(*tcell.EventKey); ok && w.active {
-			if ev.Key() == tcell.KeyUp {
+			if vim.KeyIn(ev, vim.AllUpKeys) {
 				w.active = false
 				return true
 			} else {
