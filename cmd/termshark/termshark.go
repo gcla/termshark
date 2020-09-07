@@ -1018,6 +1018,9 @@ Loop:
 				return 1
 			}
 
+			// This needs to run after the toml config file is loaded.
+			ui.SetupColors()
+
 			// Start tcell/gowid events for keys, etc
 			appRunner.Start()
 
