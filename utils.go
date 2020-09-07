@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"text/template"
 	"time"
+	"unicode"
 
 	"github.com/adam-hanna/arrayOperations"
 	"github.com/blang/semver"
@@ -36,6 +37,7 @@ import (
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
+	"github.com/gdamore/tcell"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
@@ -378,6 +380,10 @@ func TailCommand() []string {
 		def = []string{os.Args[0], "--tail"}
 	}
 	return ConfStringSlice("main.tail-command", def)
+}
+
+func KeyPressIsPrintable(key gowid.IKey) bool {
+	return unicode.IsPrint(key.Rune()) && key.Modifiers() & ^tcell.ModShift == 0
 }
 
 type KeyMapping struct {

@@ -114,10 +114,14 @@ func New(opt Options) *Widget {
 
 	ign := make([]gowid.IKey, 0, len(vim.AllDownKeys)+len(vim.AllUpKeys))
 	for _, k := range vim.AllDownKeys {
-		ign = append(ign, k)
+		if !termshark.KeyPressIsPrintable(k) {
+			ign = append(ign, k)
+		}
 	}
 	for _, k := range vim.AllUpKeys {
-		ign = append(ign, k)
+		if !termshark.KeyPressIsPrintable(k) {
+			ign = append(ign, k)
+		}
 	}
 
 	drop := menu.New("filter", menuListBox2, gowid.RenderWithUnits{U: opt.MaxCompletions + 2},
@@ -633,7 +637,7 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 // it go orange briefly, which is unpleasant.
 func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
 	if evk, ok := ev.(*tcell.EventKey); ok {
-		if evk.Key() == tcell.KeyTAB || vim.KeyIn(evk, vim.AllDownKeys) {
+		if evk.Key() == tcell.KeyTAB || (vim.KeyIn(evk, vim.AllDownKeys) && !termshark.KeyPressIsPrintable(evk)) {
 			return false
 		}
 	}
@@ -656,7 +660,7 @@ type activatorWidget struct {
 
 func (w *activatorWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
 	if ev, ok := ev.(*tcell.EventKey); ok && !w.active {
-		if vim.KeyIn(ev, vim.AllDownKeys) {
+		if vim.KeyIn(ev, vim.AllDownKeys) && !termshark.KeyPressIsPrintable(ev) {
 			w.active = true
 			return true
 		} else {
@@ -666,7 +670,7 @@ func (w *activatorWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 	res := w.IWidget.UserInput(ev, size, focus, app)
 	if !res {
 		if ev, ok := ev.(*tcell.EventKey); ok && w.active {
-			if vim.KeyIn(ev, vim.AllUpKeys) {
+			if vim.KeyIn(ev, vim.AllUpKeys) && !termshark.KeyPressIsPrintable(ev) {
 				w.active = false
 				return true
 			} else {
