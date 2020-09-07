@@ -708,10 +708,10 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 				TableSeparator:      divider.NewUnicode(),
 				VerticalSeparator:   nil,
 				CellStyleProvided:   true,
-				CellStyleSelected:   gowid.MakePaletteRef("pkt-list-cell-selected"),
-				CellStyleFocus:      gowid.MakePaletteRef("pkt-list-cell-focus"),
+				CellStyleSelected:   gowid.MakePaletteRef("packet-list-cell-selected"),
+				CellStyleFocus:      gowid.MakePaletteRef("packet-list-cell-focus"),
 				HeaderStyleProvided: true,
-				HeaderStyleFocus:    gowid.MakePaletteRef("pkt-list-cell-focus"),
+				HeaderStyleFocus:    gowid.MakePaletteRef("packet-list-cell-focus"),
 			},
 			Layout: table.LayoutOptions{
 				Widths: wids,
@@ -720,7 +720,7 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 
 		ptblModel := psmlmodel.New(
 			tblModel,
-			gowid.MakePaletteRef("pkt-list-row-focus"),
+			gowid.MakePaletteRef("packet-list-row-focus"),
 		)
 
 		if currentShortName, ok := convs.OfficialNameToType[cur]; ok {
@@ -736,8 +736,8 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 
 			boundedTbl := NewRowFocusTableWidget(
 				tbl,
-				"pkt-list-row-selected",
-				"pkt-list-row-focus",
+				"packet-list-row-selected",
+				"packet-list-row-focus",
 			)
 
 			var _ list.IWalker = boundedTbl

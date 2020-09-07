@@ -163,8 +163,8 @@ func New() *Widget {
 				Buttons:         []dialog.Button{},
 				NoShadow:        true,
 				NoFrame:         false,
-				BackgroundStyle: gowid.MakePaletteRef("minibuffer"),
-				ButtonStyle:     gowid.MakePaletteRef("minibuffer-buttons"),
+				BackgroundStyle: gowid.MakePaletteRef("cmdline"),
+				ButtonStyle:     gowid.MakePaletteRef("cmdline-buttons"),
 			},
 		),
 		compl:   top,
@@ -382,8 +382,8 @@ func (w *Widget) updateCompletions(app gowid.IApp) {
 		complWidgets = append(complWidgets,
 			isselected.New(
 				compBtn,
-				styled.New(compBtn, gowid.MakePaletteRef("minibuffer-buttons")),
-				styled.New(compBtn, gowid.MakePaletteRef("minibuffer-buttons")),
+				styled.New(compBtn, gowid.MakePaletteRef("cmdline-buttons")),
+				styled.New(compBtn, gowid.MakePaletteRef("cmdline-buttons")),
 			),
 		)
 

@@ -108,7 +108,7 @@ func New(opt Options) *Widget {
 
 	menuListBox2 := styled.New(
 		framed.NewUnicode(cellmod.Opaque(filterActivator)),
-		gowid.MakePaletteRef("filter-menu-focus"),
+		gowid.MakePaletteRef("filter-menu"),
 	)
 
 	drop := menu.New("filter", menuListBox2, gowid.RenderWithUnits{U: opt.MaxCompletions + 2},
@@ -414,7 +414,7 @@ func newMenuWidgets(ed *edit.Widget, completions []string) []gowid.IWidget {
 				SelectKeys: []gowid.IKey{gowid.MakeKeyExt(tcell.KeyEnter)},
 			},
 		)
-		clickmeStyled := styled.NewInvertedFocus(clickme, gowid.MakePaletteRef("filter-menu-focus"))
+		clickmeStyled := styled.NewInvertedFocus(clickme, gowid.MakePaletteRef("filter-menu"))
 		clickme.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
 			txt := ed.Text()
 			end := ed.CursorPos()

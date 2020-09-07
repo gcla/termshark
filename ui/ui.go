@@ -527,8 +527,8 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 	res = expander.New(
 		isselected.New(
 			res,
-			styled.New(res, gowid.MakePaletteRef("pkt-struct-selected")),
-			styled.New(res, gowid.MakePaletteRef("pkt-struct-focus")),
+			styled.New(res, gowid.MakePaletteRef("packet-struct-selected")),
+			styled.New(res, gowid.MakePaletteRef("packet-struct-focus")),
 		),
 	)
 
@@ -1878,10 +1878,10 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 			Style: table.StyleOptions{
 				VerticalSeparator:   fill.New(' '),
 				HeaderStyleProvided: true,
-				HeaderStyleFocus:    gowid.MakePaletteRef("pkt-list-cell-focus"),
+				HeaderStyleFocus:    gowid.MakePaletteRef("packet-list-cell-focus"),
 				CellStyleProvided:   true,
-				CellStyleSelected:   gowid.MakePaletteRef("pkt-list-cell-selected"),
-				CellStyleFocus:      gowid.MakePaletteRef("pkt-list-cell-focus"),
+				CellStyleSelected:   gowid.MakePaletteRef("packet-list-cell-selected"),
+				CellStyleFocus:      gowid.MakePaletteRef("packet-list-cell-focus"),
 			},
 			Layout: table.LayoutOptions{
 				Widths: []gowid.IWidgetDimension{
@@ -1899,7 +1899,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 
 	expandingModel := psmlmodel.New(
 		packetPsmlTableModel,
-		gowid.MakePaletteRef("pkt-list-row-focus"),
+		gowid.MakePaletteRef("packet-list-row-focus"),
 	)
 	if len(expandingModel.Comparators) > 0 {
 		expandingModel.Comparators[0] = table.IntCompare{}
@@ -1947,8 +1947,8 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 	packetListView = NewPsmlTableRowWidget(
 		NewRowFocusTableWidget(
 			packetListTable,
-			"pkt-list-row-selected",
-			"pkt-list-row-focus",
+			"packet-list-row-selected",
+			"packet-list-row-focus",
 		),
 		psml.PsmlColors(),
 	)
@@ -2103,10 +2103,10 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 				layers := getLayersFromStructWidget(row, 0)
 				res2 = hexdumper2.New(b, hexdumper2.Options{
 					StyledLayers:      layers,
-					CursorUnselected:  "hex-cur-unselected",
-					CursorSelected:    "hex-cur-selected",
-					LineNumUnselected: "hexln-unselected",
-					LineNumSelected:   "hexln-selected",
+					CursorUnselected:  "hex-byte-unselected",
+					CursorSelected:    "hex-byte-selected",
+					LineNumUnselected: "hex-interval-unselected",
+					LineNumSelected:   "hex-interval-selected",
 					PaletteIfCopying:  "copy-mode",
 				})
 
@@ -2764,7 +2764,7 @@ func Build() (*gowid.App, error) {
 			null.New(),
 			CopyModePredicate,
 		),
-		gowid.MakePaletteRef("copy-mode-indicator"),
+		gowid.MakePaletteRef("copy-mode-label"),
 	)
 
 	//======================================================================
