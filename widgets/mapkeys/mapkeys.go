@@ -40,7 +40,7 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 			var res bool
 			for _, k := range seq {
 				// What should the handled value be??
-				res = w.IWidget.UserInput(tcell.NewEventKey(k.Key, k.Ch, k.Mod), size, focus, app)
+				res = w.IWidget.UserInput(tcell.NewEventKey(k.Key(), k.Rune(), k.Modifiers()), size, focus, app)
 			}
 			return res
 		} else {
