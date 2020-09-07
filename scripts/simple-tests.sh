@@ -94,27 +94,33 @@ in_tty() {
 echo UI test 1
 # Load a pcap, quit
 { sleep 5s ; echo q ; echo ; } | in_tty $TS -r "${PCAP}"
+reset
 
 echo UI test 2
 # Run with stdout not a tty, but disable the pass-thru to tshark
 { sleep 5s ; echo q ; echo ; } | in_tty "$TS -r "${PCAP}" --pass-thru=false | cat"
+reset
 
 echo UI test 3
 # Load a pcap, very rudimentary scrape for an IP, quit
 { sleep 5s ; echo q ; echo ; } | in_tty "$TS -r "${PCAP}"" | grep -a 192.168.44.123 > /dev/null
+reset
 
 # Ensure -r flag isn't needed
 { sleep 5s ; echo q ; echo ; } | in_tty "$TS "${PCAP}"" | grep -a 192.168.44.123 > /dev/null
+reset
 
 echo UI test 4
 # Load a pcap from stdin
 { sleep 5s ; echo q ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS -i -"
 { sleep 5s ; echo q ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS -r -"
 { sleep 5s ; echo q ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS"
+reset
 
 echo UI test 5
 # Display filter at end of command line
 { sleep 5s ; echo q ; echo ; } | in_tty "$TS -r scripts/pcaps/telnet-cooked.pcap \'frame.number == 2\'" | grep -a "Frame 2: 74 bytes" > /dev/null
+reset
 
 echo UI test 6
 mkfifo "${FIFO}"
@@ -128,5 +134,6 @@ cat "${PCAP}" > "${FIFO}" &
 { sleep 5s ; echo q ; echo ; } | in_tty "$TS "${FIFO}""
 #{ sleep 5s ; echo q ; echo ; } | in_tty "$TS "${FIFO}" \'frame.number == 2\'" | grep -a "Frame 2: 74 bytes" > /dev/null
 wait
+reset
 
 echo Tests were successful.
