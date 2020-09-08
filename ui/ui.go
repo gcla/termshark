@@ -1189,6 +1189,7 @@ func (t updatePacketViews) AfterEnd(closeMe chan<- struct{}) {
 		updatePacketListWithData(t.Ld, app)
 		StopEmptyStructViewTimer()
 		StopEmptyHexViewTimer()
+		log.Infof("Load operation complete")
 	}))
 }
 
