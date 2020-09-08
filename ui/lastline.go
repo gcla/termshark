@@ -471,11 +471,15 @@ func (d mapCommand) Run(app gowid.IApp, args ...string) error {
 
 	if len(args) == 3 {
 		key1 := vim.VimStringToKeys(args[1])
-		keys2 := vim.VimStringToKeys(args[2])
-		termshark.AddKeyMapping(termshark.KeyMapping{From: key1[0], To: keys2})
-		mappings := termshark.LoadKeyMappings()
-		for _, mapping := range mappings {
-			d.w.AddMapping(mapping.From, mapping.To, app)
+		if len(key1) != 1 {
+			err = fmt.Errorf("Invalid: first map argument must be a single key (got '%s')", args[1])
+		} else {
+			keys2 := vim.VimStringToKeys(args[2])
+			termshark.AddKeyMapping(termshark.KeyMapping{From: key1[0], To: keys2})
+			mappings := termshark.LoadKeyMappings()
+			for _, mapping := range mappings {
+				d.w.AddMapping(mapping.From, mapping.To, app)
+			}
 		}
 	} else if len(args) == 1 {
 		OpenTemplatedDialogExt(appView, "Key Mappings", fixed, ratio(0.6), app)
