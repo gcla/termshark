@@ -101,7 +101,7 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 			FocusOnWidget:   focusOnWidget,
 		},
 	)
@@ -140,7 +140,7 @@ func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, ap
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 
@@ -165,7 +165,7 @@ func OpenTemplatedDialogExt(container gowid.ISettableComposite, tmplName string,
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 	dialog.OpenExt(YesNo, container, width, height, app)

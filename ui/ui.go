@@ -960,7 +960,7 @@ func processCopyChoices(copyLen int, app gowid.IApp) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 			FocusOnWidget:   true,
 		},
 	)
@@ -992,7 +992,7 @@ func reallyQuit(app gowid.IApp) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 	YesNo.Open(appView, units(len(msgt)+20), app)
@@ -1250,7 +1250,7 @@ func reallyClear(app gowid.IApp) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 	YesNo.Open(mainViewNoKeys, units(len(msgt)+28), app)
@@ -2730,7 +2730,7 @@ func Build() (*gowid.App, error) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 
