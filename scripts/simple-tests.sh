@@ -93,7 +93,7 @@ in_tty() {
 
 wait_for_load() {
     rm ~/.cache/termshark/termshark.log > /dev/null 2>&1
-    tail -F ~/.cache/termshark/termshark.log 2> /dev/null | while [ 1 ] ; do read ; grep "Load operation complete" <<<$REPLY && break ; done
+    tail -F ~/.cache/termshark/termshark.log 2> /dev/null | while [ 1 ] ; do read ; echo Log: $REPLY 1>&2 ; grep "Load operation complete" <<<$REPLY && break ; done
 }
 
 echo UI test 1
