@@ -98,39 +98,39 @@ wait_for_load() {
 
 echo UI test 1
 # Load a pcap, quit
-{ wait_for_load ; echo q ; echo ; } | in_tty $TS -r "${PCAP}" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty $TS -r "${PCAP}" > /dev/null
 
 echo UI test 2
 # Run with stdout not a tty, but disable the pass-thru to tshark
-{ wait_for_load ; echo q ; echo ; } | in_tty "$TS -r "${PCAP}" --pass-thru=false | cat" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "$TS -r "${PCAP}" --pass-thru=false | cat" > /dev/null
 
 echo UI test 3
 # Load a pcap, very rudimentary scrape for an IP, quit
-{ wait_for_load ; echo q ; echo ; } | in_tty "$TS -r "${PCAP}"" | grep -a 192.168.44.123 > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "$TS -r "${PCAP}"" | grep -a 192.168.44.123 > /dev/null
 
 # Ensure -r flag isn't needed
-{ wait_for_load ; echo q ; echo ; } | in_tty "$TS "${PCAP}"" | grep -a 192.168.44.123 > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "$TS "${PCAP}"" | grep -a 192.168.44.123 > /dev/null
 
 echo UI test 4
 # Load a pcap from stdin
-{ wait_for_load ; echo q ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS -i -" > /dev/null
-{ wait_for_load ; echo q ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS -r -" > /dev/null
-{ wait_for_load ; echo q ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS -i -" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS -r -" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "cat "${PCAP}" | TERM=xterm $TS" > /dev/null
 
 echo UI test 5
 # Display filter at end of command line
-{ wait_for_load ; echo q ; echo ; } | in_tty "$TS -r scripts/pcaps/telnet-cooked.pcap \'frame.number == 2\'" | grep -a "Frame 2: 74 bytes" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "$TS -r scripts/pcaps/telnet-cooked.pcap \'frame.number == 2\'" | grep -a "Frame 2: 74 bytes" > /dev/null
 
 echo UI test 6
 mkfifo "${FIFO}"
 cat "${PCAP}" > "${FIFO}" &
-{ wait_for_load ; echo q ; echo ; } | in_tty "$TS -r "${FIFO}"" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "$TS -r "${FIFO}"" > /dev/null
 wait
 cat "${PCAP}" > "${FIFO}" &
-{ wait_for_load ; echo q ; echo ; } | in_tty "$TS -i "${FIFO}"" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "$TS -i "${FIFO}"" > /dev/null
 wait
 cat "${PCAP}" > "${FIFO}" &
-{ wait_for_load ; echo q ; echo ; } | in_tty "$TS "${FIFO}"" > /dev/null
+{ wait_for_load ; sleep 0.5s ; echo q ; sleep 0.5s ; echo ; } | in_tty "$TS "${FIFO}"" > /dev/null
 #{ sleep 5s ; echo q ; echo ; } | in_tty "$TS "${FIFO}" \'frame.number == 2\'" | grep -a "Frame 2: 74 bytes" > /dev/null
 wait
 
