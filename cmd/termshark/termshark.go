@@ -26,6 +26,7 @@ import (
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/system"
+	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/tty"
 	"github.com/gcla/termshark/v2/ui"
 	"github.com/gcla/termshark/v2/widgets/filter"
@@ -674,6 +675,14 @@ func cmain() int {
 	ui.DarkMode = termshark.ConfBool("main.dark-mode", false)
 	ui.AutoScroll = termshark.ConfBool("main.auto-scroll", true)
 	ui.PacketColors = termshark.ConfBool("main.packet-colors", true)
+
+	themeName := termshark.ConfString("main.theme", "")
+	if themeName != "" {
+		err = theme.Load(themeName)
+		if err != nil {
+			log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+		}
+	}
 
 	// Set them up here so they have access to any command-line flags that
 	// need to be passed to the tshark commands used

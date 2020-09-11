@@ -9,8 +9,10 @@ import (
 	"fmt"
 
 	"github.com/gcla/gowid"
+	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/theme/modeswap"
+	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
@@ -280,10 +282,19 @@ func lbg(key string, fb gowid.IColor) gowid.IColor {
 }
 
 func tomlCol(key string, layer theme.Layer, hue string, fb gowid.IColor) gowid.IColor {
-	col, err := theme.MakeColorSafe(fmt.Sprintf("themes.rules.%s.%s", hue, key), layer)
+	rule := fmt.Sprintf("%s.%s", hue, key)
+	col, err := theme.MakeColorSafe(rule, layer)
 	if err == nil {
 		return col
+	} else {
+		// Warn if the user has defined themes.rules.etcetc, but the resulting
+		// color can't be resolved. If no key is present, it means the user hasn't
+		// set up themes, so ignore.
+		if termshark.ConfString("main.theme", "") != "" {
+			log.Infof("Could not understand configured theme color '%s'", key)
+		}
 	}
+
 	return fb
 }
 

@@ -6,9 +6,17 @@
 package theme
 
 import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
 	"github.com/gcla/gowid"
-	"github.com/gcla/termshark/v2"
-	log "github.com/sirupsen/logrus"
+	"github.com/rakyll/statik/fs"
+	"github.com/shibukawa/configdir"
+	"github.com/spf13/viper"
+
+	_ "github.com/gcla/termshark/v2/assets/statik"
 )
 
 //======================================================================
@@ -20,6 +28,8 @@ const (
 	Background Layer = iota
 )
 
+var theme *viper.Viper
+
 // MakeColorSafe extends gowid's MakeColorSafe function, prefering to interpret
 // its string argument as a toml file config key lookup first; if this fails, then
 // fall back to gowid.MakeColorSafe, which will then read colors as urwid color names,
@@ -27,32 +37,73 @@ const (
 func MakeColorSafe(s string, l Layer) (gowid.Color, error) {
 	loops := 10
 	cur := s
-	for {
-		next := termshark.ConfString(cur, "")
-		if next != "" {
-			cur = next
-		} else {
-			next := termshark.ConfStringSlice(cur, []string{})
-			if len(next) != 2 {
-				break
+	if theme != nil {
+		for {
+			next := theme.GetString(cur)
+			if next != "" {
+				cur = next
 			} else {
-				cur = next[l]
+				next := theme.GetStringSlice(cur)
+				if next == nil || len(next) != 2 {
+					break
+				} else {
+					cur = next[l]
+				}
 			}
-		}
-		loops -= 1
-		if loops == 0 {
-			break
+			loops -= 1
+			if loops == 0 {
+				break
+			}
 		}
 	}
 	col, err := gowid.MakeColorSafe(cur)
 	if err == nil {
 		return gowid.Color{IColor: col, Id: s}, nil
 	}
-	col, err = gowid.MakeColorSafe(s)
-	if err != nil {
-		log.Infof("Could not understand configured theme color '%s'", s)
+	return gowid.MakeColorSafe(s)
+}
+
+// Clear resets the package-level theme object. Next time ui.SetupColors is called,
+// the theme-connected colors won't be found, and termshark will fall back to its
+// programmed default colors.
+func Clear() {
+	theme = nil
+}
+
+// Load will set the package-level theme object to a viper object representing the
+// toml file either (a) read from disk, or failing that (b) built-in to termshark.
+// Disk themes are prefered and take precedence.
+func Load(name string) error {
+	theme = viper.New()
+	theme.SetConfigType("toml")
+	stdConf := configdir.New("", "termshark")
+	dirs := stdConf.QueryFolders(configdir.Global)
+
+	// Prefer to load from disk
+	themeFileName := filepath.Join(dirs[0].Path, "themes", fmt.Sprintf("%s.toml", name))
+
+	var file io.ReadCloser
+	var err error
+
+	file, err = os.Open(themeFileName)
+	if err == nil {
+		defer file.Close()
+		return theme.ReadConfig(file)
 	}
-	return col, err
+
+	// Fall back to built-in themes
+	statikFS, err := fs.New()
+	if err != nil {
+		return err
+	}
+
+	file, err = statikFS.Open(filepath.Join("/themes", fmt.Sprintf("%s.toml", name)))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return theme.ReadConfig(file)
 }
 
 //======================================================================
