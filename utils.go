@@ -129,6 +129,10 @@ func DirOfPathCommand(bin string) (string, error) {
 // harmless)
 var confMutex sync.Mutex
 
+func ConfKeyExists(name string) bool {
+	return viper.Get(name) != nil
+}
+
 func ConfString(name string, def string) string {
 	confMutex.Lock()
 	defer confMutex.Unlock()
