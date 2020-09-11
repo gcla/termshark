@@ -1697,7 +1697,14 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		w := mainViewNoKeys.SubWidget()
 		fp := gowid.FocusPath(w)
 		if w == viewOnlyPacketList || w == viewOnlyPacketStructure || w == viewOnlyPacketHex {
-			mainViewNoKeys.SetSubWidget(mainview, app)
+			switch termshark.ConfString("main.layout", "mainview") {
+			case "altview1":
+				mainViewNoKeys.SetSubWidget(altview1, app)
+			case "altview2":
+				mainViewNoKeys.SetSubWidget(altview2, app)
+			default:
+				mainViewNoKeys.SetSubWidget(mainview, app)
+			}
 			if deep.Equal(fp, maxViewPath) == nil {
 				switch w {
 				case viewOnlyPacketList:
