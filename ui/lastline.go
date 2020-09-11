@@ -7,6 +7,7 @@ package ui
 
 import (
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -15,10 +16,15 @@ import (
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/widgets/mapkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
 	"github.com/gdamore/tcell/terminfo"
 	"github.com/gdamore/tcell/terminfo/dynamic"
+	"github.com/rakyll/statik/fs"
+	"github.com/shibukawa/configdir"
+
+	_ "github.com/gcla/termshark/v2/assets/statik"
 )
 
 //======================================================================
@@ -29,6 +35,7 @@ var invalidReadCommandErr = fmt.Errorf("Invalid read command")
 var invalidRecentsCommandErr = fmt.Errorf("Invalid recents command")
 var invalidMapCommandErr = fmt.Errorf("Invalid map command")
 var invalidFilterCommandErr = fmt.Errorf("Invalid filter command")
+var invalidThemeCommandErr = fmt.Errorf("Invalid theme command")
 
 type minibufferFn func(gowid.IApp, ...string) error
 
@@ -211,6 +218,58 @@ func (s filterArg) Completions() []string {
 			scopy := sc
 			if strings.Contains(scopy, s.substr) {
 				matches = append(matches, scopy)
+			}
+		}
+	}
+
+	return matches
+}
+
+//======================================================================
+
+type themeArg struct {
+	substr string
+}
+
+var _ minibuffer.IArg = themeArg{}
+
+func (s themeArg) OfferCompletion() bool {
+	return true
+}
+
+func (s themeArg) Completions() []string {
+	matches := make([]string, 0)
+
+	// First gather built-in themes
+	statikFS, err := fs.New()
+	if err == nil {
+		dir, err := statikFS.Open("/themes")
+		if err == nil {
+			info, err := dir.Readdir(-1)
+			if err == nil {
+				for _, finfo := range info {
+					m := strings.TrimSuffix(finfo.Name(), ".toml")
+					if strings.Contains(m, s.substr) {
+						matches = append(matches, m)
+					}
+				}
+			}
+		}
+	}
+
+	// Then from filesystem
+	stdConf := configdir.New("", "termshark")
+	conf := stdConf.QueryFolderContainsFile("themes")
+	if conf != nil {
+		files, err := ioutil.ReadDir(filepath.Join(conf.Path, "themes"))
+		if err == nil {
+			for _, file := range files {
+				m := strings.TrimSuffix(file.Name(), ".toml")
+				if !termshark.StringInSlice(m, matches) {
+					if strings.Contains(m, s.substr) {
+						matches = append(matches, m)
+					}
+				}
 			}
 		}
 	}
@@ -455,6 +514,44 @@ func (d filterCommand) Arguments(toks []string) []minibuffer.IArg {
 		pref = toks[0]
 	}
 	res = append(res, filterArg{substr: pref})
+	return res
+}
+
+//======================================================================
+
+type themeCommand struct{}
+
+var _ minibuffer.IAction = themeCommand{}
+
+func (d themeCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	if len(args) != 2 {
+		err = invalidThemeCommandErr
+	} else {
+		termshark.SetConf("main.theme", args[1])
+		theme.Load(args[1])
+		SetupColors()
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	}
+
+	return err
+}
+
+func (d themeCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d themeCommand) Arguments(toks []string) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	pref := ""
+	if len(toks) > 0 {
+		pref = toks[0]
+	}
+	res = append(res, themeArg{substr: pref})
 	return res
 }
 

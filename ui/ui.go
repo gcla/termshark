@@ -48,6 +48,7 @@ import (
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/psmlmodel"
 	"github.com/gcla/termshark/v2/system"
+	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets"
@@ -1017,6 +1018,13 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
+	MiniBuffer.Register("no-theme", minibufferFn(func(gowid.IApp, ...string) error {
+		theme.Clear()
+		termshark.DeleteConf("main.theme")
+		SetupColors()
+		return nil
+	}))
+
 	MiniBuffer.Register("convs", minibufferFn(func(gowid.IApp, ...string) error {
 		openConvsUi(app)
 		return nil
@@ -1057,6 +1065,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("load", readCommand{complete: true})
 	MiniBuffer.Register("recents", recentsCommand{})
 	MiniBuffer.Register("filter", filterCommand{})
+	MiniBuffer.Register("theme", themeCommand{})
 	MiniBuffer.Register("map", mapCommand{w: keyMapper})
 	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
 	MiniBuffer.Register("help", helpCommand{})
