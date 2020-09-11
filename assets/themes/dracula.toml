@@ -68,7 +68,7 @@ unused = "#79e11a"
   stream-match = ["dracula.black","dracula.yellow"]
   stream-search = ["dracula.black","dracula.white"]
   stream-server = ["dracula.cyan","dracula.blue"]
-  title = ["dracula.red","themes.unused"]
+  title = ["dracula.red","unused"]
 
 [light]
   button = ["dracula.black","dracula.white"]
@@ -79,7 +79,7 @@ unused = "#79e11a"
   copy-mode = ["dracula.white","dracula.yellow"]
   copy-mode-alt = ["dracula.yellow","dracula.white"]
   copy-mode-label = ["dracula.black","dracula.red"]
-  current-capture = ["dracula.black","themes.unused"]
+  current-capture = ["dracula.black","unused"]
   dialog = ["dracula.black","dracula.yellow"]
   dialog-button = ["dracula.yellow","dracula.black"]
   default = ["dracula.black","dracula.white"]
@@ -109,4 +109,4 @@ unused = "#79e11a"
   stream-match = ["dracula.white","dracula.yellow"]
   stream-search = ["dracula.white","dracula.black"]
   stream-server = ["dracula.cyan","dracula.blue"]
-  title = ["dracula.red","themes.unused"]
+  title = ["dracula.red","unused"]
