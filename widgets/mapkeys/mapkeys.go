@@ -38,7 +38,8 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 		kp := vim.KeyPressFromTcell(ev)
 		if seq, ok := w.kmap[kp]; ok {
 			var res bool
-			for _, k := range seq {
+			for _, vk := range seq {
+				k := gowid.Key(vk)
 				// What should the handled value be??
 				res = w.IWidget.UserInput(tcell.NewEventKey(k.Key(), k.Rune(), k.Modifiers()), size, focus, app)
 			}

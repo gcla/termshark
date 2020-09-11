@@ -114,13 +114,13 @@ func New(opt Options) *Widget {
 
 	ign := make([]gowid.IKey, 0, len(vim.AllDownKeys)+len(vim.AllUpKeys))
 	for _, k := range vim.AllDownKeys {
-		if !termshark.KeyPressIsPrintable(k) {
-			ign = append(ign, k)
+		if !termshark.KeyPressIsPrintable(gowid.Key(k)) {
+			ign = append(ign, gowid.Key(k))
 		}
 	}
 	for _, k := range vim.AllUpKeys {
-		if !termshark.KeyPressIsPrintable(k) {
-			ign = append(ign, k)
+		if !termshark.KeyPressIsPrintable(gowid.Key(k)) {
+			ign = append(ign, gowid.Key(k))
 		}
 	}
 
