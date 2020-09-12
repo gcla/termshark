@@ -9,7 +9,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.1.1-0.20200801025312-b6db1a298dd9
+	github.com/gcla/gowid v1.1.1-0.20200911033444-a8d93a80f850
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gdamore/tcell v1.3.1-0.20200115030318-bff4943f9a29
 	github.com/go-test/deep v1.0.2 // indirect
@@ -20,6 +20,7 @@ require (
 	github.com/mreiferson/go-snappystream v0.2.3
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942
+	github.com/rakyll/statik v0.1.6
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.3.2

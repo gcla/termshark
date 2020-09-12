@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"text/template"
 	"time"
+	"unicode"
 
 	"github.com/adam-hanna/arrayOperations"
 	"github.com/blang/semver"
@@ -36,6 +37,7 @@ import (
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
+	"github.com/gdamore/tcell"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
@@ -126,6 +128,10 @@ func DirOfPathCommand(bin string) (string, error) {
 // is an attempt to prevent warnings with the -race flag (though they are very likely
 // harmless)
 var confMutex sync.Mutex
+
+func ConfKeyExists(name string) bool {
+	return viper.Get(name) != nil
+}
 
 func ConfString(name string, def string) string {
 	confMutex.Lock()
@@ -378,6 +384,10 @@ func TailCommand() []string {
 		def = []string{os.Args[0], "--tail"}
 	}
 	return ConfStringSlice("main.tail-command", def)
+}
+
+func KeyPressIsPrintable(key gowid.IKey) bool {
+	return unicode.IsPrint(key.Rune()) && key.Modifiers() & ^tcell.ModShift == 0
 }
 
 type KeyMapping struct {

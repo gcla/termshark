@@ -410,6 +410,7 @@ func (c *Scheduler) RequestLoadPcap(pcap string, displayFilter string, cb interf
 // the loader is currently reading from a file, the loading *stops*.
 func (c *Loader) doClearPcapOperation(cb interface{}, fn RunFn) {
 	if c.State() == 0 {
+		c.clearSource()
 		c.resetData()
 
 		handleClear(cb)
@@ -825,6 +826,14 @@ func (c *Loader) startLoadNewFilter(displayFilter string, cb interface{}) {
 
 	log.Infof("Applying new display filter '%s'", displayFilter)
 	c.startLoadPsml(cb)
+}
+
+func (c *Loader) clearSource() {
+	c.psrcs = make([]IPacketSource, 0)
+	c.ifaceFile = ""
+	c.PcapPsml = ""
+	c.PcapPdml = ""
+	c.PcapPcap = ""
 }
 
 func (c *Loader) startLoadNewFile(pcap string, displayFilter string, cb interface{}) {

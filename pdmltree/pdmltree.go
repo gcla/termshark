@@ -90,16 +90,16 @@ func (n *Model) HexLayers(pos int, includeFirst bool) []hexdumper2.LayerStyler {
 			res = append(res, hexdumper2.LayerStyler{
 				Start:         c.Pos,
 				End:           c.Pos + c.Size,
-				ColUnselected: "hex-bottom-unselected",
-				ColSelected:   "hex-bottom-selected",
+				ColUnselected: "hex-layer-unselected",
+				ColSelected:   "hex-layer-selected",
 			})
 			for _, c2 := range c.Children_ {
 				if c2.Pos <= pos && pos < c2.Pos+c2.Size {
 					res = append(res, hexdumper2.LayerStyler{
 						Start:         c2.Pos,
 						End:           c2.Pos + c2.Size,
-						ColUnselected: "hex-top-unselected",
-						ColSelected:   "hex-top-selected",
+						ColUnselected: "hex-field-unselected",
+						ColSelected:   "hex-field-selected",
 					})
 				}
 			}

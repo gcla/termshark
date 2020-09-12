@@ -48,6 +48,7 @@ import (
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/psmlmodel"
 	"github.com/gcla/termshark/v2/system"
+	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets"
@@ -527,8 +528,8 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 	res = expander.New(
 		isselected.New(
 			res,
-			styled.New(res, gowid.MakePaletteRef("pkt-struct-selected")),
-			styled.New(res, gowid.MakePaletteRef("pkt-struct-focus")),
+			styled.New(res, gowid.MakePaletteRef("packet-struct-selected")),
+			styled.New(res, gowid.MakePaletteRef("packet-struct-focus")),
 		),
 	)
 
@@ -960,7 +961,7 @@ func processCopyChoices(copyLen int, app gowid.IApp) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 			FocusOnWidget:   true,
 		},
 	)
@@ -992,7 +993,7 @@ func reallyQuit(app gowid.IApp) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 	YesNo.Open(appView, units(len(msgt)+20), app)
@@ -1014,6 +1015,13 @@ func lastLineMode(app gowid.IApp) {
 
 	MiniBuffer.Register("help", minibufferFn(func(gowid.IApp, ...string) error {
 		OpenTemplatedDialog(appView, "UIHelp", app)
+		return nil
+	}))
+
+	MiniBuffer.Register("no-theme", minibufferFn(func(gowid.IApp, ...string) error {
+		theme.Clear()
+		termshark.DeleteConf("main.theme")
+		SetupColors()
 		return nil
 	}))
 
@@ -1057,6 +1065,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("load", readCommand{complete: true})
 	MiniBuffer.Register("recents", recentsCommand{})
 	MiniBuffer.Register("filter", filterCommand{})
+	MiniBuffer.Register("theme", themeCommand{})
 	MiniBuffer.Register("map", mapCommand{w: keyMapper})
 	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
 	MiniBuffer.Register("help", helpCommand{})
@@ -1189,6 +1198,7 @@ func (t updatePacketViews) AfterEnd(closeMe chan<- struct{}) {
 		updatePacketListWithData(t.Ld, app)
 		StopEmptyStructViewTimer()
 		StopEmptyHexViewTimer()
+		log.Infof("Load operation complete")
 	}))
 }
 
@@ -1249,7 +1259,7 @@ func reallyClear(app gowid.IApp) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 	YesNo.Open(mainViewNoKeys, units(len(msgt)+28), app)
@@ -1696,7 +1706,14 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		w := mainViewNoKeys.SubWidget()
 		fp := gowid.FocusPath(w)
 		if w == viewOnlyPacketList || w == viewOnlyPacketStructure || w == viewOnlyPacketHex {
-			mainViewNoKeys.SetSubWidget(mainview, app)
+			switch termshark.ConfString("main.layout", "mainview") {
+			case "altview1":
+				mainViewNoKeys.SetSubWidget(altview1, app)
+			case "altview2":
+				mainViewNoKeys.SetSubWidget(altview2, app)
+			default:
+				mainViewNoKeys.SetSubWidget(mainview, app)
+			}
 			if deep.Equal(fp, maxViewPath) == nil {
 				switch w {
 				case viewOnlyPacketList:
@@ -1878,10 +1895,10 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 			Style: table.StyleOptions{
 				VerticalSeparator:   fill.New(' '),
 				HeaderStyleProvided: true,
-				HeaderStyleFocus:    gowid.MakePaletteRef("pkt-list-cell-focus"),
+				HeaderStyleFocus:    gowid.MakePaletteRef("packet-list-cell-focus"),
 				CellStyleProvided:   true,
-				CellStyleSelected:   gowid.MakePaletteRef("pkt-list-cell-selected"),
-				CellStyleFocus:      gowid.MakePaletteRef("pkt-list-cell-focus"),
+				CellStyleSelected:   gowid.MakePaletteRef("packet-list-cell-selected"),
+				CellStyleFocus:      gowid.MakePaletteRef("packet-list-cell-focus"),
 			},
 			Layout: table.LayoutOptions{
 				Widths: []gowid.IWidgetDimension{
@@ -1899,7 +1916,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 
 	expandingModel := psmlmodel.New(
 		packetPsmlTableModel,
-		gowid.MakePaletteRef("pkt-list-row-focus"),
+		gowid.MakePaletteRef("packet-list-row-focus"),
 	)
 	if len(expandingModel.Comparators) > 0 {
 		expandingModel.Comparators[0] = table.IntCompare{}
@@ -1947,8 +1964,8 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 	packetListView = NewPsmlTableRowWidget(
 		NewRowFocusTableWidget(
 			packetListTable,
-			"pkt-list-row-selected",
-			"pkt-list-row-focus",
+			"packet-list-row-selected",
+			"packet-list-row-focus",
 		),
 		psml.PsmlColors(),
 	)
@@ -2103,10 +2120,10 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 				layers := getLayersFromStructWidget(row, 0)
 				res2 = hexdumper2.New(b, hexdumper2.Options{
 					StyledLayers:      layers,
-					CursorUnselected:  "hex-cur-unselected",
-					CursorSelected:    "hex-cur-selected",
-					LineNumUnselected: "hexln-unselected",
-					LineNumSelected:   "hexln-selected",
+					CursorUnselected:  "hex-byte-unselected",
+					CursorSelected:    "hex-byte-selected",
+					LineNumUnselected: "hex-interval-unselected",
+					LineNumSelected:   "hex-interval-selected",
 					PaletteIfCopying:  "copy-mode",
 				})
 
@@ -2729,7 +2746,7 @@ func Build() (*gowid.App, error) {
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
-			ButtonStyle:     gowid.MakePaletteRef("dialog-buttons"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
 
@@ -2764,7 +2781,7 @@ func Build() (*gowid.App, error) {
 			null.New(),
 			CopyModePredicate,
 		),
-		gowid.MakePaletteRef("copy-mode-indicator"),
+		gowid.MakePaletteRef("copy-mode-label"),
 	)
 
 	//======================================================================
@@ -3297,7 +3314,7 @@ func Build() (*gowid.App, error) {
 
 	altview1Pile = resizable.NewPile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{
-			IWidget: packetListViewHolder,
+			IWidget: packetListViewWithKeys,
 			D:       weight(1),
 		},
 		&gowid.ContainerWidget{
@@ -3305,7 +3322,7 @@ func Build() (*gowid.App, error) {
 			D:       flow,
 		},
 		&gowid.ContainerWidget{
-			IWidget: packetStructureViewHolder,
+			IWidget: packetStructureViewWithKeys,
 			D:       weight(1),
 		},
 	})
@@ -3326,7 +3343,7 @@ func Build() (*gowid.App, error) {
 			D:       units(1),
 		},
 		&gowid.ContainerWidget{
-			IWidget: packetHexViewHolder,
+			IWidget: packetHexViewHolderWithKeys,
 			D:       weight(1),
 		},
 	})
@@ -3358,7 +3375,7 @@ func Build() (*gowid.App, error) {
 		assignTo(&altview2Cols,
 			resizable.NewColumns([]gowid.IContainerWidget{
 				&gowid.ContainerWidget{
-					IWidget: packetStructureViewHolder,
+					IWidget: packetStructureViewWithKeys,
 					D:       weight(1),
 				},
 				&gowid.ContainerWidget{
@@ -3366,7 +3383,7 @@ func Build() (*gowid.App, error) {
 					D:       units(1),
 				},
 				&gowid.ContainerWidget{
-					IWidget: packetHexViewHolder,
+					IWidget: packetHexViewHolderWithKeys,
 					D:       weight(1),
 				},
 			}),
@@ -3382,7 +3399,7 @@ func Build() (*gowid.App, error) {
 		assignTo(&altview2Pile,
 			resizable.NewPile([]gowid.IContainerWidget{
 				&gowid.ContainerWidget{
-					IWidget: packetListViewHolder,
+					IWidget: packetListViewWithKeys,
 					D:       weight(1),
 				},
 				&gowid.ContainerWidget{

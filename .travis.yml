@@ -12,9 +12,10 @@ branches:
 git:
   depth: false
 go:
-- 1.12.x
-- 1.13.x
+- 1.15.x
 - 1.14.x
+- 1.13.x
+- 1.12.x
 notifications:
   email: true
 before_install:
@@ -33,7 +34,7 @@ deploy:
   script: bash scripts/do-release.sh
   on:
     all_branches: true
-    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.14.x"
+    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.15.x"
 - provider: gcs
   skip_cleanup: true
   access_key_id: GOOGKKO2OYB5BE3XDNBJMDRK
@@ -46,4 +47,4 @@ deploy:
   on:
     repo: gcla/termshark
     all_branches: true
-    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.14.x"
+    condition: "$TRAVIS_OS_NAME = linux && $TRAVIS_GO_VERSION = 1.15.x"
