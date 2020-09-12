@@ -21,6 +21,11 @@
 - Map keys to other key sequences using a vim-style map command e.g. `map <f1> ZZ`. Use vim-syntax to express
   keystrokes - alphanumeric characters, and angle brackets for compound keys (`<C-s>`, `<A-\>`, `<esc>`,
   `<space>`, `<enter>`)
+- Added support for themes. See this
+  [example](https://raw.githubusercontent.com/gcla/termshark/master/assets/themes/dracula.toml). Themes
+  are loaded from `~/.config/termshark/themes/` or from a small cache built-in
+  to termshark. A new minibuffer command `theme` can be used to change theme;
+  `no-theme` turns off theming.
 
 ### Changed
 
