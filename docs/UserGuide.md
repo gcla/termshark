@@ -27,6 +27,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
 - [Configuration](#configuration)
   - [Dark Mode](#dark-mode)
   - [Packet Colors](#packet-colors)
+  - [Themes](#themes)
   - [Config File](#config-file)
 - [Troubleshooting](#troubleshooting)
 
@@ -337,6 +338,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **recents** - Load a pcap from those recently-used
 - **set** - Set various config properties (see `help set`)
 - **streams** - Open the stream reassemably view
+- **theme** - Set a new termshark theme
 - **unmap** - Remove a keypress mapping made with the `map` command
 
 Some commands require a parameter or more. Candidate completions will be shown when possible; you can then scroll up or down through them and hit tab
@@ -390,6 +392,84 @@ Your choice is stored in the termshark [config file](UserGuide.md#config-file). 
 
 By default, termshark will now display packets in the packet list view colored according to Wireshark's color rules. With recent installations of Wireshark, you can find this file at `$XDG_CONFIG_HOME/wireshark/colorfilters`. Termshark doesn't provide a way to edit the colors - the colors are provided by `tshark`. You can read about Wireshark's support [here](https://www.wireshark.org/docs/wsug_html_chunked/ChCustColorizationSection.html). If you don't like the way this looks in termshark, you can turn it off using termshark's main menu.
 
+### Themes
+
+Termshark can be themed to better line up with other terminal applications that you use. Most of termshark's UI elements have names and you can tie colors to these names. Here is an example theme:
+
+```toml
+unused = "#79e11a"
+
+[dracula]
+  base00 = "#282a36"
+  base01 = "#373844"
+  base02 = "#464752"
+  base03 = "#565761"
+  base04 = "#b6b6b2"
+  base05 = "#ccccc7"
+  base06 = "#e2e2dc"
+  base07 = "#f8f8f2"
+  base08 = "#ff5555"
+  base09 = "#ffb86c"
+  base0a = "#f1fa8c"
+  base0b = "#50fa7b"
+  base0c = "#8be9fd"
+  base0d = "#6272a4"
+  base0e = "#bd93f9"
+  base0f = "#ff79c6"
+  black = "dracula.base00"
+  blue = "dracula.base0d"
+  cyan = "dracula.base0c"
+  green = "dracula.base0b"
+  magenta = "dracula.base0f"
+  orange = "dracula.base09"
+  purple = "dracula.base0e"
+  red = "dracula.base08"
+  white = "dracula.base07"
+  yellow = "dracula.base0a"
+
+[dark]
+  button = ["dracula.white","dracula.black"]
+  button-focus = ["dracula.black","dracula.purple"]
+  button-selected = ["dracula.white","dracula.black"]
+  cmdline = ["dracula.black","dracula.yellow"]
+  cmdline-button = ["dracula.yellow","dracula.black"]
+  copy-mode = ["dracula.black","dracula.yellow"]
+  ...
+  title = ["dracula.red","unused"]
+
+[light]
+  button = ["dracula.black","dracula.white"]
+  button-focus = ["dracula.black","dracula.purple"]
+  button-selected = ["dracula.black","dracula.base04"]
+  cmdline = ["dracula.black","dracula.yellow"]
+  cmdline-button = ["dracula.yellow","dracula.black"]
+  copy-mode = ["dracula.white","dracula.yellow"]
+  ...
+  title = ["dracula.red","unused"]
+```
+
+The UI elements are listed in the `[dark]` and `[light]` sections. Each element is assigned a pair of colors - foreground and background. The colors
+can be:
+
+- a reference to another field in the theme toml e.g. `dracula.black`
+- a color that termshark understands natively e.g. `#ffcc43`, `dark green`, `g50` (medium gray).
+
+The themes are designed to be [base16-compatible](https://github.com/chriskempson/base16). For `dracula`, the base16 colors are listed in the
+`[dracula]` section, and then refered to in the theme rules for `[dark]` and `[light]`. If the theme is almost base16-compatible, but some small
+tweaks are needed, you can simply set a specific color in the termshark UI element - there is no need to refer to a base16 color name in all cases.
+
+Termshark loads themes in two ways - from:
+
+- `$XDG_CONFIG_HOME/termshark/themes/*.toml` (e.g. `~/.config/termshark/themes/dracula.toml`)
+- from a small database compiled-in to the termshark binary. 
+
+Currently two themes are built-in - `dracula` and `solarized`. If you make another, please submit it!
+
+The termshark command-line provides two commands to interact with themes:
+
+- `theme` - choose a new theme from those provided and apply it.
+- `no-theme` - use no theme.
+
 ### Config File
 
 Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
@@ -442,6 +522,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
   term = "screen-256color"
 ```
 
+- `theme` (string) - the currently selected theme, if absent, no theme is used.
 - `tshark` (string) - make termshark use this specific `tshark`.
 - `tshark-args` (string list) - these are added to each invocation of `tshark` made by termshark e.g.
 
