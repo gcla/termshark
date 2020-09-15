@@ -46,6 +46,8 @@ github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359 h1:3xEhacR7pIJV8daurdB
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
 github.com/gcla/tcell v1.1.2-0.20200115035344-b90e69b9dbe0 h1:6fMu73gAbCSAYAGFhMU1G9h5IilNI9wlvEdV4KMF93U=
 github.com/gcla/tcell v1.1.2-0.20200115035344-b90e69b9dbe0/go.mod h1:vxEiSDZdW3L+Uhjii9c3375IlDmR05bzxY404ZVSMo0=
+github.com/gcla/tcell v1.1.2-0.20200915024252-1519b137068a h1:jjb/Tr5RxePgvERWFtwUDOU0Kn3RqGhc0HjPu1qeemU=
+github.com/gcla/tcell v1.1.2-0.20200915024252-1519b137068a/go.mod h1:vxEiSDZdW3L+Uhjii9c3375IlDmR05bzxY404ZVSMo0=
 github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402 h1:d8cpYNgYjXDjvrdnSaFy4+o1D3BpPUKTBIcijrBKv4c=
 github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402/go.mod h1:YCPU+G35BFc/575HWMl8oeqq+dTbunufWbWaV0Y2sqY=
 github.com/gcla/termshark v1.0.0 h1:3jDyqYHeGIfN2khlAfWmJzoJJTh6Iau2mz81nakLBPk=
