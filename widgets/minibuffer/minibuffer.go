@@ -165,6 +165,7 @@ func New() *Widget {
 				NoFrame:         false,
 				BackgroundStyle: gowid.MakePaletteRef("cmdline"),
 				ButtonStyle:     gowid.MakePaletteRef("cmdline-button"),
+				BorderStyle:     gowid.MakePaletteRef("cmdline-border"),
 			},
 		),
 		compl:   top,
