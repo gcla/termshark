@@ -174,6 +174,7 @@ var PacketColors bool          // global state in app
 var PacketColorsSupported bool // global state in app - true if it's even possible
 var AutoScroll bool            // true if the packet list should auto-scroll when listening on an interface.
 var newPacketsArrived bool     // true if current updates are due to new packets when listening on an interface.
+var reenableAutoScroll bool    // set to true by keypress processing widgets - used with newPacketsArrived
 var Running bool               // true if gowid/tcell is controlling the terminal
 
 //======================================================================
@@ -1951,6 +1952,20 @@ func updatePacketListWithData(psml psmlInfo, app gowid.IApp) {
 	}
 }
 
+// don't claim the keypress
+func ApplyAutoScroll(ev *tcell.EventKey, app gowid.IApp) bool {
+	reenableAutoScroll = false
+	switch ev.Key() {
+	case tcell.KeyEnd:
+		if termshark.ConfBool("main.auto-scroll", true) {
+			AutoScroll = true
+			reenableAutoScroll = true // when packet updates come, helps
+			// understand that AutoScroll should not be disabled again
+		}
+	}
+	return false
+}
+
 type psmlInfo interface {
 	PsmlData() [][]string
 	PsmlHeaders() []string
@@ -1976,9 +1991,11 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 			return
 		}
 
-		if !newPacketsArrived {
+		if !newPacketsArrived && !reenableAutoScroll {
 			// this focus change must've been user-initiated, so stop auto-scrolling with new packets.
-			// This mimics Wireshark's behavior.
+			// This mimics Wireshark's behavior. Note that if the user hits the end key, this may
+			// update the view and run this callback, but end means to resume auto-scrolling if it's
+			// enabled, so we should not promptly disable it again
 			AutoScroll = false
 		}
 
@@ -3166,7 +3183,13 @@ func Build() (*gowid.App, error) {
 	packetListViewWithKeys := appkeys.NewMouse(
 		appkeys.New(
 			appkeys.New(
-				packetListViewHolder,
+				appkeys.New(
+					packetListViewHolder,
+					ApplyAutoScroll,
+					appkeys.Options{
+						ApplyBefore: true,
+					},
+				),
 				appKeysResize1,
 			),
 			widgets.SwallowMovementKeys,
