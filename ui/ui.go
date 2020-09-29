@@ -1954,9 +1954,17 @@ func updatePacketListWithData(psml psmlInfo, app gowid.IApp) {
 
 // don't claim the keypress
 func ApplyAutoScroll(ev *tcell.EventKey, app gowid.IApp) bool {
+	doit := false
 	reenableAutoScroll = false
 	switch ev.Key() {
+	case tcell.KeyRune:
+		if ev.Rune() == 'G' {
+			doit = true
+		}
 	case tcell.KeyEnd:
+		doit = true
+	}
+	if doit {
 		if termshark.ConfBool("main.auto-scroll", true) {
 			AutoScroll = true
 			reenableAutoScroll = true // when packet updates come, helps
