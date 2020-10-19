@@ -100,11 +100,6 @@ func (c *Loader) StartLoad(pcap string, convs []string, filter string, abs bool,
 func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs bool, resolve bool, app gowid.IApp, cb IConvsCallbacks) {
 	c.convsCtx, c.convsCancelFn = context.WithCancel(c.mainCtx)
 
-	defer func() {
-		c.convsCtx = nil
-		c.convsCancelFn = nil
-	}()
-
 	c.convsCmd = c.cmds.Convs(pcapf, convs, filter, abs, resolve)
 
 	convsOut, err := c.convsCmd.StdoutReader()
@@ -133,26 +128,39 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 
 	log.Infof("Started command %v with pid %d", c.convsCmd, c.convsCmd.Pid())
 
+	procWaitChan := make(chan error, 1)
+
 	defer func() {
-		err = c.convsCmd.Wait() // it definitely started, so we must wait
-		if !c.SuppressErrors && err != nil {
-			if _, ok := err.(*exec.ExitError); ok {
-				cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-					"command": c.convsCmd.String(),
-					"error":   err,
-				})
-				pcap.HandleError(cerr, cb)
-			}
-		}
+		procWaitChan <- c.convsCmd.Wait()
 	}()
 
 	termshark.TrackedGo(func() {
-		// Wait for external cancellation. This is the shutdown procedure.
-		<-c.convsCtx.Done()
-		err := termshark.KillIfPossible(c.convsCmd)
-		if err != nil {
-			log.Infof("Did not kill tshark conv process: %v", err)
+		var err error
+		cancelled := c.convsCtx.Done()
+	loop:
+		for {
+			select {
+			case <-cancelled:
+				err := termshark.KillIfPossible(c.convsCmd)
+				if err != nil {
+					log.Infof("Did not kill tshark conv process: %v", err)
+				}
+				cancelled = nil
+			case err = <-procWaitChan:
+				if !c.SuppressErrors && err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": c.convsCmd.String(),
+							"error":   err,
+						})
+						pcap.HandleError(cerr, cb)
+					}
+				}
+				break loop
+			}
 		}
+		c.convsCtx = nil
+		c.convsCancelFn = nil
 	}, Goroutinewg)
 
 	buf := new(bytes.Buffer)
@@ -161,8 +169,6 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 	ch := make(chan struct{})
 	cb.OnData(buf.String(), ch)
 	<-ch
-
-	c.StopLoad()
 }
 
 //======================================================================

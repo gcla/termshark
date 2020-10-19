@@ -604,10 +604,10 @@ func KillIfPossible(p IProcess) error {
 		return nil
 	}
 	err := p.Kill()
-	if !errProcessAlreadyFinished(err) {
-		return err
-	} else {
+	if errProcessAlreadyFinished(err) {
 		return nil
+	} else {
+		return err
 	}
 }
 
