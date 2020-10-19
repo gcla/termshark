@@ -60,7 +60,7 @@ func init() {
 // types "s".
 type IAction interface {
 	Run(gowid.IApp, ...string) error // nil means success
-	Arguments([]string) []IArg
+	Arguments([]string, gowid.IApp) []IArg
 	OfferCompletion() bool
 }
 
@@ -251,7 +251,7 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 		default:
 			if words[len(words)-1] == partials[selectedIdx].word && keyIsEnter {
 				act := w.actions[partials[selectedIdx].word]
-				if len(act.Arguments([]string{})) == 0 {
+				if len(act.Arguments([]string{}, app)) == 0 {
 					err := w.actions[partials[selectedIdx].word].Run(app, partials[selectedIdx].word)
 					if err == nil {
 						if w.IsOpen() {
@@ -320,7 +320,7 @@ func (w *Widget) getPartialsCompletions(checkOffer bool, app gowid.IApp) []parti
 	if wordIdx > 0 {
 		argIdx := wordIdx - 1                              // first argument to command
 		if word, ok := w.actions[wordMatchesS[0][2]]; ok { //
-			wordArgs := word.Arguments(toks[1:])
+			wordArgs := word.Arguments(toks[1:], app)
 			if argIdx < len(wordArgs) {
 				if !checkOffer || wordArgs[argIdx].OfferCompletion() {
 					for _, complV := range wordArgs[argIdx].Completions() {

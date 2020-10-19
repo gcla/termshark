@@ -13,24 +13,30 @@ import (
 //======================================================================
 
 type Color struct {
-	modeReg gowid.IColor
-	modeLow gowid.IColor
+	modeHi  gowid.IColor
+	mode256 gowid.IColor
+	mode16  gowid.IColor
 }
 
 var _ gowid.IColor = (*Color)(nil)
 
-func New(reg, lofi gowid.IColor) *Color {
+func New(hi, mid, lo gowid.IColor) *Color {
 	return &Color{
-		modeReg: reg,
-		modeLow: lofi,
+		modeHi:  hi,
+		mode256: mid,
+		mode16:  lo,
 	}
 }
 
 func (c *Color) ToTCellColor(mode gowid.ColorMode) (gowid.TCellColor, bool) {
-	var col gowid.IColor = c.modeLow
+	var col gowid.IColor = c.mode16
 	switch mode {
-	case gowid.Mode256Colors, gowid.Mode24BitColors:
-		col = c.modeReg
+	case gowid.Mode24BitColors:
+		col = c.modeHi
+	case gowid.Mode256Colors:
+		col = c.mode256
+	default:
+		col = c.mode16
 	}
 	return col.ToTCellColor(mode)
 }

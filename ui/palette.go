@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/gcla/gowid"
-	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/theme/modeswap"
 	log "github.com/sirupsen/logrus"
@@ -32,33 +31,33 @@ var (
 	// Regular mode
 	//
 
-	ButtonSelectedFgReg        *modeswap.Color
-	ButtonSelectedBgReg        *modeswap.Color
-	PktListRowSelectedBgReg    *modeswap.Color
-	PktListRowFocusBgReg       *modeswap.Color
-	PktListCellSelectedFgReg   *modeswap.Color
-	PktListCellSelectedBgReg   *modeswap.Color
-	PktStructSelectedBgReg     *modeswap.Color
-	PktStructFocusBgReg        *modeswap.Color
-	HexFieldUnselectedFgReg    *modeswap.Color
-	HexFieldUnselectedBgReg    *modeswap.Color
-	HexFieldSelectedFgReg      *modeswap.Color
-	HexFieldSelectedBgReg      *modeswap.Color
-	HexLayerUnselectedFgReg    *modeswap.Color
-	HexLayerUnselectedBgReg    *modeswap.Color
-	HexLayerSelectedFgReg      *modeswap.Color
-	HexLayerSelectedBgReg      *modeswap.Color
-	HexByteUnselectedFgReg     *modeswap.Color
-	HexByteUnselectedBgReg     *modeswap.Color
-	HexIntervalSelectedFgReg   *modeswap.Color
-	HexIntervalSelectedBgReg   *modeswap.Color
-	HexIntervalUnselectedFgReg *modeswap.Color
-	HexIntervalUnselectedBgReg *modeswap.Color
-	FilterValidBgReg           *modeswap.Color
-	StreamClientFg             *modeswap.Color
-	StreamClientBg             *modeswap.Color
-	StreamServerFg             *modeswap.Color
-	StreamServerBg             *modeswap.Color
+	ButtonSelectedFgReg        gowid.IColor
+	ButtonSelectedBgReg        gowid.IColor
+	PktListRowSelectedBgReg    gowid.IColor
+	PktListRowFocusBgReg       gowid.IColor
+	PktListCellSelectedFgReg   gowid.IColor
+	PktListCellSelectedBgReg   gowid.IColor
+	PktStructSelectedBgReg     gowid.IColor
+	PktStructFocusBgReg        gowid.IColor
+	HexFieldUnselectedFgReg    gowid.IColor
+	HexFieldUnselectedBgReg    gowid.IColor
+	HexFieldSelectedFgReg      gowid.IColor
+	HexFieldSelectedBgReg      gowid.IColor
+	HexLayerUnselectedFgReg    gowid.IColor
+	HexLayerUnselectedBgReg    gowid.IColor
+	HexLayerSelectedFgReg      gowid.IColor
+	HexLayerSelectedBgReg      gowid.IColor
+	HexByteUnselectedFgReg     gowid.IColor
+	HexByteUnselectedBgReg     gowid.IColor
+	HexIntervalSelectedFgReg   gowid.IColor
+	HexIntervalSelectedBgReg   gowid.IColor
+	HexIntervalUnselectedFgReg gowid.IColor
+	HexIntervalUnselectedBgReg gowid.IColor
+	FilterValidBgReg           gowid.IColor
+	StreamClientFg             gowid.IColor
+	StreamClientBg             gowid.IColor
+	StreamServerFg             gowid.IColor
+	StreamServerBg             gowid.IColor
 
 	RegularPalette gowid.Palette
 
@@ -66,37 +65,37 @@ var (
 	// Dark mode
 	//
 
-	ButtonSelectedFgDark        *modeswap.Color
-	ButtonSelectedBgDark        *modeswap.Color
-	ButtonBgReg                 *modeswap.Color
-	PktListRowSelectedFgDark    *modeswap.Color
-	PktListRowSelectedBgDark    *modeswap.Color
-	PktListRowFocusBgDark       *modeswap.Color
-	PktListCellSelectedFgDark   *modeswap.Color
-	PktListCellSelectedBgDark   *modeswap.Color
-	PktStructSelectedFgDark     *modeswap.Color
-	PktStructSelectedBgDark     *modeswap.Color
-	PktStructFocusBgDark        *modeswap.Color
-	HexFieldUnselectedFgDark    *modeswap.Color
-	HexFieldUnselectedBgDark    *modeswap.Color
-	HexFieldSelectedFgDark      *modeswap.Color
-	HexFieldSelectedBgDark      *modeswap.Color
-	HexLayerUnselectedFgDark    *modeswap.Color
-	HexLayerUnselectedBgDark    *modeswap.Color
-	HexLayerSelectedFgDark      *modeswap.Color
-	HexLayerSelectedBgDark      *modeswap.Color
-	HexByteUnselectedFgDark     *modeswap.Color
-	HexByteUnselectedBgDark     *modeswap.Color
-	HexIntervalSelectedBgDark   *modeswap.Color
-	HexIntervalSelectedFgDark   *modeswap.Color
-	HexIntervalUnselectedBgDark *modeswap.Color
-	HexIntervalUnselectedFgDark *modeswap.Color
-	FilterValidBgDark           *modeswap.Color
-	ButtonBgDark                *modeswap.Color
-	StreamClientFgDark          *modeswap.Color
-	StreamClientBgDark          *modeswap.Color
-	StreamServerFgDark          *modeswap.Color
-	StreamServerBgDark          *modeswap.Color
+	ButtonSelectedFgDark        gowid.IColor
+	ButtonSelectedBgDark        gowid.IColor
+	ButtonBgReg                 gowid.IColor
+	PktListRowSelectedFgDark    gowid.IColor
+	PktListRowSelectedBgDark    gowid.IColor
+	PktListRowFocusBgDark       gowid.IColor
+	PktListCellSelectedFgDark   gowid.IColor
+	PktListCellSelectedBgDark   gowid.IColor
+	PktStructSelectedFgDark     gowid.IColor
+	PktStructSelectedBgDark     gowid.IColor
+	PktStructFocusBgDark        gowid.IColor
+	HexFieldUnselectedFgDark    gowid.IColor
+	HexFieldUnselectedBgDark    gowid.IColor
+	HexFieldSelectedFgDark      gowid.IColor
+	HexFieldSelectedBgDark      gowid.IColor
+	HexLayerUnselectedFgDark    gowid.IColor
+	HexLayerUnselectedBgDark    gowid.IColor
+	HexLayerSelectedFgDark      gowid.IColor
+	HexLayerSelectedBgDark      gowid.IColor
+	HexByteUnselectedFgDark     gowid.IColor
+	HexByteUnselectedBgDark     gowid.IColor
+	HexIntervalSelectedBgDark   gowid.IColor
+	HexIntervalSelectedFgDark   gowid.IColor
+	HexIntervalUnselectedBgDark gowid.IColor
+	HexIntervalUnselectedFgDark gowid.IColor
+	FilterValidBgDark           gowid.IColor
+	ButtonBgDark                gowid.IColor
+	StreamClientFgDark          gowid.IColor
+	StreamClientBgDark          gowid.IColor
+	StreamServerFgDark          gowid.IColor
+	StreamServerBgDark          gowid.IColor
 
 	DarkModePalette gowid.Palette
 )
@@ -117,34 +116,34 @@ func SetupColors() {
 	//
 
 	//                                           256 color   < 256 color
-	ButtonBgReg = modeswap.New(lbg("button", LightGray), gowid.ColorWhite)
-	ButtonSelectedFgReg = modeswap.New(lfg("button-selected", gowid.ColorWhite), gowid.ColorWhite)
-	ButtonSelectedBgReg = modeswap.New(lbg("button-selected", DarkGray), gowid.ColorBlack)
-	PktListRowSelectedBgReg = modeswap.New(lbg("packet-list-row-selected", MediumGray), gowid.ColorBlack)
-	PktListRowFocusBgReg = modeswap.New(lbg("packet-list-row-focus", BrightBlue), gowid.ColorBlue)
-	PktListCellSelectedFgReg = modeswap.New(lfg("packet-list-cell-selected", gowid.ColorWhite), gowid.ColorWhite)
-	PktListCellSelectedBgReg = modeswap.New(lbg("packet-list-cell-selected", DarkGray), gowid.ColorBlack)
-	PktStructSelectedBgReg = modeswap.New(lbg("packet-struct-selected", MediumGray), gowid.ColorBlack)
-	PktStructFocusBgReg = modeswap.New(lbg("packet-struct-focus", BrightBlue), gowid.ColorBlue)
-	HexFieldUnselectedFgReg = modeswap.New(lfg("hex-field-unselected", gowid.ColorWhite), gowid.ColorWhite)
-	HexFieldUnselectedBgReg = modeswap.New(lbg("hex-field-unselected", MediumGray), gowid.ColorBlack)
-	HexFieldSelectedFgReg = modeswap.New(lfg("hex-field-selected", gowid.ColorWhite), gowid.ColorWhite)
-	HexFieldSelectedBgReg = modeswap.New(lbg("hex-field-selected", BrightBlue), gowid.ColorBlue)
-	HexLayerUnselectedFgReg = modeswap.New(lfg("hex-layer-unselected", gowid.ColorBlack), gowid.ColorWhite)
-	HexLayerUnselectedBgReg = modeswap.New(lbg("hex-layer-unselected", LightGray), gowid.ColorBlack)
-	HexLayerSelectedFgReg = modeswap.New(lfg("hex-layer-selected", gowid.ColorBlack), gowid.ColorWhite)
-	HexLayerSelectedBgReg = modeswap.New(lbg("hex-layer-selected", LightGray), gowid.ColorBlack)
-	HexByteUnselectedFgReg = modeswap.New(lfg("hex-byte-unselected", gowid.ColorWhite), gowid.ColorBlack)
-	HexByteUnselectedBgReg = modeswap.New(lbg("hex-byte-unselected", gowid.ColorBlack), gowid.ColorWhite)
-	HexIntervalSelectedFgReg = modeswap.New(lfg("hex-interval-selected", gowid.ColorBlack), gowid.ColorWhite)
-	HexIntervalSelectedBgReg = modeswap.New(lbg("hex-interval-selected", LightGray), gowid.ColorBlack)
-	HexIntervalUnselectedFgReg = modeswap.New(lfg("hex-interval-unselected", gowid.ColorBlack), gowid.ColorWhite)
-	HexIntervalUnselectedBgReg = modeswap.New(lbg("hex-interval-unselected", LightGray), gowid.ColorBlack)
-	FilterValidBgReg = modeswap.New(lbg("filter-valid", BrightGreen), gowid.ColorGreen)
-	StreamClientFg = modeswap.New(lfg("stream-client", DarkRed), gowid.ColorWhite)
-	StreamClientBg = modeswap.New(lbg("stream-client", LightRed), gowid.ColorDarkRed)
-	StreamServerFg = modeswap.New(lfg("stream-server", DarkBlue), gowid.ColorWhite)
-	StreamServerBg = modeswap.New(lbg("stream-server", LightBlue), gowid.ColorBlue)
+	ButtonBgReg = lbg("button", modeswap.New(LightGray, LightGray, gowid.ColorWhite))
+	ButtonSelectedFgReg = lfg("button-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorWhite))
+	ButtonSelectedBgReg = lbg("button-selected", modeswap.New(DarkGray, DarkGray, gowid.ColorBlack))
+	PktListRowSelectedBgReg = lbg("packet-list-row-selected", modeswap.New(MediumGray, MediumGray, gowid.ColorBlack))
+	PktListRowFocusBgReg = lbg("packet-list-row-focus", modeswap.New(BrightBlue, BrightBlue, gowid.ColorBlue))
+	PktListCellSelectedFgReg = lfg("packet-list-cell-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorWhite))
+	PktListCellSelectedBgReg = lbg("packet-list-cell-selected", modeswap.New(DarkGray, DarkGray, gowid.ColorBlack))
+	PktStructSelectedBgReg = lbg("packet-struct-selected", modeswap.New(MediumGray, MediumGray, gowid.ColorBlack))
+	PktStructFocusBgReg = lbg("packet-struct-focus", modeswap.New(BrightBlue, BrightBlue, gowid.ColorBlue))
+	HexFieldUnselectedFgReg = lfg("hex-field-unselected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorWhite))
+	HexFieldUnselectedBgReg = lbg("hex-field-unselected", modeswap.New(MediumGray, MediumGray, gowid.ColorBlack))
+	HexFieldSelectedFgReg = lfg("hex-field-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorWhite))
+	HexFieldSelectedBgReg = lbg("hex-field-selected", modeswap.New(BrightBlue, BrightBlue, gowid.ColorBlue))
+	HexLayerUnselectedFgReg = lfg("hex-layer-unselected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexLayerUnselectedBgReg = lbg("hex-layer-unselected", modeswap.New(LightGray, LightGray, gowid.ColorBlack))
+	HexLayerSelectedFgReg = lfg("hex-layer-selected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexLayerSelectedBgReg = lbg("hex-layer-selected", modeswap.New(LightGray, LightGray, gowid.ColorBlack))
+	HexByteUnselectedFgReg = lfg("hex-byte-unselected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorBlack))
+	HexByteUnselectedBgReg = lbg("hex-byte-unselected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexIntervalSelectedFgReg = lfg("hex-interval-selected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexIntervalSelectedBgReg = lbg("hex-interval-selected", modeswap.New(LightGray, LightGray, gowid.ColorBlack))
+	HexIntervalUnselectedFgReg = lfg("hex-interval-unselected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexIntervalUnselectedBgReg = lbg("hex-interval-unselected", modeswap.New(LightGray, LightGray, gowid.ColorBlack))
+	FilterValidBgReg = lbg("filter-valid", modeswap.New(BrightGreen, BrightGreen, gowid.ColorGreen))
+	StreamClientFg = lfg("stream-client", modeswap.New(DarkRed, DarkRed, gowid.ColorWhite))
+	StreamClientBg = lbg("stream-client", modeswap.New(LightRed, LightRed, gowid.ColorDarkRed))
+	StreamServerFg = lfg("stream-server", modeswap.New(DarkBlue, DarkBlue, gowid.ColorWhite))
+	StreamServerBg = lbg("stream-server", modeswap.New(LightBlue, LightBlue, gowid.ColorBlue))
 
 	RegularPalette = gowid.Palette{
 		"default":                   gowid.MakePaletteEntry(lfg("default", gowid.ColorBlack), lbg("default", gowid.ColorWhite)),
@@ -192,36 +191,36 @@ func SetupColors() {
 	//
 
 	//                                            256 color   < 256 color
-	ButtonBgDark = modeswap.New(dbg("button", MediumGray), gowid.ColorWhite)
-	ButtonSelectedFgDark = modeswap.New(dfg("button-selected", gowid.ColorWhite), gowid.ColorBlack)
-	ButtonSelectedBgDark = modeswap.New(dbg("button-selected", MediumGray), gowid.ColorWhite)
-	PktListRowSelectedFgDark = modeswap.New(dfg("packet-list-row-selected", gowid.ColorWhite), gowid.ColorBlack)
-	PktListRowSelectedBgDark = modeswap.New(dbg("packet-list-row-selected", DarkGray), gowid.ColorWhite)
-	PktListRowFocusBgDark = modeswap.New(dbg("packet-list-row-focus", BrightBlue), gowid.ColorBlue)
-	PktListCellSelectedFgDark = modeswap.New(dfg("packet-list-cell-selected", gowid.ColorWhite), gowid.ColorBlack)
-	PktListCellSelectedBgDark = modeswap.New(dbg("packet-list-cell-selected", MediumGray), gowid.ColorWhite)
-	PktStructSelectedFgDark = modeswap.New(dfg("packet-struct-selected", gowid.ColorWhite), gowid.ColorBlack)
-	PktStructSelectedBgDark = modeswap.New(dbg("packet-struct-selected", DarkGray), gowid.ColorWhite)
-	PktStructFocusBgDark = modeswap.New(dbg("packet-struct-focus", BrightBlue), gowid.ColorBlue)
-	HexFieldUnselectedFgDark = modeswap.New(dfg("hex-field-unselected", gowid.ColorWhite), gowid.ColorBlue)
-	HexFieldUnselectedBgDark = modeswap.New(dbg("hex-field-unselected", MediumGray), gowid.ColorWhite)
-	HexFieldSelectedFgDark = modeswap.New(dfg("hex-field-selected", gowid.ColorWhite), gowid.ColorWhite)
-	HexFieldSelectedBgDark = modeswap.New(dbg("hex-field-selected", BrightBlue), gowid.ColorBlue)
-	HexLayerUnselectedFgDark = modeswap.New(dfg("hex-layer-unselected", gowid.ColorBlack), gowid.ColorBlack)
-	HexLayerUnselectedBgDark = modeswap.New(dbg("hex-layer-unselected", DarkGray), gowid.ColorWhite)
-	HexLayerSelectedFgDark = modeswap.New(dfg("hex-layer-selected", gowid.ColorBlack), gowid.ColorBlack)
-	HexLayerSelectedBgDark = modeswap.New(dbg("hex-layer-selected", DarkGray), gowid.ColorWhite)
-	HexByteUnselectedFgDark = modeswap.New(dfg("hex-byte-unselected", gowid.ColorWhite), gowid.ColorMagenta)
-	HexByteUnselectedBgDark = modeswap.New(dbg("hex-byte-unselected", gowid.ColorBlack), gowid.ColorWhite)
-	HexIntervalSelectedFgDark = modeswap.New(dfg("hex-interval-selected", gowid.ColorBlack), gowid.ColorWhite)
-	HexIntervalSelectedBgDark = modeswap.New(dbg("hex-interval-selected", DarkGray), gowid.ColorBlack)
-	HexIntervalUnselectedFgDark = modeswap.New(dfg("hex-interval-unselected", gowid.ColorBlack), gowid.ColorWhite)
-	HexIntervalUnselectedBgDark = modeswap.New(dbg("hex-interval-unselected", DarkGray), gowid.ColorBlack)
-	FilterValidBgDark = modeswap.New(dbg("filter-valid", BrightGreen), gowid.ColorGreen)
-	StreamClientFgDark = modeswap.New(dfg("stream-client", LightRed), gowid.ColorWhite)
-	StreamClientBgDark = modeswap.New(dbg("stream-client", DarkRed), gowid.ColorDarkRed)
-	StreamServerFgDark = modeswap.New(dfg("stream-server", LightBlue), gowid.ColorWhite)
-	StreamServerBgDark = modeswap.New(dbg("stream-server", DarkBlue), gowid.ColorBlue)
+	ButtonBgDark = dbg("button", modeswap.New(MediumGray, MediumGray, gowid.ColorWhite))
+	ButtonSelectedFgDark = dfg("button-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorBlack))
+	ButtonSelectedBgDark = dbg("button-selected", modeswap.New(MediumGray, MediumGray, gowid.ColorWhite))
+	PktListRowSelectedFgDark = dfg("packet-list-row-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorBlack))
+	PktListRowSelectedBgDark = dbg("packet-list-row-selected", modeswap.New(DarkGray, DarkGray, gowid.ColorWhite))
+	PktListRowFocusBgDark = dbg("packet-list-row-focus", modeswap.New(BrightBlue, BrightBlue, gowid.ColorBlue))
+	PktListCellSelectedFgDark = dfg("packet-list-cell-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorBlack))
+	PktListCellSelectedBgDark = dbg("packet-list-cell-selected", modeswap.New(MediumGray, MediumGray, gowid.ColorWhite))
+	PktStructSelectedFgDark = dfg("packet-struct-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorBlack))
+	PktStructSelectedBgDark = dbg("packet-struct-selected", modeswap.New(DarkGray, DarkGray, gowid.ColorWhite))
+	PktStructFocusBgDark = dbg("packet-struct-focus", modeswap.New(BrightBlue, BrightBlue, gowid.ColorBlue))
+	HexFieldUnselectedFgDark = dfg("hex-field-unselected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorBlue))
+	HexFieldUnselectedBgDark = dbg("hex-field-unselected", modeswap.New(MediumGray, MediumGray, gowid.ColorWhite))
+	HexFieldSelectedFgDark = dfg("hex-field-selected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorWhite))
+	HexFieldSelectedBgDark = dbg("hex-field-selected", modeswap.New(BrightBlue, BrightBlue, gowid.ColorBlue))
+	HexLayerUnselectedFgDark = dfg("hex-layer-unselected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorBlack))
+	HexLayerUnselectedBgDark = dbg("hex-layer-unselected", modeswap.New(DarkGray, DarkGray, gowid.ColorWhite))
+	HexLayerSelectedFgDark = dfg("hex-layer-selected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorBlack))
+	HexLayerSelectedBgDark = dbg("hex-layer-selected", modeswap.New(DarkGray, DarkGray, gowid.ColorWhite))
+	HexByteUnselectedFgDark = dfg("hex-byte-unselected", modeswap.New(gowid.ColorWhite, gowid.ColorWhite, gowid.ColorMagenta))
+	HexByteUnselectedBgDark = dbg("hex-byte-unselected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexIntervalSelectedFgDark = dfg("hex-interval-selected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexIntervalSelectedBgDark = dbg("hex-interval-selected", modeswap.New(DarkGray, DarkGray, gowid.ColorBlack))
+	HexIntervalUnselectedFgDark = dfg("hex-interval-unselected", modeswap.New(gowid.ColorBlack, gowid.ColorBlack, gowid.ColorWhite))
+	HexIntervalUnselectedBgDark = dbg("hex-interval-unselected", modeswap.New(DarkGray, DarkGray, gowid.ColorBlack))
+	FilterValidBgDark = dbg("filter-valid", modeswap.New(BrightGreen, BrightGreen, gowid.ColorGreen))
+	StreamClientFgDark = dfg("stream-client", modeswap.New(LightRed, LightRed, gowid.ColorWhite))
+	StreamClientBgDark = dbg("stream-client", modeswap.New(DarkRed, DarkRed, gowid.ColorDarkRed))
+	StreamServerFgDark = dfg("stream-server", modeswap.New(LightBlue, LightBlue, gowid.ColorWhite))
+	StreamServerBgDark = dbg("stream-server", modeswap.New(DarkBlue, DarkBlue, gowid.ColorBlue))
 
 	DarkModePalette = gowid.Palette{
 		"default":                   gowid.MakePaletteEntry(dfg("default", gowid.ColorWhite), dbg("default", gowid.ColorBlack)),
@@ -290,11 +289,10 @@ func tomlCol(key string, layer theme.Layer, hue string, fb gowid.IColor) gowid.I
 		return col
 	} else {
 		// Warn if the user has defined themes.rules.etcetc, but the resulting
-		// color can't be resolved. If no key is present, it means the user hasn't
-		// set up themes, so ignore.
-		if termshark.ConfString("main.theme", "") != "" {
-			log.Infof("Could not understand configured theme color '%s'", key)
-		}
+		// color can't be resolved. When this is called, we should always have a
+		// theme loaded because we fall back to the "default" theme if no other is
+		// specified.
+		log.Warnf("Could not understand configured theme color '%s'", key)
 	}
 
 	return fb

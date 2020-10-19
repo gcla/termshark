@@ -1020,8 +1020,8 @@ func lastLineMode(app gowid.IApp) {
 	}))
 
 	MiniBuffer.Register("no-theme", minibufferFn(func(gowid.IApp, ...string) error {
-		theme.Clear()
 		termshark.DeleteConf("main.theme")
+		theme.Load("default", app)
 		SetupColors()
 		return nil
 	}))

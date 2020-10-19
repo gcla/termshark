@@ -14,6 +14,7 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/rakyll/statik/fs"
 	"github.com/shibukawa/configdir"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
 	_ "github.com/gcla/termshark/v2/assets/statik"
@@ -63,47 +64,72 @@ func MakeColorSafe(s string, l Layer) (gowid.Color, error) {
 	return gowid.MakeColorSafe(s)
 }
 
-// Clear resets the package-level theme object. Next time ui.SetupColors is called,
-// the theme-connected colors won't be found, and termshark will fall back to its
-// programmed default colors.
-func Clear() {
-	theme = nil
-}
-
 // Load will set the package-level theme object to a viper object representing the
 // toml file either (a) read from disk, or failing that (b) built-in to termshark.
 // Disk themes are prefered and take precedence.
-func Load(name string) error {
+func Load(name string, app gowid.IApp) error {
+	var err error
+
 	theme = viper.New()
+	defer func() {
+		if err != nil {
+			theme = nil
+		}
+	}()
+
 	theme.SetConfigType("toml")
 	stdConf := configdir.New("", "termshark")
 	dirs := stdConf.QueryFolders(configdir.Global)
 
-	// Prefer to load from disk
-	themeFileName := filepath.Join(dirs[0].Path, "themes", fmt.Sprintf("%s.toml", name))
+	var mode string
+	switch app.GetColorMode() {
+	case gowid.Mode24BitColors:
+		mode = "truecolor"
+	case gowid.Mode256Colors:
+		mode = "256"
+	default:
+		mode = "16"
+	}
 
-	var file io.ReadCloser
-	var err error
+	// If there's not a truecolor theme, we assume the user wants the best alternative to be loaded,
+	// and if a terminal has truecolor support, it'll surely have 256-color support.
+	modes := []string{mode}
+	if mode == "truecolor" {
+		modes = append(modes, "256")
+	}
 
-	file, err = os.Open(themeFileName)
-	if err == nil {
-		defer file.Close()
-		return theme.ReadConfig(file)
+	for _, m := range modes {
+		// Prefer to load from disk
+		themeFileName := filepath.Join(dirs[0].Path, "themes", fmt.Sprintf("%s-%s.toml", name, m))
+		log.Infof("Trying to load user theme %s", themeFileName)
+		var file io.ReadCloser
+		file, err = os.Open(themeFileName)
+		if err == nil {
+			defer file.Close()
+			log.Infof("Loaded user theme %s", themeFileName)
+			return theme.ReadConfig(file)
+		}
 	}
 
 	// Fall back to built-in themes
 	statikFS, err := fs.New()
 	if err != nil {
-		return err
+		return fmt.Errorf("in mode %v: %v", app.GetColorMode(), err)
 	}
 
-	file, err = statikFS.Open(filepath.Join("/themes", fmt.Sprintf("%s.toml", name)))
-	if err != nil {
-		return err
+	for _, m := range modes {
+		themeFileName := filepath.Join("/themes", fmt.Sprintf("%s-%s.toml", name, m))
+		log.Infof("Trying to load built-in theme %s", themeFileName)
+		var file io.ReadCloser
+		file, err = statikFS.Open(themeFileName)
+		if err == nil {
+			defer file.Close()
+			log.Infof("Loaded built-in theme %s", themeFileName)
+			return theme.ReadConfig(file)
+		}
 	}
-	defer file.Close()
 
-	return theme.ReadConfig(file)
+	return err
 }
 
 //======================================================================

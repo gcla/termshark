@@ -676,14 +676,6 @@ func cmain() int {
 	ui.AutoScroll = termshark.ConfBool("main.auto-scroll", true)
 	ui.PacketColors = termshark.ConfBool("main.packet-colors", true)
 
-	themeName := termshark.ConfString("main.theme", "")
-	if themeName != "" {
-		err = theme.Load(themeName)
-		if err != nil {
-			log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-		}
-	}
-
 	// Set them up here so they have access to any command-line flags that
 	// need to be passed to the tshark commands used
 	pdmlArgs := termshark.ConfStringSlice("main.pdml-args", []string{})
@@ -1025,6 +1017,21 @@ Loop:
 			if err = app.ActivateScreen(); err != nil {
 				fmt.Fprintf(os.Stderr, "Error starting UI: %v\n", err)
 				return 1
+			}
+
+			// Need to do that here because the app won't know how many colors the screen
+			// has (and therefore which variant of the theme to load) until the screen is
+			// activated.
+			themeName := termshark.ConfString("main.theme", "default")
+			err = theme.Load(themeName, app)
+			if err != nil {
+				log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+				if themeName != "default" {
+					err = theme.Load("default", app)
+					if err != nil {
+						log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+					}
+				}
 			}
 
 			// This needs to run after the toml config file is loaded.
