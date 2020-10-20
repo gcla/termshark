@@ -88,11 +88,6 @@ func (c *Loader) StartLoad(pcap string, app gowid.IApp, cb ICapinfoCallbacks) {
 func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallbacks) {
 	c.capinfoCtx, c.capinfoCancelFn = context.WithCancel(c.mainCtx)
 
-	defer func() {
-		c.capinfoCtx = nil
-		c.capinfoCancelFn = nil
-	}()
-
 	c.capinfoCmd = c.cmds.Capinfo(pcapf)
 
 	capinfoOut, err := c.capinfoCmd.StdoutReader()
@@ -121,26 +116,39 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 
 	log.Infof("Started capinfo command %v with pid %d", c.capinfoCmd, c.capinfoCmd.Pid())
 
+	procWaitChan := make(chan error, 1)
+
 	defer func() {
-		err = c.capinfoCmd.Wait() // it definitely started, so we must wait
-		if !c.SuppressErrors && err != nil {
-			if _, ok := err.(*exec.ExitError); ok {
-				cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-					"command": c.capinfoCmd.String(),
-					"error":   err,
-				})
-				pcap.HandleError(cerr, cb)
-			}
-		}
+		procWaitChan <- c.capinfoCmd.Wait()
 	}()
 
 	termshark.TrackedGo(func() {
-		// Wait for external cancellation. This is the shutdown procedure.
-		<-c.capinfoCtx.Done()
-		err := termshark.KillIfPossible(c.capinfoCmd)
-		if err != nil {
-			log.Infof("Did not kill capinfo process: %v", err)
+		var err error
+		cancelled := c.capinfoCtx.Done()
+	loop:
+		for {
+			select {
+			case <-cancelled:
+				err := termshark.KillIfPossible(c.capinfoCmd)
+				if err != nil {
+					log.Infof("Did not kill capinfo process: %v", err)
+				}
+				cancelled = nil
+			case err = <-procWaitChan:
+				if !c.SuppressErrors && err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": c.capinfoCmd.String(),
+							"error":   err,
+						})
+						pcap.HandleError(cerr, cb)
+					}
+				}
+				break loop
+			}
 		}
+		c.capinfoCtx = nil
+		c.capinfoCancelFn = nil
 	}, Goroutinewg)
 
 	buf := new(bytes.Buffer)
@@ -149,8 +157,6 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 	ch := make(chan struct{})
 	cb.OnCapinfoData(buf.String(), ch)
 	<-ch
-
-	c.StopLoad()
 }
 
 //======================================================================
