@@ -44,6 +44,8 @@ github.com/gcla/gowid v1.1.1-0.20200911033444-a8d93a80f850 h1:pzbWI7a+Z/x+2OGLkX
 github.com/gcla/gowid v1.1.1-0.20200911033444-a8d93a80f850/go.mod h1:kwHYNePmuaNa60IAkHfd/OfPeZuoSuz7ww+CeA5q/aQ=
 github.com/gcla/gowid v1.1.1-0.20201019033342-0eac0b423871 h1:8Hma1WRjQSdt17iaC4qYS2lhqP3aomjivz3XaW71X4s=
 github.com/gcla/gowid v1.1.1-0.20201019033342-0eac0b423871/go.mod h1:kwHYNePmuaNa60IAkHfd/OfPeZuoSuz7ww+CeA5q/aQ=
+github.com/gcla/gowid v1.1.1-0.20201020022806-471985383830 h1:urAzCFXYOalFn++zQfJPUO8L/0Yhg5w/bFCj/L7w9GQ=
+github.com/gcla/gowid v1.1.1-0.20201020022806-471985383830/go.mod h1:kwHYNePmuaNa60IAkHfd/OfPeZuoSuz7ww+CeA5q/aQ=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359 h1:3xEhacR7pIJV8daurdBygptxhzTJeYFqJp1V6SDl+pE=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
 github.com/gcla/tcell v1.1.2-0.20200115035344-b90e69b9dbe0 h1:6fMu73gAbCSAYAGFhMU1G9h5IilNI9wlvEdV4KMF93U=
