@@ -6,7 +6,7 @@
   "files": [
     "README.md"
   ],
-  "imageSize": 90,
+  "imageSize": 80,
   "commit": false,
   "commitConvention": "none",
   "contributors": [
@@ -372,6 +372,43 @@
       "profile": "https://github.com/Piping",
       "contributions": [
         "ideas"
+      ]
+    },
+    {
+      "login": "kevinhwang91",
+      "name": "kevinhwang91",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/17562139?v=4",
+      "profile": "https://github.com/kevinhwang91",
+      "contributions": [
+        "ideas",
+        "bug"
+      ]
+    },
+    {
+      "login": "jboverfelt",
+      "name": "Justin Overfelt",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/936126?v=4",
+      "profile": "https://jbo.io",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "loudsong",
+      "name": "Anthony",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/1447613?v=4",
+      "profile": "https://github.com/loudsong",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "basondole",
+      "name": "basondole",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/50369643?v=4",
+      "profile": "https://github.com/basondole",
+      "contributions": [
+        "bug"
       ]
     }
   ],
