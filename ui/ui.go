@@ -1019,10 +1019,12 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
-	MiniBuffer.Register("no-theme", minibufferFn(func(gowid.IApp, ...string) error {
-		termshark.DeleteConf("main.theme")
+	MiniBuffer.Register("no-theme", minibufferFn(func(app gowid.IApp, s ...string) error {
+		mode := theme.Mode(app.GetColorMode()).String() // more concise
+		termshark.DeleteConf(fmt.Sprintf("main.theme-%s", mode))
 		theme.Load("default", app)
 		SetupColors()
+		OpenMessage(fmt.Sprintf("Cleared theme for terminal mode %v.", app.GetColorMode()), appView, app)
 		return nil
 	}))
 

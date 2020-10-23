@@ -1022,15 +1022,21 @@ Loop:
 			// Need to do that here because the app won't know how many colors the screen
 			// has (and therefore which variant of the theme to load) until the screen is
 			// activated.
-			themeName := termshark.ConfString("main.theme", "default")
-			err = theme.Load(themeName, app)
-			if err != nil {
-				log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-				if themeName != "default" {
-					err = theme.Load("default", app)
-					if err != nil {
-						log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-					}
+			mode := theme.Mode(app.GetColorMode()).String() // more concise
+			themeName := termshark.ConfString(fmt.Sprintf("main.theme-%s", mode), "default")
+			loaded := false
+			if themeName != "" {
+				err = theme.Load(themeName, app)
+				if err != nil {
+					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+				} else {
+					loaded = true
+				}
+			}
+			if !loaded && themeName != "default" {
+				err = theme.Load("default", app)
+				if err != nil {
+					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
 				}
 			}
 

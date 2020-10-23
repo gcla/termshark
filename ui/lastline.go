@@ -542,9 +542,11 @@ func (d themeCommand) Run(app gowid.IApp, args ...string) error {
 	if len(args) != 2 {
 		err = invalidThemeCommandErr
 	} else {
-		termshark.SetConf("main.theme", args[1])
+		mode := theme.Mode(app.GetColorMode()).String() // more concise
+		termshark.SetConf(fmt.Sprintf("main.theme-%s", mode), args[1])
 		theme.Load(args[1], app)
 		SetupColors()
+		OpenMessage(fmt.Sprintf("Set %s theme for terminal mode %v.", args[1], app.GetColorMode()), appView, app)
 	}
 
 	if err != nil {

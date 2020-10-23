@@ -64,6 +64,27 @@ func MakeColorSafe(s string, l Layer) (gowid.Color, error) {
 	return gowid.MakeColorSafe(s)
 }
 
+type Mode gowid.ColorMode
+
+func (m Mode) String() string {
+	switch gowid.ColorMode(m) {
+	case gowid.Mode256Colors:
+		return "256"
+	case gowid.Mode88Colors:
+		return "88"
+	case gowid.Mode16Colors:
+		return "16"
+	case gowid.Mode8Colors:
+		return "8"
+	case gowid.ModeMonochrome:
+		return "mono"
+	case gowid.Mode24BitColors:
+		return "truecolor"
+	default:
+		return "unknown"
+	}
+}
+
 // Load will set the package-level theme object to a viper object representing the
 // toml file either (a) read from disk, or failing that (b) built-in to termshark.
 // Disk themes are prefered and take precedence.
@@ -81,21 +102,15 @@ func Load(name string, app gowid.IApp) error {
 	stdConf := configdir.New("", "termshark")
 	dirs := stdConf.QueryFolders(configdir.Global)
 
-	var mode string
-	switch app.GetColorMode() {
-	case gowid.Mode24BitColors:
-		mode = "truecolor"
-	case gowid.Mode256Colors:
-		mode = "256"
-	default:
-		mode = "16"
-	}
+	mode := Mode(app.GetColorMode()).String()
+
+	log.Infof("Loading theme %s in terminal mode %v", name, app.GetColorMode())
 
 	// If there's not a truecolor theme, we assume the user wants the best alternative to be loaded,
 	// and if a terminal has truecolor support, it'll surely have 256-color support.
 	modes := []string{mode}
 	if mode == "truecolor" {
-		modes = append(modes, "256")
+		modes = append(modes, Mode(gowid.Mode256Colors).String())
 	}
 
 	for _, m := range modes {
