@@ -33,6 +33,7 @@
 - Fixed race conditions that resulted in spurious warnings about a failure to kill tshark processes
 - If auto-scroll is enabled, and you navigate to a different packet in the packet list view during a live
   capture, auto-scroll is resumed if you hit 'G' or the `end` key.
+- Fixed a problem preventing the correct operation of piped input to termshark on freebsd.
 
 ## [2.1.1] - 2020-02-02
 ### Added
