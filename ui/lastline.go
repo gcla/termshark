@@ -229,7 +229,7 @@ func (s filterArg) Completions() []string {
 
 type themeArg struct {
 	substr string
-	mode   string
+	modes  []string
 }
 
 var _ minibuffer.IArg = themeArg{}
@@ -249,11 +249,14 @@ func (s themeArg) Completions() []string {
 			info, err := dir.Readdir(-1)
 			if err == nil {
 				for _, finfo := range info {
-					suff := fmt.Sprintf("-%s.toml", s.mode)
-					if strings.HasSuffix(finfo.Name(), suff) {
-						m := strings.TrimSuffix(finfo.Name(), suff)
-						if strings.Contains(m, s.substr) {
-							matches = append(matches, m)
+					for _, mode := range s.modes {
+						suff := fmt.Sprintf("-%s.toml", mode)
+
+						if strings.HasSuffix(finfo.Name(), suff) {
+							m := strings.TrimSuffix(finfo.Name(), suff)
+							if strings.Contains(m, s.substr) {
+								matches = append(matches, m)
+							}
 						}
 					}
 				}
@@ -268,12 +271,15 @@ func (s themeArg) Completions() []string {
 		files, err := ioutil.ReadDir(filepath.Join(conf.Path, "themes"))
 		if err == nil {
 			for _, file := range files {
-				suff := fmt.Sprintf("-%s.toml", s.mode)
-				if strings.HasSuffix(file.Name(), suff) {
-					m := strings.TrimSuffix(file.Name(), suff)
-					if !termshark.StringInSlice(m, matches) {
-						if strings.Contains(m, s.substr) {
-							matches = append(matches, m)
+				for _, mode := range s.modes {
+					suff := fmt.Sprintf("-%s.toml", mode)
+
+					if strings.HasSuffix(file.Name(), suff) {
+						m := strings.TrimSuffix(file.Name(), suff)
+						if !termshark.StringInSlice(m, matches) {
+							if strings.Contains(m, s.substr) {
+								matches = append(matches, m)
+							}
 						}
 					}
 				}
@@ -558,16 +564,16 @@ func (d themeCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg
 	if len(toks) > 0 {
 		pref = toks[0]
 	}
-	var mode string
+	modes := make([]string, 0, 3)
 	switch app.GetColorMode() {
 	case gowid.Mode24BitColors:
-		mode = "truecolor"
+		modes = append(modes, "truecolor", "256")
 	case gowid.Mode256Colors:
-		mode = "256"
+		modes = append(modes, "256")
 	default:
-		mode = "16"
+		modes = append(modes, "16")
 	}
-	res = append(res, themeArg{substr: pref, mode: mode})
+	res = append(res, themeArg{substr: pref, modes: modes})
 	return res
 }
 
