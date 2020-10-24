@@ -1598,8 +1598,8 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	// Only start this process if we are in interface mode
 	var err error
-	var pr *os.File
-	var pw *os.File
+	var fifoPipeReader *os.File
+	var fifoPipeWriter *os.File
 
 	//======================================================================
 
@@ -1607,24 +1607,27 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 	// a shutdown happens, and we get blocked in the XML parser, this will be able to
 	// respond
 
-	psmlWaitChan := make(chan error, 1)
-	tailWaitChan := make(chan error, 1)
+	var psmlWaitChan chan error
+	var tailWaitChan chan error
 
 	termshark.TrackedGo(func() {
+		psmlCtxChan := c.psmlCtx.Done()
+		intPsmlCtxChan := intPsmlCtx.Done()
 	loop:
 		for {
 			select {
-			case <-c.psmlCtx.Done():
+			case <-psmlCtxChan:
 				intPsmlCancelFn() // start internal shutdown
-			case <-intPsmlCtx.Done():
-				if c.tailCmd != nil {
+				psmlCtxChan = nil
+			case <-intPsmlCtxChan:
+				if tailWaitChan != nil {
 					err := termshark.KillIfPossible(c.tailCmd)
 					if err != nil {
 						log.Infof("Did not kill tail process: %v", err)
 					}
 				}
 
-				if c.PsmlCmd != nil {
+				if psmlCtxChan != nil {
 					err := termshark.KillIfPossible(c.PsmlCmd)
 					if err != nil {
 						log.Infof("Did not kill psml process: %v", err)
@@ -1634,8 +1637,13 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 				if psmlOut != nil {
 					psmlOut.Close() // explicitly close else this goroutine can block
 				}
-				break loop
+
+				intPsmlCtxChan = nil
+
 			case err = <-psmlWaitChan:
+				close(psmlWaitChan)
+				psmlWaitChan = nil
+
 				if !c.SuppressErrors {
 					if err != nil {
 						if _, ok := err.(*exec.ExitError); ok {
@@ -1652,11 +1660,18 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 				c.stopLoadIface()
 
 			case err = <-tailWaitChan:
+				close(tailWaitChan)
+				tailWaitChan = nil
+
 				// We need to explicitly close the write side of the pipe. Without this,
 				// the PSML process Wait() function won't complete, because golang won't
 				// complete termination until IO has finished, and io.Copy() will be stuck
 				// in a loop.
-				pw.Close()
+				fifoPipeWriter.Close()
+			}
+
+			if psmlWaitChan == nil && tailWaitChan == nil && intPsmlCtxChan == nil {
+				break loop
 			}
 		}
 
@@ -1676,14 +1691,14 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	//======================================================================
 
-	closePipe := func() {
-		if pw != nil {
-			pw.Close()
-			pw = nil
+	closeFifoPipe := func() {
+		if fifoPipeWriter != nil {
+			fifoPipeWriter.Close()
+			fifoPipeWriter = nil
 		}
-		if pr != nil {
-			pr.Close()
-			pr = nil
+		if fifoPipeReader != nil {
+			fifoPipeReader.Close()
+			fifoPipeReader = nil
 		}
 	}
 
@@ -1694,7 +1709,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// and the side to be written to is given to the tail process, which feeds in
 		// data from the pcap source.
 		//
-		pr, pw, err = os.Pipe()
+		fifoPipeReader, fifoPipeWriter, err = os.Pipe()
 		if err != nil {
 			err = fmt.Errorf("Could not create pipe: %v", err)
 			HandleError(err, cb)
@@ -1705,14 +1720,14 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// goroutine - so we can close at this point in the unwinding. pr
 		// is used as stdin for the psml command, which also runs in this
 		// goroutine.
-		defer closePipe()
+		defer closeFifoPipe()
 
 		// wrap the read end of the pipe with a Read() function that counts
 		// bytes. If they are equal to the total bytes written to the tmpfile by
 		// the tshark -i process, then that means the source is exhausted, and
 		// the tail + psml processes are stopped.
 		c.PcapPsml = &tailReadTracker{
-			tailReader: pr,
+			tailReader: fifoPipeReader,
 			loader:     c,
 			callback:   cb,
 		}
@@ -1738,16 +1753,16 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		return
 	}
 
+	psmlWaitChan = make(chan error, 1)
+
 	log.Infof("Started PSML command %v with pid %d", c.PsmlCmd, c.PsmlCmd.Pid())
 
-	termshark.TrackedGo(func() {
-		psmlWaitChan <- c.PsmlCmd.Wait()
-	}, Goroutinewg)
-
 	defer func() {
+		psmlWaitChan <- c.PsmlCmd.Wait()
+
 		// These need to close so the tailreader Read() terminates so that the
 		// PsmlCmd.Wait() below completes.
-		closePipe()
+		closeFifoPipe()
 	}()
 
 	//======================================================================
@@ -1760,7 +1775,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	if c.ReadingFromFifo() {
 		c.tailCmd = c.cmds.Tail(c.ifaceFile)
-		c.tailCmd.SetStdout(pw)
+		c.tailCmd.SetStdout(fifoPipeWriter)
 
 		// this set up is so that I can detect when there are actually packets to read (e.g
 		// maybe there's no traffic on the interface). When there's something to read, the
@@ -1822,9 +1837,11 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 			return
 		}
 
-		termshark.TrackedGo(func() {
+		tailWaitChan = make(chan error, 1)
+
+		defer func() {
 			tailWaitChan <- c.tailCmd.Wait()
-		}, Goroutinewg)
+		}()
 	}
 
 	//======================================================================
