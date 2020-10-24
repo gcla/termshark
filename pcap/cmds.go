@@ -130,6 +130,9 @@ func (c Commands) Iface(ifaces []string, captureFilter string, tmpfile string) I
 	// works, but fall back to tshark if needed e.g. for randpkt, sshcapture, etc
 	// (extcap interfaces).
 	res.Cmd.Env = append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1")
+	res.Cmd.Stdin = os.Stdin
+	res.Cmd.Stderr = os.Stderr
+	res.Cmd.Stdout = os.Stdout
 	return res
 }
 

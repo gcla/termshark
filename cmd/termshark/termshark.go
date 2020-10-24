@@ -346,35 +346,26 @@ func cmain() int {
 		}
 	}
 
-	// - means read from stdin. But termshark uses stdin for interacting with the UI. So if the
-	// iface is -, then dup stdin to a free descriptor, adjust iface to read from that descriptor,
-	// then open /dev/tty on stdin.
-	newinputfd := -1
-
 	// Here we check for
 	// (a) sources named '-' - these need rewritten to /dev/fd/N and stdin needs to be moved
 	// (b) fifo sources - these are switched from -r to -i because that's what tshark needs
-	renamedStdin := false
+	haveStdin := false
 	for pi, psrc := range psrcs {
 		switch {
 		case psrc.Name() == "-":
-			if renamedStdin {
+			if haveStdin {
 				fmt.Fprintf(os.Stderr, "Requested live capture %v (\"stdin\") cannot be supplied more than once.\n", psrc.Name())
 				return 1
 			}
+
 			if termshark.IsTerminal(os.Stdin.Fd()) {
 				fmt.Fprintf(os.Stderr, "Requested live capture is %v (\"stdin\") but stdin is a tty.\n", psrc.Name())
 				fmt.Fprintf(os.Stderr, "Perhaps you intended to pipe packet input to termshark?\n")
 				return 1
 			}
 			if runtime.GOOS != "windows" {
-				newinputfd, err = system.MoveStdin()
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%v\n", err)
-					return 1
-				}
-				psrcs[pi] = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd), Fd: newinputfd}
-				renamedStdin = true
+				psrcs[pi] = pcap.PipeSource{Descriptor: "/dev/fd/0", Fd: int(os.Stdin.Fd())}
+				haveStdin = true
 			} else {
 				fmt.Fprintf(os.Stderr, "Sorry, termshark does not yet support piped input on Windows.\n")
 				return 1
