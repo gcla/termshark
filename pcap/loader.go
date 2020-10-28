@@ -1095,6 +1095,11 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		c.RowCurrentlyLoading = -1
 		c.Unlock()
 
+		// The process Wait() goroutine will always expect a stage2 cancel at some point. It can
+		// come early, if the user interrupts the load. If not, then we send it now, to let
+		// that goroutine terminate.
+		c.stage2CancelFn()
+
 		c.signalStage2Done(cb)
 	}()
 
@@ -1173,52 +1178,104 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 	//======================================================================
 
-	var pdmlWaitChan chan error
-	var pcapWaitChan chan error
-	var stateChan chan struct{} = make(chan struct{})
+	pdmlPidChan := make(chan int)
+	pcapPidChan := make(chan int)
+
+	// Set these before issuing the goroutine below so that at the beginning,
+	// PdmlCmd and PcapCmd are definitely not nil. These values are saved by
+	// the goroutine, and used to access the pid of these processes, if they
+	// are started.
+	c.Lock()
+	c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
+	c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
+	c.Unlock()
 
 	termshark.TrackedGo(func() {
 		var err error
 		stage2CtxChan := c.stage2Ctx.Done()
+		pdmlPidChan := pdmlPidChan
+		pcapPidChan := pcapPidChan
+
+		var pdmlCmd IPcapCommand
+		var pcapCmd IPcapCommand
+
+		origPdmlCmd := c.PdmlCmd
+		origPcapCmd := c.PcapCmd
+
+		killPcap := func() {
+			err := termshark.KillIfPossible(pcapCmd)
+			if err != nil {
+				log.Infof("Did not kill pcap process: %v", err)
+			}
+		}
+
+		killPdml := func() {
+			err = termshark.KillIfPossible(pdmlCmd)
+			if err != nil {
+				log.Infof("Did not kill pdml process: %v", err)
+			}
+		}
 
 	loop:
 		for {
 			select {
 
-			case <-stateChan:
-				// so the select loop picks up new values of other channels (nil -> non-nil)
+			case pid := <-pdmlPidChan:
+				// this channel can be closed on a stage2 cancel, before the
+				// pdml process has been started, meaning we get nil for the
+				// pid. If that's the case, don't save the cmd, so we know not
+				// to try to kill anything later.
+				pdmlPidChan = nil
+				if pid != 0 {
+					pdmlCmd = origPdmlCmd
+					if stage2CtxChan == nil {
+						// means that stage2 has been cancelled (so stop the load), and
+						// pdmlCmd != nil => for sure a process was started. So kill it.
+						// It won't have been cleaned up anywhere else because Wait() is
+						// only called below, in this goroutine.
+						killPdml()
+					}
+				}
 
-			case <-pdmlWaitChan:
-				close(pdmlWaitChan)
-				pdmlWaitChan = nil
-
-			case <-pcapWaitChan:
-				close(pcapWaitChan)
-				pcapWaitChan = nil
+			case pid := <-pcapPidChan:
+				pcapPidChan = nil
+				if pid != 0 {
+					pcapCmd = origPcapCmd
+					if stage2CtxChan == nil {
+						killPcap()
+					}
+				}
 
 			case <-stage2CtxChan:
+				// Once the pcap/pdml load is initiated, we guarantee we get a stage2 cancel
+				// once all the stage2 goroutines are finished. So we don't quit the select loop
+				// until this channel (as well as the others) has received a signal
 				stage2CtxChan = nil
-
 				setCancelled()
-				if pcapWaitChan != nil {
-					err := termshark.KillIfPossible(c.PcapCmd)
-					if err != nil {
-						log.Infof("Did not kill pcap process: %v", err)
-					}
+				if pcapCmd != nil {
+					// means that for sure, a process was started
+					killPcap()
 				}
-				if pdmlWaitChan != nil {
-					err = termshark.KillIfPossible(c.PdmlCmd)
-					if err != nil {
-						log.Infof("Did not kill pdml process: %v", err)
-					}
+				if pdmlCmd != nil {
+					killPdml()
 				}
 			}
 
-			// Make sure the first time we fall through here that it's not the case
-			// that neither process has started yet, because neither will start now
-			if pdmlWaitChan == nil && pcapWaitChan == nil {
+			// if pdmlpidchan is nil, it means the the channel has been closed or we've received a message
+			// a message means the proc has started
+			// closed means it won't be started
+			// if closed, then pdmlCmd == nil
+			if pdmlPidChan == nil && pcapPidChan == nil && stage2CtxChan == nil {
+				// nothing to select on so break
 				break loop
 			}
+		}
+
+		if pcapCmd != nil {
+			pcapCmd.Wait()
+		}
+		if pdmlCmd != nil {
+			pdmlCmd.Wait()
 		}
 
 	}, Goroutinewg)
@@ -1235,12 +1292,24 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		case <-c.startPdmlChan:
 		case <-c.stage2Ctx.Done():
 			setCancelled()
+			close(pdmlPidChan)
 			return
 		}
 
-		c.Lock()
-		c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
-		c.Unlock()
+		// We didn't get a stage2 cancel yet. We could now, but for now we've been told to continue
+		// now we'll guarantee either:
+		// - we'll send the pdml pid on pdmlPidChan if it starts
+		// - we'll close the channel if it doesn't start
+
+		pid := 0
+
+		defer func() {
+			// Guarantee that at the end of this goroutine, if we didn't start a process (pid == 0)
+			// we will close the channel to signal the Wait() goroutine above.
+			if pid == 0 {
+				close(pdmlPidChan)
+			}
+		}()
 
 		pdmlOut, err := c.PdmlCmd.StdoutReader()
 		if err != nil {
@@ -1257,12 +1326,8 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		log.Infof("Started PDML command %v with pid %d", c.PdmlCmd, c.PdmlCmd.Pid())
 
-		pdmlWaitChan = make(chan error, 1)
-		stateChan <- struct{}{}
-
-		defer func() {
-			pdmlWaitChan <- c.PdmlCmd.Wait()
-		}()
+		pid = c.PdmlCmd.Pid()
+		pdmlPidChan <- pid
 
 		d := xml.NewDecoder(pdmlOut)
 		packets := make([]IPdmlPacket, 0, c.opt.PacketsPerLoad)
@@ -1351,12 +1416,17 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		case <-c.startPcapChan:
 		case <-c.stage2Ctx.Done():
 			setCancelled()
+			close(pcapPidChan)
 			return
 		}
 
-		c.Lock()
-		c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
-		c.Unlock()
+		pid := 0
+
+		defer func() {
+			if pid == 0 {
+				close(pcapPidChan)
+			}
+		}()
 
 		pcapOut, err := c.PcapCmd.StdoutReader()
 		if err != nil {
@@ -1374,12 +1444,8 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		log.Infof("Started pcap command %v with pid %d", c.PcapCmd, c.PcapCmd.Pid())
 
-		pcapWaitChan = make(chan error, 1)
-		stateChan <- struct{}{}
-
-		defer func() {
-			pcapWaitChan <- c.PcapCmd.Wait()
-		}()
+		pid = c.PcapCmd.Pid()
+		pcapPidChan <- pid
 
 		packets := make([][]byte, 0, c.opt.PacketsPerLoad)
 		issuedKill := false
