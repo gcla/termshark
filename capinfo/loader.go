@@ -88,7 +88,67 @@ func (c *Loader) StartLoad(pcap string, app gowid.IApp, cb ICapinfoCallbacks) {
 func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallbacks) {
 	c.capinfoCtx, c.capinfoCancelFn = context.WithCancel(c.mainCtx)
 
+	procChan := make(chan int)
+	pid := 0
+
+	defer func() {
+		if pid == 0 {
+			close(procChan)
+		}
+	}()
+
 	c.capinfoCmd = c.cmds.Capinfo(pcapf)
+
+	termshark.TrackedGo(func() {
+		var err error
+		var cmd pcap.IPcapCommand
+		origCmd := c.capinfoCmd
+		cancelled := c.capinfoCtx.Done()
+		procChan := procChan
+
+		kill := func() {
+			err := termshark.KillIfPossible(cmd)
+			if err != nil {
+				log.Infof("Did not kill tshark capinfos process: %v", err)
+			}
+		}
+
+	loop:
+		for {
+			select {
+			case pid := <-procChan:
+				procChan = nil
+				if pid != 0 {
+					cmd = origCmd
+					if cancelled == nil {
+						kill()
+					}
+				}
+
+			case <-cancelled:
+				cancelled = nil
+				if cmd != nil {
+					kill()
+				}
+			}
+
+			if cancelled == nil && procChan == nil {
+				break loop
+			}
+		}
+		if cmd != nil {
+			err = cmd.Wait()
+			if !c.SuppressErrors && err != nil {
+				if _, ok := err.(*exec.ExitError); ok {
+					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+						"command": c.capinfoCmd.String(),
+						"error":   err,
+					})
+					pcap.HandleError(cerr, cb)
+				}
+			}
+		}
+	}, Goroutinewg)
 
 	capinfoOut, err := c.capinfoCmd.StdoutReader()
 	if err != nil {
@@ -116,40 +176,8 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 
 	log.Infof("Started capinfo command %v with pid %d", c.capinfoCmd, c.capinfoCmd.Pid())
 
-	procWaitChan := make(chan error, 1)
-
-	defer func() {
-		procWaitChan <- c.capinfoCmd.Wait()
-	}()
-
-	termshark.TrackedGo(func() {
-		var err error
-		cancelled := c.capinfoCtx.Done()
-	loop:
-		for {
-			select {
-			case <-cancelled:
-				err := termshark.KillIfPossible(c.capinfoCmd)
-				if err != nil {
-					log.Infof("Did not kill capinfo process: %v", err)
-				}
-				cancelled = nil
-			case err = <-procWaitChan:
-				if !c.SuppressErrors && err != nil {
-					if _, ok := err.(*exec.ExitError); ok {
-						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-							"command": c.capinfoCmd.String(),
-							"error":   err,
-						})
-						pcap.HandleError(cerr, cb)
-					}
-				}
-				break loop
-			}
-		}
-		c.capinfoCtx = nil
-		c.capinfoCancelFn = nil
-	}, Goroutinewg)
+	pid = c.capinfoCmd.Pid()
+	procChan <- pid
 
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(capinfoOut)
@@ -157,6 +185,8 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 	ch := make(chan struct{})
 	cb.OnCapinfoData(buf.String(), ch)
 	<-ch
+
+	c.capinfoCancelFn()
 }
 
 //======================================================================
