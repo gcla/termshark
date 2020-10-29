@@ -1031,6 +1031,24 @@ Loop:
 				}
 			}
 
+			// If you are using base16-shell, the lowest colors 0-21 in the 256 color space
+			// will be remapped to whatever colors the terminal base16 theme sets up. If you
+			// are using a termshark theme that expresses colors in RGB style (#7799AA), and
+			// termshark is running in a 256-color terminal, then termshark will find the closest
+			// match for the RGB color in the 256 color-space. But termshark assumes that colors
+			// 0-21 are set up normally, and not remapped. If the closest match is one of those
+			// colors, then the theme won't look as expected. A workaround is to tell
+			// gowid not to use colors 0-21 when finding the closest match.
+			if termshark.ConfKeyExists("main.ignore-base16-colors") {
+				gowid.IgnoreBase16 = termshark.ConfBool("main.ignore-base16-colors", false)
+			} else {
+				// Try to auto-detect whether or not base16-shell is installed and in-use
+				gowid.IgnoreBase16 = (os.Getenv("BASE16_SHELL") != "")
+			}
+			if gowid.IgnoreBase16 {
+				log.Infof("Will not consider colors 0-21 from the terminal 256-color-space when interpolating theme colors")
+			}
+
 			// This needs to run after the toml config file is loaded.
 			ui.SetupColors()
 
