@@ -1681,6 +1681,8 @@ func cycleView(app gowid.IApp, forward bool, tabMap map[gowid.IWidget]gowid.IWid
 func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 
+	isrune := evk.Key() == tcell.KeyRune
+
 	if evk.Key() == tcell.KeyCtrlC && Loader.State()&pcap.LoadingPsml != 0 {
 		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // iface and psml
 	} else if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyBacktab {
@@ -1694,7 +1696,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 		cycleView(app, isTab, tabMap)
 
-	} else if evk.Rune() == '|' {
+	} else if isrune && evk.Rune() == '|' {
 		if mainViewNoKeys.SubWidget() == mainview {
 			mainViewNoKeys.SetSubWidget(altview1, app)
 			termshark.SetConf("main.layout", "altview1")
@@ -1705,7 +1707,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			mainViewNoKeys.SetSubWidget(mainview, app)
 			termshark.SetConf("main.layout", "mainview")
 		}
-	} else if evk.Rune() == '\\' {
+	} else if isrune && evk.Rune() == '\\' {
 		w := mainViewNoKeys.SubWidget()
 		fp := gowid.FocusPath(w)
 		if w == viewOnlyPacketList || w == viewOnlyPacketStructure || w == viewOnlyPacketHex {
@@ -1733,7 +1735,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 				gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
 			}
 		}
-	} else if evk.Rune() == '/' {
+	} else if isrune && evk.Rune() == '/' {
 		setFocusOnDisplayFilter(app)
 	} else {
 		handled = false
@@ -1745,13 +1747,15 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	// gcla later todo - check for rune!
+	isrune := evk.Key() == tcell.KeyRune
+
 	if evk.Key() == tcell.KeyCtrlC {
 		reallyQuit(app)
 	} else if evk.Key() == tcell.KeyCtrlL {
 		app.Sync()
-	} else if evk.Rune() == 'q' || evk.Rune() == 'Q' {
+	} else if isrune && (evk.Rune() == 'q' || evk.Rune() == 'Q') {
 		reallyQuit(app)
-	} else if evk.Rune() == ':' {
+	} else if isrune && evk.Rune() == ':' {
 		lastLineMode(app)
 	} else if evk.Key() == tcell.KeyEscape {
 		gowid.SetFocusPath(mainview, menuPathMain, app)
@@ -1762,21 +1766,21 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		gowid.SetFocusPath(viewOnlyPacketHex, menuPathMax, app)
 
 		generalMenu.Open(openMenuSite, app)
-	} else if evk.Rune() == '?' {
+	} else if isrune && evk.Rune() == '?' {
 		OpenTemplatedDialog(appView, "UIHelp", app)
-	} else if evk.Key() == tcell.KeyRune && evk.Rune() == 'Z' && keyState.PartialZCmd {
+	} else if isrune && evk.Rune() == 'Z' && keyState.PartialZCmd {
 		RequestQuit()
-	} else if evk.Rune() == 'Z' {
+	} else if isrune && evk.Rune() == 'Z' {
 		keyState.PartialZCmd = true
-	} else if evk.Rune() == 'm' {
+	} else if isrune && evk.Rune() == 'm' {
 		keyState.PartialmCmd = true
-	} else if evk.Rune() == '\'' {
+	} else if isrune && evk.Rune() == '\'' {
 		keyState.PartialQuoteCmd = true
-	} else if evk.Rune() == 'g' {
+	} else if isrune && evk.Rune() == 'g' {
 		keyState.PartialgCmd = true
 	} else if evk.Key() == tcell.KeyCtrlW {
 		keyState.PartialCtrlWCmd = true
-	} else if evk.Rune() >= '0' && evk.Rune() <= '9' {
+	} else if isrune && evk.Rune() >= '0' && evk.Rune() <= '9' {
 		if keyState.NumberPrefix == -1 {
 			keyState.NumberPrefix = int(evk.Rune() - '0')
 		} else {
