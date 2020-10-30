@@ -93,7 +93,7 @@ Termshark v2 supports dark-mode! Hit Esc to bring up the main menu then "Toggle 
 
 ## Termshark's colors are wrong!
 
-See (this answer)[#what-settings-affect-termsharks-colors].
+See [this answer](#what-settings-affect-termsharks-colors).
 
 If termshark's background is a strange color like dark blue or orange, maybe a tool like base16-shell has remapped some of the colors in the
 256-color-space, but termshark is unaware of this. Try setting this in `termshark.toml`:
@@ -120,8 +120,8 @@ You can override the value of `TERM` with termshark's `main.term` setting in `te
 ```
 
 When termshark runs, it will load your selected theme if it's available in the terminal's color mode. If not, it will choose the built-in `default`
-theme which is available in every mode. If you run in truecolor mode, and your chosen theme is only defined for 256-colors, termshark will load that
-version.
+theme which is available in every mode. If you run in truecolor mode, and your chosen theme is only defined for 256-colors, termshark will load the
+256-color theme.
 
 Termshark will load its theme from `~/.config/termshark/themes/` if it can find it, otherwise it will look in its built-in database. Termshark has
 themes called `default`, `dracula`, `solarized` and `base16` built-in.
