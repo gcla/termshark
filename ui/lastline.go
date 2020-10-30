@@ -47,7 +47,7 @@ func (m minibufferFn) OfferCompletion() bool {
 	return true
 }
 
-func (m minibufferFn) Arguments([]string) []minibuffer.IArg {
+func (m minibufferFn) Arguments([]string, gowid.IApp) []minibuffer.IArg {
 	return nil
 }
 
@@ -61,7 +61,7 @@ func (m quietMinibufferFn) OfferCompletion() bool {
 	return false
 }
 
-func (m quietMinibufferFn) Arguments([]string) []minibuffer.IArg {
+func (m quietMinibufferFn) Arguments([]string, gowid.IApp) []minibuffer.IArg {
 	return nil
 }
 
@@ -229,6 +229,7 @@ func (s filterArg) Completions() []string {
 
 type themeArg struct {
 	substr string
+	modes  []string
 }
 
 var _ minibuffer.IArg = themeArg{}
@@ -248,9 +249,15 @@ func (s themeArg) Completions() []string {
 			info, err := dir.Readdir(-1)
 			if err == nil {
 				for _, finfo := range info {
-					m := strings.TrimSuffix(finfo.Name(), ".toml")
-					if strings.Contains(m, s.substr) {
-						matches = append(matches, m)
+					for _, mode := range s.modes {
+						suff := fmt.Sprintf("-%s.toml", mode)
+
+						if strings.HasSuffix(finfo.Name(), suff) {
+							m := strings.TrimSuffix(finfo.Name(), suff)
+							if strings.Contains(m, s.substr) {
+								matches = append(matches, m)
+							}
+						}
 					}
 				}
 			}
@@ -264,10 +271,16 @@ func (s themeArg) Completions() []string {
 		files, err := ioutil.ReadDir(filepath.Join(conf.Path, "themes"))
 		if err == nil {
 			for _, file := range files {
-				m := strings.TrimSuffix(file.Name(), ".toml")
-				if !termshark.StringInSlice(m, matches) {
-					if strings.Contains(m, s.substr) {
-						matches = append(matches, m)
+				for _, mode := range s.modes {
+					suff := fmt.Sprintf("-%s.toml", mode)
+
+					if strings.HasSuffix(file.Name(), suff) {
+						m := strings.TrimSuffix(file.Name(), suff)
+						if !termshark.StringInSlice(m, matches) {
+							if strings.Contains(m, s.substr) {
+								matches = append(matches, m)
+							}
+						}
 					}
 				}
 			}
@@ -380,7 +393,7 @@ func (d setCommand) OfferCompletion() bool {
 	return true
 }
 
-func (d setCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d setCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	res = append(res, newSetArg(toks[0]))
 
@@ -434,7 +447,7 @@ func (d readCommand) OfferCompletion() bool {
 	return d.complete
 }
 
-func (d readCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d readCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	pref := ""
 	if len(toks) > 0 {
@@ -470,7 +483,7 @@ func (d recentsCommand) OfferCompletion() bool {
 	return true
 }
 
-func (d recentsCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d recentsCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	pref := ""
 	if len(toks) > 0 {
@@ -507,7 +520,7 @@ func (d filterCommand) OfferCompletion() bool {
 	return true
 }
 
-func (d filterCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d filterCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	pref := ""
 	if len(toks) > 0 {
@@ -529,9 +542,11 @@ func (d themeCommand) Run(app gowid.IApp, args ...string) error {
 	if len(args) != 2 {
 		err = invalidThemeCommandErr
 	} else {
-		termshark.SetConf("main.theme", args[1])
-		theme.Load(args[1])
+		mode := theme.Mode(app.GetColorMode()).String() // more concise
+		termshark.SetConf(fmt.Sprintf("main.theme-%s", mode), args[1])
+		theme.Load(args[1], app)
 		SetupColors()
+		OpenMessage(fmt.Sprintf("Set %s theme for terminal mode %v.", args[1], app.GetColorMode()), appView, app)
 	}
 
 	if err != nil {
@@ -545,13 +560,22 @@ func (d themeCommand) OfferCompletion() bool {
 	return true
 }
 
-func (d themeCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d themeCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	pref := ""
 	if len(toks) > 0 {
 		pref = toks[0]
 	}
-	res = append(res, themeArg{substr: pref})
+	modes := make([]string, 0, 3)
+	switch app.GetColorMode() {
+	case gowid.Mode24BitColors:
+		modes = append(modes, "truecolor", "256")
+	case gowid.Mode256Colors:
+		modes = append(modes, "256")
+	default:
+		modes = append(modes, "16")
+	}
+	res = append(res, themeArg{substr: pref, modes: modes})
 	return res
 }
 
@@ -595,7 +619,7 @@ func (d mapCommand) OfferCompletion() bool {
 	return true
 }
 
-func (d mapCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d mapCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	if len(toks) == 2 {
 		res = append(res, unhelpfulArg{}, unhelpfulArg{})
@@ -637,7 +661,7 @@ func (d unmapCommand) OfferCompletion() bool {
 	return true
 }
 
-func (d unmapCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d unmapCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	res = append(res, unhelpfulArg{})
 	return res
@@ -675,7 +699,7 @@ func (d helpCommand) OfferCompletion() bool {
 	return true
 }
 
-func (d helpCommand) Arguments(toks []string) []minibuffer.IArg {
+func (d helpCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
 	if len(toks) == 1 {
 		res = append(res, newHelpArg(toks[0]))

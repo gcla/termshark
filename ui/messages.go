@@ -120,10 +120,12 @@ load       - Load a pcap from the filesystem
 logs       - Show termshark's log file (Unix-only)
 map        - Map a keypress to a key sequence (see help map)
 marks      - Show file-local and global packet marks
+no-theme   - Clear theme for the current terminal color mode
 quit       - Quit termshark
 recents    - Load a pcap from those recently-used
 set        - Set various config properties (see help set)
 streams    - Open stream reassemably view
+theme      - Choose a theme for the current terminal color mode
 unmap      - Remove a keypress mapping{{end}}
 
 {{define "SetHelp"}}{{template "NameVer" .}}

@@ -174,6 +174,7 @@ var PacketColors bool          // global state in app
 var PacketColorsSupported bool // global state in app - true if it's even possible
 var AutoScroll bool            // true if the packet list should auto-scroll when listening on an interface.
 var newPacketsArrived bool     // true if current updates are due to new packets when listening on an interface.
+var reenableAutoScroll bool    // set to true by keypress processing widgets - used with newPacketsArrived
 var Running bool               // true if gowid/tcell is controlling the terminal
 
 //======================================================================
@@ -1018,10 +1019,12 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
-	MiniBuffer.Register("no-theme", minibufferFn(func(gowid.IApp, ...string) error {
-		theme.Clear()
-		termshark.DeleteConf("main.theme")
+	MiniBuffer.Register("no-theme", minibufferFn(func(app gowid.IApp, s ...string) error {
+		mode := theme.Mode(app.GetColorMode()).String() // more concise
+		termshark.DeleteConf(fmt.Sprintf("main.theme-%s", mode))
+		theme.Load("default", app)
 		SetupColors()
+		OpenMessage(fmt.Sprintf("Cleared theme for terminal mode %v.", app.GetColorMode()), appView, app)
 		return nil
 	}))
 
@@ -1678,6 +1681,8 @@ func cycleView(app gowid.IApp, forward bool, tabMap map[gowid.IWidget]gowid.IWid
 func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 
+	isrune := evk.Key() == tcell.KeyRune
+
 	if evk.Key() == tcell.KeyCtrlC && Loader.State()&pcap.LoadingPsml != 0 {
 		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // iface and psml
 	} else if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyBacktab {
@@ -1691,7 +1696,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 		cycleView(app, isTab, tabMap)
 
-	} else if evk.Rune() == '|' {
+	} else if isrune && evk.Rune() == '|' {
 		if mainViewNoKeys.SubWidget() == mainview {
 			mainViewNoKeys.SetSubWidget(altview1, app)
 			termshark.SetConf("main.layout", "altview1")
@@ -1702,7 +1707,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 			mainViewNoKeys.SetSubWidget(mainview, app)
 			termshark.SetConf("main.layout", "mainview")
 		}
-	} else if evk.Rune() == '\\' {
+	} else if isrune && evk.Rune() == '\\' {
 		w := mainViewNoKeys.SubWidget()
 		fp := gowid.FocusPath(w)
 		if w == viewOnlyPacketList || w == viewOnlyPacketStructure || w == viewOnlyPacketHex {
@@ -1730,7 +1735,7 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 				gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
 			}
 		}
-	} else if evk.Rune() == '/' {
+	} else if isrune && evk.Rune() == '/' {
 		setFocusOnDisplayFilter(app)
 	} else {
 		handled = false
@@ -1742,13 +1747,15 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
 	// gcla later todo - check for rune!
+	isrune := evk.Key() == tcell.KeyRune
+
 	if evk.Key() == tcell.KeyCtrlC {
 		reallyQuit(app)
 	} else if evk.Key() == tcell.KeyCtrlL {
 		app.Sync()
-	} else if evk.Rune() == 'q' || evk.Rune() == 'Q' {
+	} else if isrune && (evk.Rune() == 'q' || evk.Rune() == 'Q') {
 		reallyQuit(app)
-	} else if evk.Rune() == ':' {
+	} else if isrune && evk.Rune() == ':' {
 		lastLineMode(app)
 	} else if evk.Key() == tcell.KeyEscape {
 		gowid.SetFocusPath(mainview, menuPathMain, app)
@@ -1759,21 +1766,21 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 		gowid.SetFocusPath(viewOnlyPacketHex, menuPathMax, app)
 
 		generalMenu.Open(openMenuSite, app)
-	} else if evk.Rune() == '?' {
+	} else if isrune && evk.Rune() == '?' {
 		OpenTemplatedDialog(appView, "UIHelp", app)
-	} else if evk.Key() == tcell.KeyRune && evk.Rune() == 'Z' && keyState.PartialZCmd {
+	} else if isrune && evk.Rune() == 'Z' && keyState.PartialZCmd {
 		RequestQuit()
-	} else if evk.Rune() == 'Z' {
+	} else if isrune && evk.Rune() == 'Z' {
 		keyState.PartialZCmd = true
-	} else if evk.Rune() == 'm' {
+	} else if isrune && evk.Rune() == 'm' {
 		keyState.PartialmCmd = true
-	} else if evk.Rune() == '\'' {
+	} else if isrune && evk.Rune() == '\'' {
 		keyState.PartialQuoteCmd = true
-	} else if evk.Rune() == 'g' {
+	} else if isrune && evk.Rune() == 'g' {
 		keyState.PartialgCmd = true
 	} else if evk.Key() == tcell.KeyCtrlW {
 		keyState.PartialCtrlWCmd = true
-	} else if evk.Rune() >= '0' && evk.Rune() <= '9' {
+	} else if isrune && evk.Rune() >= '0' && evk.Rune() <= '9' {
 		if keyState.NumberPrefix == -1 {
 			keyState.NumberPrefix = int(evk.Rune() - '0')
 		} else {
@@ -1951,6 +1958,28 @@ func updatePacketListWithData(psml psmlInfo, app gowid.IApp) {
 	}
 }
 
+// don't claim the keypress
+func ApplyAutoScroll(ev *tcell.EventKey, app gowid.IApp) bool {
+	doit := false
+	reenableAutoScroll = false
+	switch ev.Key() {
+	case tcell.KeyRune:
+		if ev.Rune() == 'G' {
+			doit = true
+		}
+	case tcell.KeyEnd:
+		doit = true
+	}
+	if doit {
+		if termshark.ConfBool("main.auto-scroll", true) {
+			AutoScroll = true
+			reenableAutoScroll = true // when packet updates come, helps
+			// understand that AutoScroll should not be disabled again
+		}
+	}
+	return false
+}
+
 type psmlInfo interface {
 	PsmlData() [][]string
 	PsmlHeaders() []string
@@ -1976,9 +2005,11 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 			return
 		}
 
-		if !newPacketsArrived {
+		if !newPacketsArrived && !reenableAutoScroll {
 			// this focus change must've been user-initiated, so stop auto-scrolling with new packets.
-			// This mimics Wireshark's behavior.
+			// This mimics Wireshark's behavior. Note that if the user hits the end key, this may
+			// update the view and run this callback, but end means to resume auto-scrolling if it's
+			// enabled, so we should not promptly disable it again
 			AutoScroll = false
 		}
 
@@ -3166,7 +3197,13 @@ func Build() (*gowid.App, error) {
 	packetListViewWithKeys := appkeys.NewMouse(
 		appkeys.New(
 			appkeys.New(
-				packetListViewHolder,
+				appkeys.New(
+					packetListViewHolder,
+					ApplyAutoScroll,
+					appkeys.Options{
+						ApplyBefore: true,
+					},
+				),
 				appKeysResize1,
 			),
 			widgets.SwallowMovementKeys,

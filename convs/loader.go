@@ -100,12 +100,67 @@ func (c *Loader) StartLoad(pcap string, convs []string, filter string, abs bool,
 func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs bool, resolve bool, app gowid.IApp, cb IConvsCallbacks) {
 	c.convsCtx, c.convsCancelFn = context.WithCancel(c.mainCtx)
 
+	procChan := make(chan int)
+	pid := 0
+
 	defer func() {
-		c.convsCtx = nil
-		c.convsCancelFn = nil
+		if pid == 0 {
+			close(procChan)
+		}
 	}()
 
 	c.convsCmd = c.cmds.Convs(pcapf, convs, filter, abs, resolve)
+
+	termshark.TrackedGo(func() {
+		var err error
+		var cmd pcap.IPcapCommand
+		origCmd := c.convsCmd
+		cancelled := c.convsCtx.Done()
+		procChan := procChan
+
+		kill := func() {
+			err := termshark.KillIfPossible(cmd)
+			if err != nil {
+				log.Infof("Did not kill tshark conv process: %v", err)
+			}
+		}
+
+	loop:
+		for {
+			select {
+			case pid := <-procChan:
+				procChan = nil
+				if pid != 0 {
+					cmd = origCmd
+					if cancelled == nil {
+						kill()
+					}
+				}
+
+			case <-cancelled:
+				cancelled = nil
+				if cmd != nil {
+					kill()
+				}
+			}
+
+			if cancelled == nil && procChan == nil {
+				break loop
+			}
+		}
+		if cmd != nil {
+			err = cmd.Wait()
+			if !c.SuppressErrors && err != nil {
+				if _, ok := err.(*exec.ExitError); ok {
+					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+						"command": c.convsCmd.String(),
+						"error":   err,
+					})
+					pcap.HandleError(cerr, cb)
+				}
+			}
+		}
+	}, Goroutinewg)
 
 	convsOut, err := c.convsCmd.StdoutReader()
 	if err != nil {
@@ -133,27 +188,8 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 
 	log.Infof("Started command %v with pid %d", c.convsCmd, c.convsCmd.Pid())
 
-	defer func() {
-		err = c.convsCmd.Wait() // it definitely started, so we must wait
-		if !c.SuppressErrors && err != nil {
-			if _, ok := err.(*exec.ExitError); ok {
-				cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-					"command": c.convsCmd.String(),
-					"error":   err,
-				})
-				pcap.HandleError(cerr, cb)
-			}
-		}
-	}()
-
-	termshark.TrackedGo(func() {
-		// Wait for external cancellation. This is the shutdown procedure.
-		<-c.convsCtx.Done()
-		err := termshark.KillIfPossible(c.convsCmd)
-		if err != nil {
-			log.Infof("Did not kill tshark conv process: %v", err)
-		}
-	}, Goroutinewg)
+	pid = c.convsCmd.Pid()
+	procChan <- pid
 
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(convsOut)
@@ -162,7 +198,7 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 	cb.OnData(buf.String(), ch)
 	<-ch
 
-	c.StopLoad()
+	c.convsCancelFn()
 }
 
 //======================================================================

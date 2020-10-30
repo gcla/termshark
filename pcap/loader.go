@@ -148,9 +148,6 @@ type Loader struct {
 	ifaceCtx        context.Context // cancels the iface reader process
 	ifaceCancelFn   context.CancelFunc
 
-	//psmlDecodingProcessChan chan struct{} // signalled by psml load stage when the XML decoding is complete - signals rest of stage 1 to shut down
-	stage2GoroutineDoneChan chan struct{} // signalled by a goroutine in stage 2 for pcap/pdml - always signalled at end. When x2, signals rest of stage 2 to shut down
-
 	//stage1Wg sync.WaitGroup
 	stage2Wg sync.WaitGroup
 
@@ -225,15 +222,14 @@ func NewPcapLoader(cmds ILoaderCmds, opts ...Options) *Loader {
 	}
 
 	res := &Loader{
-		cmds:                    cmds,
-		IfaceFinishedChan:       make(chan struct{}),
-		stage2GoroutineDoneChan: make(chan struct{}),
-		PsmlFinishedChan:        make(chan struct{}),
-		Stage2FinishedChan:      make(chan struct{}),
-		onStateChange:           make([]runFnInState, 0),
-		RowCurrentlyLoading:     -1,
-		highestCachedRow:        -1,
-		opt:                     opt,
+		cmds:                cmds,
+		IfaceFinishedChan:   make(chan struct{}),
+		PsmlFinishedChan:    make(chan struct{}),
+		Stage2FinishedChan:  make(chan struct{}),
+		onStateChange:       make([]runFnInState, 0),
+		RowCurrentlyLoading: -1,
+		highestCachedRow:    -1,
+		opt:                 opt,
 	}
 
 	res.resetData()
@@ -1046,7 +1042,6 @@ func (c *Loader) signalStage2Starting(cb interface{}) {
 //     - cancel ticker with ctxt2
 //   - wait for all to shut down
 //   - final UI update
-//func loadPcapAsync(ctx context.Context, pcapFile string, filter string, app gowid.IApp) error {
 func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 	// Used to cancel the tickers below which update list widgets with the latest data and
@@ -1057,8 +1052,6 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	c.Lock()
 	c.stage2Ctx, c.stage2CancelFn = context.WithCancel(c.thisSrcCtx)
 	c.Unlock()
-
-	intStage2Ctx, intStage2CancelFn := context.WithCancel(context.Background())
 
 	// Set to true by a goroutine started within here if ctxCancel() is called i.e. the outer context
 	var stageIsCancelled int32
@@ -1089,42 +1082,23 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	sidx := -1
 	eidx := -1
 
-	// When we start a command (in service of loading pcaps), add it to this list. Then we wait
-	// for finished signals on a channel -
-	//procs := []ICommand{}
-
 	// signal to updater that we're about to start. This will block until cb completes
 	c.signalStage2Starting(cb)
 
 	// This should correctly wait for all resources, no matter where in the process of creating them
 	// an interruption or error occurs
 	defer func() {
-		procsDoneCount := 0
-	L:
-		for {
-			// pdml and psml make 2
-			select {
-			// Don't need to wait for ctx.Done. if that gets cancelled, then it will propagate
-			// to context2. The two tshark processes will wait on context2.Done, and complete -
-			// then their defer blocks will send procDoneChan messages. When the count hits 2, this
-			// select block will exit. Note that we also issue a cancel if count==2 because it might
-			// just be that the tshark processes finish normally - then we need to stop the other
-			// goroutines using ctxt2.
-			case <-c.stage2GoroutineDoneChan:
-				procsDoneCount++
-				if procsDoneCount == 2 {
-					intStage2CancelFn() // stop the ticker
-					break L
-				}
-			}
-		}
-
 		// Wait for all other goroutines to complete
 		c.stage2Wg.Wait()
 
 		c.Lock()
 		c.RowCurrentlyLoading = -1
 		c.Unlock()
+
+		// The process Wait() goroutine will always expect a stage2 cancel at some point. It can
+		// come early, if the user interrupts the load. If not, then we send it now, to let
+		// that goroutine terminate.
+		c.stage2CancelFn()
 
 		c.signalStage2Done(cb)
 	}()
@@ -1139,8 +1113,6 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		case <-c.stage2Ctx.Done():
 			setCancelled()
 			return
-		case <-intStage2Ctx.Done():
-			return // shutdown signalled - don't start the pdml/pcap processes
 		}
 
 		// Do this - but if we're cancelled first (stage2Ctx.Done), then they
@@ -1206,28 +1178,138 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 	//======================================================================
 
+	pdmlPidChan := make(chan int)
+	pcapPidChan := make(chan int)
+
+	// Set these before issuing the goroutine below so that at the beginning,
+	// PdmlCmd and PcapCmd are definitely not nil. These values are saved by
+	// the goroutine, and used to access the pid of these processes, if they
+	// are started.
+	c.Lock()
+	c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
+	c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
+	c.Unlock()
+
+	termshark.TrackedGo(func() {
+		var err error
+		stage2CtxChan := c.stage2Ctx.Done()
+		pdmlPidChan := pdmlPidChan
+		pcapPidChan := pcapPidChan
+
+		var pdmlCmd IPcapCommand
+		var pcapCmd IPcapCommand
+
+		origPdmlCmd := c.PdmlCmd
+		origPcapCmd := c.PcapCmd
+
+		killPcap := func() {
+			err := termshark.KillIfPossible(pcapCmd)
+			if err != nil {
+				log.Infof("Did not kill pcap process: %v", err)
+			}
+		}
+
+		killPdml := func() {
+			err = termshark.KillIfPossible(pdmlCmd)
+			if err != nil {
+				log.Infof("Did not kill pdml process: %v", err)
+			}
+		}
+
+	loop:
+		for {
+			select {
+
+			case pid := <-pdmlPidChan:
+				// this channel can be closed on a stage2 cancel, before the
+				// pdml process has been started, meaning we get nil for the
+				// pid. If that's the case, don't save the cmd, so we know not
+				// to try to kill anything later.
+				pdmlPidChan = nil
+				if pid != 0 {
+					pdmlCmd = origPdmlCmd
+					if stage2CtxChan == nil {
+						// means that stage2 has been cancelled (so stop the load), and
+						// pdmlCmd != nil => for sure a process was started. So kill it.
+						// It won't have been cleaned up anywhere else because Wait() is
+						// only called below, in this goroutine.
+						killPdml()
+					}
+				}
+
+			case pid := <-pcapPidChan:
+				pcapPidChan = nil
+				if pid != 0 {
+					pcapCmd = origPcapCmd
+					if stage2CtxChan == nil {
+						killPcap()
+					}
+				}
+
+			case <-stage2CtxChan:
+				// Once the pcap/pdml load is initiated, we guarantee we get a stage2 cancel
+				// once all the stage2 goroutines are finished. So we don't quit the select loop
+				// until this channel (as well as the others) has received a signal
+				stage2CtxChan = nil
+				setCancelled()
+				if pcapCmd != nil {
+					// means that for sure, a process was started
+					killPcap()
+				}
+				if pdmlCmd != nil {
+					killPdml()
+				}
+			}
+
+			// if pdmlpidchan is nil, it means the the channel has been closed or we've received a message
+			// a message means the proc has started
+			// closed means it won't be started
+			// if closed, then pdmlCmd == nil
+			if pdmlPidChan == nil && pcapPidChan == nil && stage2CtxChan == nil {
+				// nothing to select on so break
+				break loop
+			}
+		}
+
+		if pcapCmd != nil {
+			pcapCmd.Wait()
+		}
+		if pdmlCmd != nil {
+			pdmlCmd.Wait()
+		}
+
+	}, Goroutinewg)
+
+	//======================================================================
+
 	//
 	// Goroutine to run pdml process
 	//
 	termshark.TrackedGo(func() {
-		defer func() {
-			c.stage2GoroutineDoneChan <- struct{}{}
-		}()
-
 		// Wait for stage 2 to be kicked off (potentially by psml load, then mapping table row to frame num); or
 		// quit if that happens first
 		select {
 		case <-c.startPdmlChan:
 		case <-c.stage2Ctx.Done():
 			setCancelled()
-			return
-		case <-intStage2Ctx.Done():
+			close(pdmlPidChan)
 			return
 		}
 
-		c.Lock()
-		c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
-		c.Unlock()
+		// We didn't get a stage2 cancel yet. We could now, but for now we've been told to continue
+		// now we'll guarantee either:
+		// - we'll send the pdml pid on pdmlPidChan if it starts
+		// - we'll close the channel if it doesn't start
+
+		pid := 0
+
+		defer func() {
+			// Guarantee that at the end of this goroutine, if we didn't start a process (pid == 0)
+			// we will close the channel to signal the Wait() goroutine above.
+			if pid == 0 {
+				close(pdmlPidChan)
+			}
+		}()
 
 		pdmlOut, err := c.PdmlCmd.StdoutReader()
 		if err != nil {
@@ -1244,9 +1326,8 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		log.Infof("Started PDML command %v with pid %d", c.PdmlCmd, c.PdmlCmd.Pid())
 
-		defer func() {
-			c.PdmlCmd.Wait()
-		}()
+		pid = c.PdmlCmd.Pid()
+		pdmlPidChan <- pid
 
 		d := xml.NewDecoder(pdmlOut)
 		packets := make([]IPdmlPacket, 0, c.opt.PacketsPerLoad)
@@ -1283,7 +1364,6 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 					}
 					packets = append(packets, cpacket)
 					c.updateCacheEntryWithPdml(row, packets, false)
-					//if len(pdml2) == abcdex {
 					if len(packets) == c.KillAfterReadingThisMany {
 						// Shortcut - we never take more than abcdex - so just kill here
 						issuedKill = true
@@ -1330,24 +1410,23 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	// Goroutine to run pcap process
 	//
 	termshark.TrackedGo(func() {
-		defer func() {
-			c.stage2GoroutineDoneChan <- struct{}{}
-		}()
-
 		// Wait for stage 2 to be kicked off (potentially by psml load, then mapping table row to frame num); or
 		// quit if that happens first
 		select {
 		case <-c.startPcapChan:
 		case <-c.stage2Ctx.Done():
 			setCancelled()
-			return
-		case <-intStage2Ctx.Done():
+			close(pcapPidChan)
 			return
 		}
 
-		c.Lock()
-		c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
-		c.Unlock()
+		pid := 0
+
+		defer func() {
+			if pid == 0 {
+				close(pcapPidChan)
+			}
+		}()
 
 		pcapOut, err := c.PcapCmd.StdoutReader()
 		if err != nil {
@@ -1365,9 +1444,8 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		log.Infof("Started pcap command %v with pid %d", c.PcapCmd, c.PcapCmd.Pid())
 
-		defer func() {
-			c.PcapCmd.Wait()
-		}()
+		pid = c.PcapCmd.Pid()
+		pcapPidChan <- pid
 
 		packets := make([][]byte, 0, c.opt.PacketsPerLoad)
 		issuedKill := false
@@ -1429,27 +1507,6 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		}
 
 	}, &c.stage2Wg, Goroutinewg)
-
-	//
-	// Goroutine to track an external shutdown - kills processes in case the external
-	// shutdown comes first. If it's an internal shutdown, no need to kill because
-	// that would only be triggered once processes are dead
-	//
-	termshark.TrackedGo(func() {
-		select {
-		case <-c.stage2Ctx.Done():
-			setCancelled()
-			err := termshark.KillIfPossible(c.PcapCmd)
-			if err != nil {
-				log.Infof("Did not kill pcap process: %v", err)
-			}
-			err = termshark.KillIfPossible(c.PdmlCmd)
-			if err != nil {
-				log.Infof("Did not kill pdml process: %v", err)
-			}
-		case <-intStage2Ctx.Done():
-		}
-	}, Goroutinewg)
 }
 
 func (c *Loader) TurnOffPipe() {
@@ -1598,41 +1655,18 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	// Only start this process if we are in interface mode
 	var err error
-	var pr *os.File
-	var pw *os.File
+	var fifoPipeReader *os.File
+	var fifoPipeWriter *os.File
 
 	//======================================================================
 
 	// Make sure we start the goroutine that monitors for shutdown early - so if/when
 	// a shutdown happens, and we get blocked in the XML parser, this will be able to
 	// respond
-
-	termshark.TrackedGo(func() {
-		select {
-		case <-c.psmlCtx.Done():
-			intPsmlCancelFn() // start internal shutdown
-		case <-intPsmlCtx.Done():
-		}
-
-		if c.tailCmd != nil {
-			err := termshark.KillIfPossible(c.tailCmd)
-			if err != nil {
-				log.Infof("Did not kill tail process: %v", err)
-			}
-		}
-
-		if c.PsmlCmd != nil {
-			err := termshark.KillIfPossible(c.PsmlCmd)
-			if err != nil {
-				log.Infof("Did not kill psml process: %v", err)
-			}
-		}
-
-		if psmlOut != nil {
-			psmlOut.Close() // explicitly close else this goroutine can block
-		}
-
-	}, Goroutinewg)
+	psmlProcChan := make(chan int)
+	tailProcChan := make(chan int)
+	psmlPid := 0 // 0 means not running
+	tailPid := 0
 
 	//======================================================================
 
@@ -1648,14 +1682,14 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	//======================================================================
 
-	closePipe := func() {
-		if pw != nil {
-			pw.Close()
-			pw = nil
+	closeFifoPipe := func() {
+		if fifoPipeWriter != nil {
+			fifoPipeWriter.Close()
+			fifoPipeWriter = nil
 		}
-		if pr != nil {
-			pr.Close()
-			pr = nil
+		if fifoPipeReader != nil {
+			fifoPipeReader.Close()
+			fifoPipeReader = nil
 		}
 	}
 
@@ -1666,7 +1700,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// and the side to be written to is given to the tail process, which feeds in
 		// data from the pcap source.
 		//
-		pr, pw, err = os.Pipe()
+		fifoPipeReader, fifoPipeWriter, err = os.Pipe()
 		if err != nil {
 			err = fmt.Errorf("Could not create pipe: %v", err)
 			HandleError(err, cb)
@@ -1677,22 +1711,99 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 		// goroutine - so we can close at this point in the unwinding. pr
 		// is used as stdin for the psml command, which also runs in this
 		// goroutine.
-		defer closePipe()
+		defer closeFifoPipe()
 
 		// wrap the read end of the pipe with a Read() function that counts
 		// bytes. If they are equal to the total bytes written to the tmpfile by
 		// the tshark -i process, then that means the source is exhausted, and
 		// the tail + psml processes are stopped.
 		c.PcapPsml = &tailReadTracker{
-			tailReader: pr,
+			tailReader: fifoPipeReader,
 			loader:     c,
 			callback:   cb,
 		}
 	}
 
 	c.Lock()
+	// Set c.PsmlCmd before it's referenced in the goroutine below. We want to be
+	// sure that if if psmlCmd is nil then that means the process has finished (not
+	// has not yet started)
 	c.PsmlCmd = c.cmds.Psml(c.PcapPsml, c.displayFilter)
 	c.Unlock()
+
+	// this channel always needs to be signalled or else the goroutine below won't terminate.
+	// Closing it will pass a zero-value int (pid) to the goroutine which will understand that
+	// means the psml process is NOT running, so it won't call cmd.Wait() on it.
+	defer func() {
+		if psmlPid == 0 {
+			close(psmlProcChan)
+		}
+	}()
+
+	termshark.TrackedGo(func() {
+		psmlCtxChan := c.psmlCtx.Done()
+		intPsmlCtxChan := intPsmlCtx.Done()
+
+		var err error
+		var cmd IPcapCommand
+		origCmd := c.PsmlCmd
+		psmlProcChan := psmlProcChan
+
+		kill := func() {
+			err := termshark.KillIfPossible(cmd)
+			if err != nil {
+				log.Infof("Did not kill tshark psml process: %v", err)
+			}
+		}
+
+	loop:
+		for {
+			select {
+			case <-psmlCtxChan:
+				intPsmlCancelFn() // start internal shutdown
+				psmlCtxChan = nil
+
+			case <-intPsmlCtxChan:
+				intPsmlCtxChan = nil
+				if psmlProcChan != nil {
+					kill()
+				}
+				if psmlOut != nil {
+					psmlOut.Close() // explicitly close else this goroutine can block
+				}
+
+			case pid := <-psmlProcChan:
+				psmlProcChan = nil
+				if pid != 0 {
+					cmd = origCmd
+					if intPsmlCtxChan == nil {
+						kill()
+					}
+				}
+			}
+
+			if psmlProcChan == nil && intPsmlCtxChan == nil {
+				break loop
+			}
+		}
+
+		if cmd != nil {
+			err = cmd.Wait()
+			if !c.SuppressErrors {
+				if err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": cmd.String(),
+							"error":   err,
+						})
+						HandleError(cerr, cb)
+					}
+				}
+			}
+			c.stopLoadIface()
+		}
+
+	}, Goroutinewg)
 
 	psmlOut, err = c.PsmlCmd.StdoutReader()
 	if err != nil {
@@ -1712,25 +1823,13 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	log.Infof("Started PSML command %v with pid %d", c.PsmlCmd, c.PsmlCmd.Pid())
 
+	psmlPid = c.PsmlCmd.Pid()
+	psmlProcChan <- psmlPid
+
 	defer func() {
 		// These need to close so the tailreader Read() terminates so that the
 		// PsmlCmd.Wait() below completes.
-		closePipe()
-		err := c.PsmlCmd.Wait()
-		if !c.SuppressErrors {
-			if err != nil {
-				if _, ok := err.(*exec.ExitError); ok {
-					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-						"command": c.PsmlCmd.String(),
-						"error":   err,
-					})
-					HandleError(cerr, cb)
-				}
-			}
-			// If the psml command generates an error, then we should stop any feed
-			// from the interface too.
-			c.stopLoadIface()
-		}
+		closeFifoPipe()
 	}()
 
 	//======================================================================
@@ -1743,7 +1842,76 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 
 	if c.ReadingFromFifo() {
 		c.tailCmd = c.cmds.Tail(c.ifaceFile)
-		c.tailCmd.SetStdout(pw)
+
+		defer func() {
+			if tailPid == 0 {
+				close(tailProcChan)
+			}
+		}()
+
+		termshark.TrackedGo(func() {
+			psmlCtxChan := c.psmlCtx.Done()
+			intPsmlCtxChan := intPsmlCtx.Done()
+
+			var err error
+			var tailCmd ITailCommand
+			origTailCmd := c.tailCmd
+			tailProcChan := tailProcChan
+
+			kill := func() {
+				err := termshark.KillIfPossible(tailCmd)
+				if err != nil {
+					log.Infof("Did not kill tshark tail process: %v", err)
+				}
+			}
+
+		loop:
+			for {
+				select {
+				case <-psmlCtxChan:
+					intPsmlCancelFn() // start internal shutdown
+					psmlCtxChan = nil
+
+				case <-intPsmlCtxChan:
+					intPsmlCtxChan = nil
+					if tailProcChan != nil {
+						kill()
+					}
+
+				case pid := <-tailProcChan:
+					tailProcChan = nil
+					if pid != 0 {
+						tailCmd = origTailCmd
+						if intPsmlCtxChan == nil {
+							kill()
+						}
+					}
+				}
+
+				if tailProcChan == nil && intPsmlCtxChan == nil {
+					break loop
+				}
+			}
+
+			if tailCmd != nil {
+				err = tailCmd.Wait()
+				if !c.SuppressErrors {
+					if err != nil {
+						if _, ok := err.(*exec.ExitError); ok {
+							cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+								"command": tailCmd.String(),
+								"error":   err,
+							})
+							HandleError(cerr, cb)
+						}
+					}
+				}
+				fifoPipeWriter.Close()
+			}
+
+		}, Goroutinewg)
+
+		c.tailCmd.SetStdout(fifoPipeWriter)
 
 		// this set up is so that I can detect when there are actually packets to read (e.g
 		// maybe there's no traffic on the interface). When there's something to read, the
@@ -1805,16 +1973,8 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 			return
 		}
 
-		// Do this in a goroutine - in a defer, it would block here before the code executes
-		defer func() {
-			c.tailCmd.Wait() // this will block the exit of this function until the command is killed
-
-			// We need to explicitly close the write side of the pipe. Without this,
-			// the PSML process Wait() function won't complete, because golang won't
-			// complete termination until IO has finished, and io.Copy() will be stuck
-			// in a loop.
-			pw.Close()
-		}()
+		tailPid = c.tailCmd.Pid()
+		tailProcChan <- tailPid
 	}
 
 	//======================================================================
@@ -1956,12 +2116,42 @@ func (c *Loader) loadIfacesAsync(cb interface{}) {
 		return
 	}
 
+	procWaitChan := make(chan error, 1)
+
 	termshark.TrackedGo(func() {
-		// Wait for external cancellation. This is the shutdown procedure.
-		<-c.ifaceCtx.Done()
-		err := termshark.KillIfPossible(c.ifaceCmd)
-		if err != nil {
-			log.Infof("Did not kill iface reader process: %v", err)
+		procWaitChan <- c.ifaceCmd.Wait()
+	}, Goroutinewg)
+
+	proceedChan := make(chan struct{})
+
+	termshark.TrackedGo(func() {
+		var err error
+		cancelled := c.ifaceCtx.Done()
+	loop:
+		for {
+			select {
+			case <-cancelled:
+				err := termshark.KillIfPossible(c.ifaceCmd)
+				if err != nil {
+					log.Infof("Did not kill iface reader process: %v", err)
+				}
+				cancelled = nil
+			case err = <-procWaitChan:
+				if !c.SuppressErrors && err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						// This could be if termshark is started like this: cat nosuchfile.pcap | termshark -i -
+						// Then dumpcap will be started with /dev/fd/3 as its stdin, but will fail with EOF and
+						// exit status 1.
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": c.ifaceCmd.String(),
+							"error":   err,
+						})
+						HandleError(cerr, cb)
+					}
+				}
+				proceedChan <- struct{}{}
+				break loop
+			}
 		}
 	}, Goroutinewg)
 
@@ -1976,19 +2166,7 @@ func (c *Loader) loadIfacesAsync(cb interface{}) {
 		}
 	}()
 
-	err = c.ifaceCmd.Wait() // it definitely started, so we must wait
-	if !c.SuppressErrors && err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
-			// This could be if termshark is started like this: cat nosuchfile.pcap | termshark -i -
-			// Then dumpcap will be started with /dev/fd/3 as its stdin, but will fail with EOF and
-			// exit status 1.
-			cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-				"command": c.ifaceCmd.String(),
-				"error":   err,
-			})
-			HandleError(cerr, cb)
-		}
-	}
+	<-proceedChan
 
 	// If something killed it, then start the internal shutdown procedure anyway to clean up
 	// goroutines waiting on the context. This could also happen if tshark -i is reading from

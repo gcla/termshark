@@ -271,6 +271,7 @@ func cmain() int {
 	// terminal emumlator supports 256 colors.
 	termVar := termshark.ConfString("main.term", "")
 	if termVar != "" {
+		log.Infof("Configuration file overrides TERM setting, using TERM=%s", termVar)
 		os.Setenv("TERM", termVar)
 	}
 
@@ -346,35 +347,26 @@ func cmain() int {
 		}
 	}
 
-	// - means read from stdin. But termshark uses stdin for interacting with the UI. So if the
-	// iface is -, then dup stdin to a free descriptor, adjust iface to read from that descriptor,
-	// then open /dev/tty on stdin.
-	newinputfd := -1
-
 	// Here we check for
 	// (a) sources named '-' - these need rewritten to /dev/fd/N and stdin needs to be moved
 	// (b) fifo sources - these are switched from -r to -i because that's what tshark needs
-	renamedStdin := false
+	haveStdin := false
 	for pi, psrc := range psrcs {
 		switch {
 		case psrc.Name() == "-":
-			if renamedStdin {
+			if haveStdin {
 				fmt.Fprintf(os.Stderr, "Requested live capture %v (\"stdin\") cannot be supplied more than once.\n", psrc.Name())
 				return 1
 			}
+
 			if termshark.IsTerminal(os.Stdin.Fd()) {
 				fmt.Fprintf(os.Stderr, "Requested live capture is %v (\"stdin\") but stdin is a tty.\n", psrc.Name())
 				fmt.Fprintf(os.Stderr, "Perhaps you intended to pipe packet input to termshark?\n")
 				return 1
 			}
 			if runtime.GOOS != "windows" {
-				newinputfd, err = system.MoveStdin()
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "%v\n", err)
-					return 1
-				}
-				psrcs[pi] = pcap.PipeSource{Descriptor: fmt.Sprintf("/dev/fd/%d", newinputfd), Fd: newinputfd}
-				renamedStdin = true
+				psrcs[pi] = pcap.PipeSource{Descriptor: "/dev/fd/0", Fd: int(os.Stdin.Fd())}
+				haveStdin = true
 			} else {
 				fmt.Fprintf(os.Stderr, "Sorry, termshark does not yet support piped input on Windows.\n")
 				return 1
@@ -477,7 +469,12 @@ func cmain() int {
 		log.SetOutput(logfd)
 	}
 
-	if cli.FlagIsTrue(opts.Debug) {
+	debug := false
+	if (opts.Debug.Set && opts.Debug.Val == true) || (!opts.Debug.Set && termshark.ConfBool("main.debug", false)) {
+		debug = true
+	}
+
+	if debug {
 		for _, addr := range termshark.LocalIPs() {
 			log.Infof("Starting debug web server at http://%s:6060/debug/pprof/", addr)
 		}
@@ -675,14 +672,6 @@ func cmain() int {
 	ui.DarkMode = termshark.ConfBool("main.dark-mode", false)
 	ui.AutoScroll = termshark.ConfBool("main.auto-scroll", true)
 	ui.PacketColors = termshark.ConfBool("main.packet-colors", true)
-
-	themeName := termshark.ConfString("main.theme", "")
-	if themeName != "" {
-		err = theme.Load(themeName)
-		if err != nil {
-			log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-		}
-	}
 
 	// Set them up here so they have access to any command-line flags that
 	// need to be passed to the tshark commands used
@@ -1027,6 +1016,45 @@ Loop:
 				return 1
 			}
 
+			// Need to do that here because the app won't know how many colors the screen
+			// has (and therefore which variant of the theme to load) until the screen is
+			// activated.
+			mode := theme.Mode(app.GetColorMode()).String() // more concise
+			themeName := termshark.ConfString(fmt.Sprintf("main.theme-%s", mode), "default")
+			loaded := false
+			if themeName != "" {
+				err = theme.Load(themeName, app)
+				if err != nil {
+					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+				} else {
+					loaded = true
+				}
+			}
+			if !loaded && themeName != "default" {
+				err = theme.Load("default", app)
+				if err != nil {
+					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+				}
+			}
+
+			// If you are using base16-shell, the lowest colors 0-21 in the 256 color space
+			// will be remapped to whatever colors the terminal base16 theme sets up. If you
+			// are using a termshark theme that expresses colors in RGB style (#7799AA), and
+			// termshark is running in a 256-color terminal, then termshark will find the closest
+			// match for the RGB color in the 256 color-space. But termshark assumes that colors
+			// 0-21 are set up normally, and not remapped. If the closest match is one of those
+			// colors, then the theme won't look as expected. A workaround is to tell
+			// gowid not to use colors 0-21 when finding the closest match.
+			if termshark.ConfKeyExists("main.ignore-base16-colors") {
+				gowid.IgnoreBase16 = termshark.ConfBool("main.ignore-base16-colors", false)
+			} else {
+				// Try to auto-detect whether or not base16-shell is installed and in-use
+				gowid.IgnoreBase16 = (os.Getenv("BASE16_SHELL") != "")
+			}
+			if gowid.IgnoreBase16 {
+				log.Infof("Will not consider colors 0-21 from the terminal 256-color-space when interpolating theme colors")
+			}
+
 			// This needs to run after the toml config file is loaded.
 			ui.SetupColors()
 
@@ -1112,14 +1140,14 @@ Loop:
 					uiSuspended = false
 				}
 			} else if system.IsSigUSR1(sig) {
-				if cli.FlagIsTrue(opts.Debug) {
+				if debug {
 					termshark.ProfileCPUFor(20)
 				} else {
 					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
 				}
 
 			} else if system.IsSigUSR2(sig) {
-				if cli.FlagIsTrue(opts.Debug) {
+				if debug {
 					termshark.ProfileHeap()
 				} else {
 					log.Infof("SIGUSR2 ignored by termshark - see the --debug flag")

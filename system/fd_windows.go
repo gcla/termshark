@@ -6,14 +6,6 @@
 
 package system
 
-import (
-	"fmt"
-)
-
-func MoveStdin() (int, error) {
-	return -1, fmt.Errorf("MoveStdin not implemented on Windows")
-}
-
 func CloseDescriptor(fd int) {
 }
 

@@ -130,6 +130,9 @@ func (c Commands) Iface(ifaces []string, captureFilter string, tmpfile string) I
 	// works, but fall back to tshark if needed e.g. for randpkt, sshcapture, etc
 	// (extcap interfaces).
 	res.Cmd.Env = append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1")
+	res.Cmd.Stdin = os.Stdin
+	res.Cmd.Stderr = os.Stderr
+	res.Cmd.Stdout = os.Stdout
 	return res
 }
 
@@ -160,7 +163,7 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 		// read from cmdline file
 		args = append(args, "-r", pcap.(string))
 	} else {
-		args = append(args, "-i", "-")
+		args = append(args, "-r", "-")
 		args = append(args, "-l") // provide data sooner to decoder routine in termshark
 	}
 

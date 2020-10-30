@@ -21,10 +21,19 @@
 - Map keys to other key sequences using a vim-style map command e.g. `map <f1> ZZ`. Use vim-syntax to express
   keystrokes - alphanumeric characters, and angle brackets for compound keys (`<C-s>`, `<A-\>`, `<esc>`,
   `<space>`, `<enter>`)
+- Added support for themes. See this
+  [example](https://raw.githubusercontent.com/gcla/termshark/master/assets/themes/dracula-256.toml). Themes
+  are loaded from `~/.config/termshark/themes/` or from a small cache built-in
+  to termshark. A new minibuffer command `theme` can be used to change theme;
+  `no-theme` turns off theming.
 
 ### Changed
 
 - Fixed a race condition that allowed an invalid Wireshark display filter to be applied.
+- Fixed race conditions that resulted in spurious warnings about a failure to kill tshark processes
+- If auto-scroll is enabled, and you navigate to a different packet in the packet list view during a live
+  capture, auto-scroll is resumed if you hit 'G' or the `end` key.
+- Fixed a problem preventing the correct operation of piped input to termshark on freebsd.
 
 ## [2.1.1] - 2020-02-02
 ### Added
