@@ -7,11 +7,14 @@
 * [Can I run termshark on Android?](#can-i-run-termshark-on-android)
 * [If I load a big pcap, termshark doesn't load all the packets at once - why?](#if-i-load-a-big-pcap-termshark-doesnt-load-all-the-packets-at-once---why)
 * [Termshark is too bright!](#termshark-is-too-bright)
-* [Termshark's colors are limited...](#termsharks-colors-are-limited)
+* [Termshark's colors are wrong!](#termsharks-colors-are-wrong)
+* [What settings affect termshark's colors?](#what-settings-affect-termsharks-colors)
+* [How do I rebuild termshark?](#how-do-i-rebuild-termshark)
 * [Where are the config and log files?](#where-are-the-config-and-log-files)
 * [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
 * [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
+* [Why do is termshark generating traffic on port 5037?](#why-is-termshark-generating-traffic-on-port-5037)
 * [How can termshark capture from extcap interfaces with dumpcap?](#how-can-termshark-capture-from-extcap-interfaces-with-dumpcap)
 * [Termshark is laggy or using a lot of RAM](#termshark-is-laggy-or-using-a-lot-of-ram)
 * [How much memory does termshark use?](#how-much-memory-does-termshark-use)
@@ -88,30 +91,77 @@ If you start to page up quickly, you will likely approach a range of packets tha
 
 Termshark v2 supports dark-mode! Hit Esc to bring up the main menu then "Toggle Dark Mode". See the [User Guide](UserGuide.md#dark-mode).
 
-## Termshark's colors are limited...
+## Termshark's colors are wrong!
 
-By default, termshark respects the `TERM` environment variable and chooses a color scheme based on what it thinks the terminal is capable of, via the excellent [tcell](https://github.com/gdamore/tcell) package. You might be running on a terminal that can display more colors than `TERM` reports - so you can try adjusting your `TERM` variable e.g. if `TERM` is `xterm`, try
+See (this answer)[#what-settings-affect-termsharks-colors].
 
-```bash
-export TERM=xterm-256color
+If termshark's background is a strange color like dark blue or orange, maybe a tool like base16-shell has remapped some of the colors in the
+256-color-space, but termshark is unaware of this. Try setting this in `termshark.toml`:
+
+```toml
+[main]
+  ignore-base16-colors = true
 ```
 
-or even
+## What settings affect termshark's colors?
 
-```bash
-export TERM=xterm-truecolor
-```
+Unfortunately there are several :-/
 
-then re-run termshark.
+First of all, your terminal emulator's `TERM` variable determines the range of colors available to termshark e.g. `xterm-16color`, `xterm-256color`.
 
-tcell makes use of the environment variable `COLORTERM` when determining how to emit color codes. If `COLORTERM` is set to `truecolor`, then tcell will emit truecolor color codes when the application changes the foreground or background color. If you connect to a remote machine with ssh to run termshark, the `COLORTERM` variable will not be forwarded. If that leaves you with `TERM=xterm` for example, then termshark, via tcell, will fall back to 8-color support. Here again you can change `TERM` or add a setting for `COLORTERM` to your remote `.bashrc` file.
+If you also have `COLORTERM=truecolor` set, and the terminal emulator has support, 24-bit color will be available. Termshark will emit these 24-bit
+ANSI color codes and color should be faithfully reproduced.
 
-If you run termshark under tmux or screen and always have `TERM` set in a way that doesn't make full use of your terminal emulator, you can configure termshark to always override it. Add the following to your `termshark.toml` file:
+You can override the value of `TERM` with termshark's `main.term` setting in `termshark.toml` e.g.
 
 ```toml
 [main]
   term = "screen-256color"
 ```
+
+When termshark runs, it will load your selected theme if it's available in the terminal's color mode. If not, it will choose the built-in `default`
+theme which is available in every mode. If you run in truecolor mode, and your chosen theme is only defined for 256-colors, termshark will load that
+version.
+
+Termshark will load its theme from `~/.config/termshark/themes/` if it can find it, otherwise it will look in its built-in database. Termshark has
+themes called `default`, `dracula`, `solarized` and `base16` built-in.
+
+If you are using [base16-shell](https://github.com/chriskempson/base16-shell), then you might have colors 0-21 of your terminal's 256-color-space
+remapped. If you are running in 256-color mode, and your theme specifies RGB colors, termshark will choose the closest match among those in the
+256-color-space. Termshark will ignore colors 0-21 as match candidates if `BASE16_SHELL` is set in the environment. It will also ignore these colors
+if you set `main.ignore-base16-colors` in `termshark.toml`. Otherwise, termshark will assume colors 0-21 are displayed "normally", and may pick these
+remapped colors as the closest match to a theme's color - resulting in incorrect colors. 
+
+## How do I rebuild termshark?
+
+If you don't have the source, clone it like this:
+
+```bash
+$ git clone https://github.com/gcla/termshark
+```
+
+You'll get best results with the latest version of Golang - 1.15 as I write this - but anything >= 1.12 will work. 
+
+Set your environment:
+
+```bash
+$ export GO111MODULE=on
+```
+
+Change to the termshark dir and type 
+
+```bash
+$ go generate ./...
+$ go install ./...
+```
+
+The generate step is only necessary if you have changed any files under `termshark/assets/themes/`. If not, just run
+
+```bash
+$ go install ./...
+```
+
+Termshark will be installed as `~/go/bin/termshark`.
 
 ## Where are the config and log files?
 
@@ -250,6 +300,12 @@ sudo setcap cap_net_raw,cap_net_admin+eip /usr/sbin/dumpcap
 ```
 
 You can find more detail at https://wiki.wireshark.org/CaptureSetup/CapturePrivileges.
+
+## Why do is termshark generating traffic on port 5037?
+
+See [this issue](https://github.com/gcla/termshark/issues/98).
+
+TL;DR - try deleting `/usr/lib/wireshark/extcap/androiddump`.
 
 ## How can termshark capture from extcap interfaces with dumpcap?
 

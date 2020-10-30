@@ -397,56 +397,86 @@ By default, termshark will now display packets in the packet list view colored a
 Termshark can be themed to better line up with other terminal applications that you use. Most of termshark's UI elements have names and you can tie colors to these names. Here is an example theme:
 
 ```toml
-unused = "#79e11a"
-
 [dracula]
-  base00 = "#282a36"
-  base01 = "#373844"
-  base02 = "#464752"
-  base03 = "#565761"
-  base04 = "#b6b6b2"
-  base05 = "#ccccc7"
-  base06 = "#e2e2dc"
-  base07 = "#f8f8f2"
-  base08 = "#ff5555"
-  base09 = "#ffb86c"
-  base0a = "#f1fa8c"
-  base0b = "#50fa7b"
-  base0c = "#8be9fd"
-  base0d = "#6272a4"
-  base0e = "#bd93f9"
-  base0f = "#ff79c6"
-  black = "dracula.base00"
-  blue = "dracula.base0d"
-  cyan = "dracula.base0c"
-  green = "dracula.base0b"
-  magenta = "dracula.base0f"
-  orange = "dracula.base09"
-  purple = "dracula.base0e"
-  red = "dracula.base08"
-  white = "dracula.base07"
-  yellow = "dracula.base0a"
+  gray1 = "#464752"
+  ...
+  orange = "#ffb86c"
+  purple = "#bd93f9"
+  red = "#ff5555"
+  white = "#f8f8f2"
+  yellow = "#f1fa8c"
 
 [dark]
-  button = ["dracula.white","dracula.black"]
-  button-focus = ["dracula.black","dracula.purple"]
-  button-selected = ["dracula.white","dracula.black"]
-  cmdline = ["dracula.black","dracula.yellow"]
-  cmdline-button = ["dracula.yellow","dracula.black"]
-  copy-mode = ["dracula.black","dracula.yellow"]
+  button = ["dracula.black","dracula.gray3"]
+  button-focus = ["dracula.white","dracula.magenta"]
+  button-selected = ["dracula.white","dracula.gray3"]
   ...
-  title = ["dracula.red","unused"]
-
+  
 [light]
   button = ["dracula.black","dracula.white"]
   button-focus = ["dracula.black","dracula.purple"]
-  button-selected = ["dracula.black","dracula.base04"]
-  cmdline = ["dracula.black","dracula.yellow"]
-  cmdline-button = ["dracula.yellow","dracula.black"]
-  copy-mode = ["dracula.white","dracula.yellow"]
-  ...
-  title = ["dracula.red","unused"]
+  button-selected = ["dracula.black","dracula.gray3"]
+  ...  
 ```
+
+Termshark finds themes in two ways - from:
+
+- `$XDG_CONFIG_HOME/termshark/themes/*.toml` (e.g. `~/.config/termshark/themes/dracula.toml`)
+- from a small database compiled-in to the termshark binary. 
+
+The termshark command-line provides two commands to interact with themes:
+
+- `theme` - choose a new theme from those provided and apply it.
+- `no-theme` - use no theme.
+
+Termshark saves your selected theme against the terminal color mode, which can be one of
+
+- 16-color
+- 256-color
+- truecolor i.e. 24-bit color
+
+The theme is saved in `termshark.toml` under, respectively, the keys:
+
+- `main.theme-16`
+- `main.theme-256`
+- `main.theme-truecolor`
+
+This means that if you run termshark on the same machine but with a different terminal emulator, you might need to re-apply the theme if the color
+mode has changed (e.g. `xterm` v `gnome terminal`)
+
+If you are running in truecolor/24-bit color, termshark will make the 256-color themes available too. Terminal emulators that support 24-bit color
+will support 256-color mode as well.
+
+If you have enabled termshark's packet colors - shown in the packet list view - then these colors will be reproduced faithfully according to
+Wireshark's rules. These colors don't adhere to termshark's themes.
+
+#### Built-in Themes and Base16
+
+Termshark has four themes built-in:
+
+- `default` - termshark's original color scheme (16-color, 256-color, truecolor)
+- `dracula` - colors based on [Dracula theme](https://draculatheme.com/) project (256-color, truecolor)
+- `solarized` - based on [Ethan Schoonover's](https://ethanschoonover.com/solarized/) work (256-color, truecolor)
+- `base16` - (256-color, truecolor)
+
+If you make another, please submit it! :-)
+
+[Base16](https://github.com/chriskempson/base16) is a set of guidelines for building themes using a limited range of 8 colors and 8 grays. The
+[base16-shell](https://github.com/chriskempson/base16-shell) project is a set of scripts that remap colors 0-21 in the 256-color space of a terminal
+emulator. If you're in 256-color mode, this lets you have consistent coloring of your work in a terminal emulator, whether it's typing at the shell,
+or running a TUI. If you use base16-shell, choose termshark's `base16` theme to make use of your shell theme's colors. 
+
+#### Make a Theme
+
+The layout of a theme is:
+
+- the color definitions - `[mytheme]`
+- set the foreground and background color of UI elements for
+  - dark mode - `[dark]`
+  - regular/light mode - `[light]`
+  
+Here's an [example theme](https://raw.githubusercontent.com/gcla/termshark/master/assets/themes/dracula-256.toml) to follow. This [tcell source
+file](https://github.com/gdamore/tcell/blob/fcaa20f283682d6bbe19ceae067b37df3dc699d7/color.go#L821) shows some sample color names you can use.
 
 The UI elements are listed in the `[dark]` and `[light]` sections. Each element is assigned a pair of colors - foreground and background. The colors
 can be:
@@ -454,21 +484,19 @@ can be:
 - a reference to another field in the theme toml e.g. `dracula.black`
 - a color that termshark understands natively e.g. `#ffcc43`, `dark green`, `g50` (medium gray).
 
-The themes are designed to be [base16-compatible](https://github.com/chriskempson/base16). For `dracula`, the base16 colors are listed in the
-`[dracula]` section, and then refered to in the theme rules for `[dark]` and `[light]`. If the theme is almost base16-compatible, but some small
-tweaks are needed, you can simply set a specific color in the termshark UI element - there is no need to refer to a base16 color name in all cases.
+Save your theme toml file under `~/.config/termshark/themes/` with a suffix indicating the color-mode e.g. `mytheme-256.toml`. 
 
-Termshark loads themes in two ways - from:
+If your theme is a truecolor theme (suffix `-truecolor.toml`), then RGB colors will be reproduced precisely by termshark and so by the terminal
+emulator. If your theme is a 256-color theme (suffix `-256.toml`), you can still use RGB colors in your toml, and termshark will then try to pick the
+closest matching color in the 256-color space. If termshark detects you are using base16-shell, then it will ignore colors 0-21 when choosing the
+closest match, since these will likely be remapped by the base16-shell theme.
 
-- `$XDG_CONFIG_HOME/termshark/themes/*.toml` (e.g. `~/.config/termshark/themes/dracula.toml`)
-- from a small database compiled-in to the termshark binary. 
-
-Currently two themes are built-in - `dracula` and `solarized`. If you make another, please submit it!
-
-The termshark command-line provides two commands to interact with themes:
-
-- `theme` - choose a new theme from those provided and apply it.
-- `no-theme` - use no theme.
+Hopefully the meaning of the UI-element names is guessable, but one detail to know is the difference between focus, selected and unselected. In a
+gowid application, one widget at a time will have "focus". For example, if you are navigating the packet's tree structure (the middle pane), one level
+of that protocol structure will be shown in blue, and will be the focus widget. If you hit tab to move to the hex view of the packet's bytes (the
+lower pane), then focus will move to the hex byte under the cursor; but the previously blue protocol structure in the middle pane will still be
+obvious, shown in grey. That protocol level is now "selected", but not in "focus". So selected is a way to highlight a widget in a container of
+widgets that will have focus when control returns to the container. Unselected means neither focus nor selected.
 
 ### Config File
 
@@ -499,9 +527,12 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 
 - `copy-command-timeout` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
 - `dark-mode` (bool) - if true, termshark will run in dark-mode.
-- `disable-shark-fin` (bool) - if true then it's safe to go back in the water.
+- `debug` (bool) - if true, run a debug web-server on http://localhost:6060. Shows termshark/golang internals - in case of a problem.
+- `disable-shark-fin` (bool) - if true then turn off the shark-fin screen-saver permanently.
 - `disk-cache-size-mb` (int) - how large termshark will allow `$XDG_CACHE_HOME/termshark/pcaps/` to grow; if the limit is exceeded, termshark will delete pcaps, oldest first. Set to -1 to disable (grow indefinitely).
 - `dumpcap` (string) - make termshark use this specific `dumpcap` (used when reading from an interface).
+- `ignore-base16-colors` (bool) - if true, when running in a terminal with 256-colors, ignore colors 0-21 in the 256-color-space when choosing the best match for a theme's RGB (24-bit) color. This avoids choosing colors that are
+   remapped using e.g. [base16-shell](https://github.com/chriskempson/base16-shell).
 - `key-mappings` (string list) - a list of macros, where each string contains a vim-style keypress, a space, and then a sequence of keypresses.
 - `marks` (string json) - a serialized json structure representing the cross-pcap marks - for each, the keypress (`A` through `Z`); the pcap filename; the packet number; and a short summary of the packet.
 - `packet-colors` (bool) - if true (or missing), termshark will colorize packets according to Wireshark's rules.
