@@ -21,7 +21,7 @@ unused = "#79e11a"
 
 [dark]
   button = ["base16.black","base16.base04"]
-  button-focus = ["base16.white","base16.magenta"]
+  button-focus = ["base16.white","base16.purple"]
   button-selected = ["base16.white","base16.base04"]
   cmdline = ["base16.black","base16.yellow"]
   cmdline-button = ["base16.yellow","base16.black"]
