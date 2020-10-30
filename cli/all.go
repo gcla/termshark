@@ -26,11 +26,11 @@ type Termshark struct {
 	CaptureFilter   string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
 	TimestampFormat string         `short:"t" description:"Set the format of the packet timestamp printed in summary lines." choice:"a" choice:"ad" choice:"adoy" choice:"d" choice:"dd" choice:"e" choice:"r" choice:"u" choice:"ud" choice:"udoy" value-name:"<timestamp format>"`
 	PlatformSwitches
-	PassThru string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
-	LogTty   bool   `long:"log-tty" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Log to the terminal."`
-	Debug    string `long:"debug" default:"false" hidden:"true" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Enable termshark debugging. See https://termshark.io/userguide."`
-	Help     bool   `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
-	Version  []bool `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
+	PassThru string   `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
+	LogTty   bool     `long:"log-tty" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Log to the terminal."`
+	Debug    TriState `long:"debug" default:"unset" hidden:"true" optional:"true" optional-value:"true" description:"Enable termshark debugging. See https://termshark.io/userguide."`
+	Help     bool     `long:"help" short:"h" optional:"true" optional-value:"true" description:"Show this help message."`
+	Version  []bool   `long:"version" short:"v" optional:"true" optional-value:"true" description:"Show version information."`
 
 	Args struct {
 		FilterOrPcap string `value-name:"<filter-or-file>" description:"Filter (capture for iface, display for pcap), or pcap to read."`

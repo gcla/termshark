@@ -271,6 +271,7 @@ func cmain() int {
 	// terminal emumlator supports 256 colors.
 	termVar := termshark.ConfString("main.term", "")
 	if termVar != "" {
+		log.Infof("Configuration file overrides TERM setting, using TERM=%s", termVar)
 		os.Setenv("TERM", termVar)
 	}
 
@@ -468,7 +469,12 @@ func cmain() int {
 		log.SetOutput(logfd)
 	}
 
-	if cli.FlagIsTrue(opts.Debug) {
+	debug := false
+	if (opts.Debug.Set && opts.Debug.Val == true) || (!opts.Debug.Set && termshark.ConfBool("main.debug", false)) {
+		debug = true
+	}
+
+	if debug {
 		for _, addr := range termshark.LocalIPs() {
 			log.Infof("Starting debug web server at http://%s:6060/debug/pprof/", addr)
 		}
@@ -1134,14 +1140,14 @@ Loop:
 					uiSuspended = false
 				}
 			} else if system.IsSigUSR1(sig) {
-				if cli.FlagIsTrue(opts.Debug) {
+				if debug {
 					termshark.ProfileCPUFor(20)
 				} else {
 					log.Infof("SIGUSR1 ignored by termshark - see the --debug flag")
 				}
 
 			} else if system.IsSigUSR2(sig) {
-				if cli.FlagIsTrue(opts.Debug) {
+				if debug {
 					termshark.ProfileHeap()
 				} else {
 					log.Infof("SIGUSR2 ignored by termshark - see the --debug flag")
