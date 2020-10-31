@@ -53,10 +53,10 @@ unused = "#79e11a"
   progress-default = ["solarized.white","solarized.black"]
   progress-spinner = ["solarized.yellow","solarized.purple"]
   spinner = ["solarized.yellow","solarized.black"]
-  stream-client = ["solarized.black","solarized.red"]
+  stream-client = ["solarized.white","solarized.red"]
   stream-match = ["solarized.black","solarized.yellow"]
   stream-search = ["solarized.black","solarized.white"]
-  stream-server = ["solarized.cyan","solarized.blue"]
+  stream-server = ["solarized.white","solarized.blue"]
   title = ["solarized.red","unused"]
 
 [light]
@@ -98,6 +98,6 @@ unused = "#79e11a"
   stream-client = ["solarized.white","solarized.red"]
   stream-match = ["solarized.white","solarized.yellow"]
   stream-search = ["solarized.white","solarized.black"]
-  stream-server = ["solarized.cyan","solarized.blue"]
+  stream-server = ["solarized.white","solarized.blue"]
   title = ["solarized.red","unused"]
 

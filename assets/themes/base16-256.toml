@@ -58,7 +58,7 @@ unused = "#79e11a"
   stream-client = ["base16.black","base16.red"]
   stream-match = ["base16.black","base16.yellow"]
   stream-search = ["base16.black","base16.white"]
-  stream-server = ["base16.cyan","base16.blue"]
+  stream-server = ["base16.black","base16.blue"]
   title = ["base16.red","unused"]
 
 [light]
@@ -100,5 +100,5 @@ unused = "#79e11a"
   stream-client = ["base16.white","base16.red"]
   stream-match = ["base16.white","base16.yellow"]
   stream-search = ["base16.white","base16.black"]
-  stream-server = ["base16.cyan","base16.blue"]
+  stream-server = ["base16.white","base16.blue"]
   title = ["base16.red","unused"]
