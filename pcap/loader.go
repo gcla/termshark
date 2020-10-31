@@ -167,8 +167,8 @@ type Loader struct {
 	ifaceCmd IBasicCommand
 	tailCmd  ITailCommand
 	PsmlCmd  IPcapCommand
-	PcapCmd  IPcapCommand
-	PdmlCmd  IPcapCommand
+	PdmlPid  int // 0 if process not started
+	PcapPid  int // 0 if process not started
 
 	sync.Mutex
 	PacketPsmlData    [][]string
@@ -1103,6 +1103,13 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		c.signalStage2Done(cb)
 	}()
 
+	// Set these before starting the pcap and pdml process goroutines so that
+	// at the beginning, PdmlCmd and PcapCmd are definitely not nil. These
+	// values are saved by the goroutine, and used to access the pid of these
+	// processes, if they are started.
+	var pdmlCmd IPcapCommand
+	var pcapCmd IPcapCommand
+
 	//
 	// Goroutine to set mapping between table rows and frame numbers
 	//
@@ -1174,6 +1181,10 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			displayFilterStr = fmt.Sprintf("(frame.number >= %d) and (frame.number < %d)", sidx, eidx)
 		}
 
+		// These need to be set after displayFilterStr is set but before stage 2 is started
+		pdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
+		pcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
+
 	}, &c.stage2Wg, Goroutinewg)
 
 	//======================================================================
@@ -1181,16 +1192,13 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 	pdmlPidChan := make(chan int)
 	pcapPidChan := make(chan int)
 
-	// Set these before issuing the goroutine below so that at the beginning,
-	// PdmlCmd and PcapCmd are definitely not nil. These values are saved by
-	// the goroutine, and used to access the pid of these processes, if they
-	// are started.
-	c.Lock()
-	c.PdmlCmd = c.cmds.Pdml(c.PcapPdml, displayFilterStr)
-	c.PcapCmd = c.cmds.Pcap(c.PcapPcap, displayFilterStr)
-	c.Unlock()
-
 	termshark.TrackedGo(func() {
+		select {
+		case <-c.startPdmlChan:
+		case <-c.stage2Ctx.Done():
+			return
+		}
+
 		var err error
 		stage2CtxChan := c.stage2Ctx.Done()
 		pdmlPidChan := pdmlPidChan
@@ -1199,8 +1207,8 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 		var pdmlCmd IPcapCommand
 		var pcapCmd IPcapCommand
 
-		origPdmlCmd := c.PdmlCmd
-		origPcapCmd := c.PcapCmd
+		origPdmlCmd := pdmlCmd
+		origPcapCmd := pcapCmd
 
 		killPcap := func() {
 			err := termshark.KillIfPossible(pcapCmd)
@@ -1228,6 +1236,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 				pdmlPidChan = nil
 				if pid != 0 {
 					pdmlCmd = origPdmlCmd
+					c.PdmlPid = pid
 					if stage2CtxChan == nil {
 						// means that stage2 has been cancelled (so stop the load), and
 						// pdmlCmd != nil => for sure a process was started. So kill it.
@@ -1241,6 +1250,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 				pcapPidChan = nil
 				if pid != 0 {
 					pcapCmd = origPcapCmd
+					c.PcapPid = pid
 					if stage2CtxChan == nil {
 						killPcap()
 					}
@@ -1273,9 +1283,11 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 
 		if pcapCmd != nil {
 			pcapCmd.Wait()
+			c.PcapPid = 0
 		}
 		if pdmlCmd != nil {
 			pdmlCmd.Wait()
+			c.PdmlPid = 0
 		}
 
 	}, Goroutinewg)
@@ -1311,22 +1323,22 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			}
 		}()
 
-		pdmlOut, err := c.PdmlCmd.StdoutReader()
+		pdmlOut, err := pdmlCmd.StdoutReader()
 		if err != nil {
 			HandleError(err, cb)
 			return
 		}
 
-		err = c.PdmlCmd.Start()
+		err = pdmlCmd.Start()
 		if err != nil {
-			err = fmt.Errorf("Error starting PDML process %v: %v", c.PdmlCmd, err)
+			err = fmt.Errorf("Error starting PDML process %v: %v", pdmlCmd, err)
 			HandleError(err, cb)
 			return
 		}
 
-		log.Infof("Started PDML command %v with pid %d", c.PdmlCmd, c.PdmlCmd.Pid())
+		log.Infof("Started PDML command %v with pid %d", pdmlCmd, pdmlCmd.Pid())
 
-		pid = c.PdmlCmd.Pid()
+		pid = pdmlCmd.Pid()
 		pdmlPidChan <- pid
 
 		d := xml.NewDecoder(pdmlOut)
@@ -1367,7 +1379,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 					if len(packets) == c.KillAfterReadingThisMany {
 						// Shortcut - we never take more than abcdex - so just kill here
 						issuedKill = true
-						err = termshark.KillIfPossible(c.PdmlCmd)
+						err = termshark.KillIfPossible(pdmlCmd)
 						if err != nil {
 							log.Infof("Did not kill pdml process: %v", err)
 						}
@@ -1428,23 +1440,23 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 			}
 		}()
 
-		pcapOut, err := c.PcapCmd.StdoutReader()
+		pcapOut, err := pcapCmd.StdoutReader()
 		if err != nil {
 			HandleError(err, cb)
 			return
 		}
 
-		err = c.PcapCmd.Start()
+		err = pcapCmd.Start()
 		if err != nil {
 			// e.g. on the pi
-			err = fmt.Errorf("Error starting PCAP process %v: %v", c.PcapCmd, err)
+			err = fmt.Errorf("Error starting PCAP process %v: %v", pcapCmd, err)
 			HandleError(err, cb)
 			return
 		}
 
-		log.Infof("Started pcap command %v with pid %d", c.PcapCmd, c.PcapCmd.Pid())
+		log.Infof("Started pcap command %v with pid %d", pcapCmd, pcapCmd.Pid())
 
-		pid = c.PcapCmd.Pid()
+		pid = pcapCmd.Pid()
 		pcapPidChan <- pid
 
 		packets := make([][]byte, 0, c.opt.PacketsPerLoad)
@@ -1475,7 +1487,7 @@ func (c *Loader) loadPcapAsync(row int, cb interface{}) {
 				if readEnough {
 					// Shortcut - we never take more than abcdex - so just kill here
 					issuedKill = true
-					err = termshark.KillIfPossible(c.PcapCmd)
+					err = termshark.KillIfPossible(pcapCmd)
 					if err != nil {
 						log.Infof("Did not kill pdml process: %v", err)
 					}
