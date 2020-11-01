@@ -124,7 +124,7 @@ no-theme   - Clear theme for the current terminal color mode
 quit       - Quit termshark
 recents    - Load a pcap from those recently-used
 set        - Set various config properties (see help set)
-streams    - Open stream reassemably view
+streams    - Open stream reassembly view
 theme      - Choose a theme for the current terminal color mode
 unmap      - Remove a keypress mapping{{end}}
 
