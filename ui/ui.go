@@ -1048,6 +1048,12 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
+	MiniBuffer.Register("clear-filter", minibufferFn(func(gowid.IApp, ...string) error {
+		FilterWidget.SetValue("", app)
+		ApplyCurrentFilter(app)
+		return nil
+	}))
+
 	MiniBuffer.Register("marks", minibufferFn(func(gowid.IApp, ...string) error {
 		OpenTemplatedDialogExt(appView, "Marks", fixed, ratio(0.6), app)
 		return nil
@@ -2721,6 +2727,19 @@ func (w *prefixKeyWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 
 //======================================================================
 
+func ApplyCurrentFilter(app gowid.IApp) {
+	PcapScheduler.RequestNewFilter(FilterWidget.Value(),
+		pcap.HandlerList{
+			MakeSaveRecents("", FilterWidget.Value(), app),
+			MakePacketViewUpdater(app),
+			ManageStreamCache{},
+			ManageCapinfoCache{},
+		},
+	)
+}
+
+//======================================================================
+
 func Build() (*gowid.App, error) {
 
 	var err error
@@ -3141,14 +3160,7 @@ func Build() (*gowid.App, error) {
 	})
 
 	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		PcapScheduler.RequestNewFilter(FilterWidget.Value(),
-			pcap.HandlerList{
-				MakeSaveRecents("", FilterWidget.Value(), app),
-				MakePacketViewUpdater(app),
-				ManageStreamCache{},
-				ManageCapinfoCache{},
-			},
-		)
+		ApplyCurrentFilter(app)
 	})
 
 	// Will only be enabled to click if filter is valid
