@@ -72,9 +72,18 @@ type IArg interface {
 }
 
 type partial struct {
-	word string
-	line string
-	cp   int
+	word   string
+	qword  string
+	before string
+	after  string
+}
+
+func (p *partial) Line() string {
+	return p.before + p.qword + p.after
+}
+
+func (p *partial) CursorPos() int {
+	return len(p.before + p.qword)
 }
 
 // keysWidget redirects printable characters to the edit widget (the lower), but navigational
@@ -228,14 +237,15 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 				//
 				// "load /tmp/foo" and ["/tmp/foo2.pcap", "/tmp/foo.pcap"]
 				//                                         ^^^^^^^^^^^^^
-				w.ed.SetText(partials[selectedIdx].line, app)
-				w.ed.SetCursorPos(partials[selectedIdx].cp, app)
+				w.ed.SetText(partials[selectedIdx].Line(), app)
+				w.ed.SetCursorPos(partials[selectedIdx].CursorPos(), app)
 			}
 			//default:
 		}
 
 	case len(words) == 1: // command itself may be partially provided. If there is only
 		// one way for the command to be completed, allow it to be run.
+		// User types "cl", partials would be ["clear", "clear-filter"]
 		partials := w.getPartialsCompletions(false, app)
 		switch len(partials) {
 		case 0:
@@ -260,8 +270,35 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 					}
 				}
 			} else {
-				w.ed.SetText(partials[selectedIdx].line, app)
-				w.ed.SetCursorPos(partials[selectedIdx].cp, app)
+				if keyIsEnter {
+					w.ed.SetText(partials[selectedIdx].Line(), app)
+					w.ed.SetCursorPos(partials[selectedIdx].CursorPos(), app)
+				} else {
+					// This is tab - complete to the longest common prefix
+					extraPrefix := ""
+				loop:
+					for j := len(words[len(words)-1]); true; j += 1 {
+						var c rune
+						for _, partial := range partials {
+							if len(partial.word) <= j {
+								break loop
+							}
+							if c == 0 {
+								c = rune(partial.word[j])
+							} else {
+								if c != rune(partial.word[j]) {
+									break loop
+								}
+							}
+						}
+						extraPrefix += string(c)
+					}
+					longestPrefixPartial := partials[selectedIdx]
+					// e.g. "cl" + "ear-" from ["clear", "clear-filter"]
+					longestPrefixPartial.qword = words[len(words)-1] + extraPrefix
+					w.ed.SetText(longestPrefixPartial.Line(), app)
+					w.ed.SetCursorPos(longestPrefixPartial.CursorPos(), app)
+				}
 			}
 		}
 
@@ -272,8 +309,8 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 		} else if keyIsEnter {
 			// if the selections are being displayed and enter is hit, complete that selection
 			partials := w.getPartialsCompletions(true, app)
-			w.ed.SetText(partials[selectedIdx].line, app)
-			w.ed.SetCursorPos(partials[selectedIdx].cp, app)
+			w.ed.SetText(partials[selectedIdx].Line(), app)
+			w.ed.SetCursorPos(partials[selectedIdx].CursorPos(), app)
 		}
 	}
 }
@@ -331,9 +368,10 @@ func (w *Widget) getPartialsCompletions(checkOffer bool, app gowid.IApp) []parti
 							qcompl = "\"" + qcompl + "\""
 						}
 						partials = append(partials, partial{
-							word: compl,
-							line: txt[0:wordStart] + qcompl + txt[wordEnd:len(txt)], // what to use for line if user completes this
-							cp:   wordStart + len(qcompl),
+							word:   compl,
+							qword:  qcompl,
+							before: txt[0:wordStart],
+							after:  txt[wordEnd:len(txt)],
 						})
 					}
 				}
@@ -351,9 +389,10 @@ func (w *Widget) getPartialsCompletions(checkOffer bool, app gowid.IApp) []parti
 			act := w.actions[key]
 			if (!checkOffer || act.OfferCompletion()) && strings.HasPrefix(key, txt) {
 				partials = append(partials, partial{
-					word: key,
-					line: key,
-					cp:   len(key),
+					word:   key,
+					qword:  key,
+					before: "",
+					after:  "",
 				})
 			}
 		}
@@ -375,8 +414,8 @@ func (w *Widget) updateCompletions(app gowid.IApp) {
 		partial := partialV // avoid gotcha
 		compBtn := button.NewBare(text.New(partial.word))
 		compBtn.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
-			w.ed.SetText(partial.line, app)
-			w.ed.SetCursorPos(partial.cp, app)
+			w.ed.SetText(partial.Line(), app)
+			w.ed.SetCursorPos(partial.CursorPos(), app)
 			w.pl.SetFocus(app, 1)
 		}))
 
