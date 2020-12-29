@@ -56,6 +56,8 @@ func (c *Loader) State() LoaderState {
 	return c.state
 }
 
+type ProcessState int
+
 // Repeatedly go back to the start if anything is triggered.
 // Call only on the main thread (running the select loop)
 func (c *Loader) SetState(st LoaderState) {
@@ -71,6 +73,25 @@ Outer:
 			}
 		}
 		break Outer
+	}
+}
+
+const (
+	NotStarted ProcessState = 0
+	Started    ProcessState = 1
+	Terminated ProcessState = 2
+)
+
+func (p ProcessState) String() string {
+	switch p {
+	case NotStarted:
+		return "NotStarted"
+	case Started:
+		return "Started"
+	case Terminated:
+		return "Terminated"
+	default:
+		return "Unknown"
 	}
 }
 

@@ -99,12 +99,14 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 
 	c.capinfoCmd = c.cmds.Capinfo(pcapf)
 
+	termChan := make(chan error)
+
 	termshark.TrackedGo(func() {
 		var err error
-		var cmd pcap.IPcapCommand
-		origCmd := c.capinfoCmd
-		cancelled := c.capinfoCtx.Done()
+		cmd := c.capinfoCmd
+		cancelledChan := c.capinfoCtx.Done()
 		procChan := procChan
+		state := pcap.NotStarted
 
 		kill := func() {
 			err := termshark.KillIfPossible(cmd)
@@ -116,36 +118,36 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 	loop:
 		for {
 			select {
+			case err = <-termChan:
+				state = pcap.Terminated
+				if !c.SuppressErrors && err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": c.capinfoCmd.String(),
+							"error":   err,
+						})
+						pcap.HandleError(cerr, cb)
+					}
+				}
+
 			case pid := <-procChan:
 				procChan = nil
 				if pid != 0 {
-					cmd = origCmd
-					if cancelled == nil {
+					state = pcap.Started
+					if cancelledChan == nil {
 						kill()
 					}
 				}
 
-			case <-cancelled:
-				cancelled = nil
-				if cmd != nil {
+			case <-cancelledChan:
+				cancelledChan = nil
+				if state == pcap.Started {
 					kill()
 				}
 			}
 
-			if cancelled == nil && procChan == nil {
+			if state == pcap.Terminated || (cancelledChan == nil && state == pcap.NotStarted) {
 				break loop
-			}
-		}
-		if cmd != nil {
-			err = cmd.Wait()
-			if !c.SuppressErrors && err != nil {
-				if _, ok := err.(*exec.ExitError); ok {
-					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-						"command": c.capinfoCmd.String(),
-						"error":   err,
-					})
-					pcap.HandleError(cerr, cb)
-				}
 			}
 		}
 	}, Goroutinewg)
@@ -157,9 +159,7 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 	}
 
 	defer func() {
-		//ch := make(chan struct{})
 		cb.AfterCapinfoEnd(true)
-		//<-ch
 	}()
 
 	pcap.HandleBegin(cb)
@@ -175,6 +175,10 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 	}
 
 	log.Infof("Started capinfo command %v with pid %d", c.capinfoCmd, c.capinfoCmd.Pid())
+
+	termshark.TrackedGo(func() {
+		termChan <- c.capinfoCmd.Wait()
+	}, Goroutinewg)
 
 	pid = c.capinfoCmd.Pid()
 	procChan <- pid

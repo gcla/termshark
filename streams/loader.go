@@ -132,15 +132,17 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 
 	c.streamCmd = c.cmds.Stream(pcapf, proto, idx)
 
+	termChan := make(chan error)
+
 	termshark.TrackedGo(func() {
 		var err error
-		var cmd pcap.IPcapCommand
 		origCmd := c.streamCmd
 		cancelled := c.streamCtx.Done()
 		procChan := procChan
+		state := pcap.NotStarted
 
 		kill := func() {
-			err := termshark.KillIfPossible(cmd)
+			err := termshark.KillIfPossible(origCmd)
 			if err != nil {
 				log.Infof("Did not kill tshark stream process: %v", err)
 			}
@@ -149,10 +151,22 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 	loop:
 		for {
 			select {
+			case err = <-termChan:
+				state = pcap.Terminated
+				if !c.SuppressErrors && err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": c.streamCmd.String(),
+							"error":   err,
+						})
+						pcap.HandleError(cerr, cb)
+					}
+				}
+
 			case pid := <-procChan:
 				procChan = nil
 				if pid != 0 {
-					cmd = origCmd
+					state = pcap.Started
 					if cancelled == nil {
 						kill()
 					}
@@ -160,25 +174,13 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 
 			case <-cancelled:
 				cancelled = nil
-				if cmd != nil {
+				if state == pcap.Started {
 					kill()
 				}
 			}
 
-			if cancelled == nil && procChan == nil {
+			if state == pcap.Terminated || (cancelled == nil && state == pcap.NotStarted) {
 				break loop
-			}
-		}
-		if cmd != nil {
-			err = cmd.Wait()
-			if !c.SuppressErrors && err != nil {
-				if _, ok := err.(*exec.ExitError); ok {
-					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-						"command": c.streamCmd.String(),
-						"error":   err,
-					})
-					pcap.HandleError(cerr, cb)
-				}
 			}
 		}
 	}, Goroutinewg)
@@ -203,6 +205,10 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 
 	log.Infof("Started stream reassembly command %v with pid %d", c.streamCmd, c.streamCmd.Pid())
 
+	termshark.TrackedGo(func() {
+		termChan <- c.streamCmd.Wait()
+	}, Goroutinewg)
+
 	pid = c.streamCmd.Pid()
 	procChan <- pid
 
@@ -223,6 +229,15 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, app gowid.IApp, cb IIndexerCallbacks) {
 	res := false
 
+	procChan := make(chan int)
+	pid := 0
+
+	defer func() {
+		if pid == 0 {
+			close(procChan)
+		}
+	}()
+
 	c.indexerCtx, c.indexerCancelFn = context.WithCancel(c.mainCtx)
 
 	c.indexerCmd = c.cmds.Indexer(pcapf, proto, idx)
@@ -232,6 +247,61 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 		pcap.HandleError(err, cb)
 		return
 	}
+
+	procWaitChan := make(chan error, 1)
+
+	termshark.TrackedGo(func() {
+		var err error
+		cancelledChan := c.indexerCtx.Done()
+		procChan := procChan
+		state := pcap.NotStarted
+
+		kill := func() {
+			err = termshark.KillIfPossible(c.indexerCmd)
+			if err != nil {
+				log.Infof("Did not kill indexer process: %v", err)
+			}
+		}
+
+	loop:
+		for {
+			select {
+			case err = <-procWaitChan:
+				state = pcap.Terminated
+				if !c.SuppressErrors && err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": c.indexerCmd.String(),
+							"error":   err,
+						})
+						pcap.HandleError(cerr, cb)
+					}
+				}
+				streamOut.Close()
+
+			case pid := <-procChan:
+				procChan = nil
+				if pid != 0 {
+					state = pcap.Started
+					if cancelledChan == nil {
+						kill()
+					}
+				}
+
+			case <-cancelledChan:
+				cancelledChan = nil
+				if state == pcap.Started {
+					kill()
+				}
+
+			}
+
+			if state == pcap.Terminated || (cancelledChan == nil && state == pcap.NotStarted) {
+				break loop
+			}
+
+		}
+	}, Goroutinewg)
 
 	defer func() {
 		cb.AfterIndexEnd(res)
@@ -246,41 +316,12 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 
 	log.Infof("Started stream indexer command %v with pid %d", c.indexerCmd, c.indexerCmd.Pid())
 
-	procWaitChan := make(chan error, 1)
-
 	defer func() {
 		procWaitChan <- c.indexerCmd.Wait()
 	}()
 
-	termshark.TrackedGo(func() {
-		var err error
-		cancelled := c.indexerCtx.Done()
-	loop:
-		for {
-			select {
-			case <-cancelled:
-				err = termshark.KillIfPossible(c.indexerCmd)
-				if err != nil {
-					log.Infof("Did not kill indexer process: %v", err)
-				}
-				cancelled = nil
-			case err = <-procWaitChan:
-				if !c.SuppressErrors && err != nil {
-					if _, ok := err.(*exec.ExitError); ok {
-						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-							"command": c.indexerCmd.String(),
-							"error":   err,
-						})
-						pcap.HandleError(cerr, cb)
-					}
-				}
-				streamOut.Close()
-				break loop
-			}
-		}
-		c.indexerCtx = nil
-		c.indexerCancelFn = nil
-	}, Goroutinewg)
+	pid = c.indexerCmd.Pid()
+	procChan <- pid
 
 	res = decodeStreamXml(streamOut, proto, c.indexerCtx, cb)
 }

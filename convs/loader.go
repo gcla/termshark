@@ -111,12 +111,14 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 
 	c.convsCmd = c.cmds.Convs(pcapf, convs, filter, abs, resolve)
 
+	termChan := make(chan error)
+
 	termshark.TrackedGo(func() {
 		var err error
-		var cmd pcap.IPcapCommand
-		origCmd := c.convsCmd
-		cancelled := c.convsCtx.Done()
+		cmd := c.convsCmd
+		cancelledChan := c.convsCtx.Done()
 		procChan := procChan
+		state := pcap.NotStarted
 
 		kill := func() {
 			err := termshark.KillIfPossible(cmd)
@@ -128,36 +130,36 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 	loop:
 		for {
 			select {
+			case err = <-termChan:
+				state = pcap.Terminated
+				if !c.SuppressErrors && err != nil {
+					if _, ok := err.(*exec.ExitError); ok {
+						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+							"command": c.convsCmd.String(),
+							"error":   err,
+						})
+						pcap.HandleError(cerr, cb)
+					}
+				}
+
 			case pid := <-procChan:
 				procChan = nil
 				if pid != 0 {
-					cmd = origCmd
-					if cancelled == nil {
+					state = pcap.Started
+					if cancelledChan == nil {
 						kill()
 					}
 				}
 
-			case <-cancelled:
-				cancelled = nil
-				if cmd != nil {
+			case <-cancelledChan:
+				cancelledChan = nil
+				if state == pcap.Started {
 					kill()
 				}
 			}
 
-			if cancelled == nil && procChan == nil {
+			if state == pcap.Terminated || (cancelledChan == nil && state == pcap.NotStarted) {
 				break loop
-			}
-		}
-		if cmd != nil {
-			err = cmd.Wait()
-			if !c.SuppressErrors && err != nil {
-				if _, ok := err.(*exec.ExitError); ok {
-					cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-						"command": c.convsCmd.String(),
-						"error":   err,
-					})
-					pcap.HandleError(cerr, cb)
-				}
 			}
 		}
 	}, Goroutinewg)
@@ -185,6 +187,10 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 	}
 
 	log.Infof("Started command %v with pid %d", c.convsCmd, c.convsCmd.Pid())
+
+	termshark.TrackedGo(func() {
+		termChan <- c.convsCmd.Wait()
+	}, Goroutinewg)
 
 	pid = c.convsCmd.Pid()
 	procChan <- pid
