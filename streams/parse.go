@@ -18,11 +18,11 @@ type IChunk interface {
 }
 
 type IOnStreamChunk interface {
-	OnStreamChunk(chunk IChunk, ch chan struct{})
+	OnStreamChunk(chunk IChunk)
 }
 
 type IOnStreamHeader interface {
-	OnStreamHeader(header FollowHeader, ch chan struct{})
+	OnStreamHeader(header FollowHeader)
 }
 
 //======================================================================

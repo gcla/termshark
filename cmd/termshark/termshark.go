@@ -806,7 +806,7 @@ func cmain() int {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				ui.FilterWidget.SetValue(displayFilter, app)
 			}))
-			ui.RequestLoadPcapWithCheck(absfile, displayFilter, app)
+			ui.RequestLoadPcapWithCheck(absfile, displayFilter, ui.NoGlobalJump, app)
 		}
 		validator.Valid = &filter.ValidateCB{Fn: doit, App: app}
 		validator.Validate(displayFilter)
@@ -850,7 +850,6 @@ func cmain() int {
 		validator.Validate(displayFilter)
 	}
 
-	quitRequested := false
 	quitIssuedToApp := false
 	prevstate := ui.Loader.State()
 	var prev float64
@@ -928,7 +927,7 @@ Loop:
 				prev = 0.0
 			}
 
-			if quitRequested {
+			if ui.QuitRequested {
 				if ui.Running {
 					if !quitIssuedToApp {
 						app.Quit()
@@ -1090,7 +1089,7 @@ Loop:
 			}()
 
 		case <-ui.QuitRequestedChan:
-			quitRequested = true
+			ui.QuitRequested = true
 			if ui.Loader.State() != 0 {
 				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
 				// will happen next time round because the quitRequested flag is checked.
@@ -1194,7 +1193,7 @@ Loop:
 				// (meaning still running), then I just apply a new filter and have the pcap
 				// reader read from the fifo. Only do this if the user isn't quitting the app,
 				// otherwise it looks clumsy.
-				if !quitRequested {
+				if !ui.QuitRequested {
 					app.Run(gowid.RunFunction(func(app gowid.IApp) {
 						ui.OpenError("Loading was cancelled.", app)
 					}))

@@ -75,8 +75,8 @@ func (c *Loader) StopLoad() {
 //======================================================================
 
 type ICapinfoCallbacks interface {
-	OnCapinfoData(data string, closeMe chan struct{})
-	AfterCapinfoEnd(success bool, closeMe chan<- struct{})
+	OnCapinfoData(data string)
+	AfterCapinfoEnd(success bool)
 }
 
 func (c *Loader) StartLoad(pcap string, app gowid.IApp, cb ICapinfoCallbacks) {
@@ -157,9 +157,9 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 	}
 
 	defer func() {
-		ch := make(chan struct{})
-		cb.AfterCapinfoEnd(true, ch)
-		<-ch
+		//ch := make(chan struct{})
+		cb.AfterCapinfoEnd(true)
+		//<-ch
 	}()
 
 	pcap.HandleBegin(cb)
@@ -182,9 +182,7 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(capinfoOut)
 
-	ch := make(chan struct{})
-	cb.OnCapinfoData(buf.String(), ch)
-	<-ch
+	cb.OnCapinfoData(buf.String())
 
 	c.capinfoCancelFn()
 }

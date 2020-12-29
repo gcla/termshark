@@ -59,7 +59,7 @@ type capinfoParseHandler struct {
 
 var _ capinfo.ICapinfoCallbacks = (*capinfoParseHandler)(nil)
 
-func (t *capinfoParseHandler) OnCapinfoData(data string, ch chan struct{}) {
+func (t *capinfoParseHandler) OnCapinfoData(data string) {
 	CapinfoData = strings.Replace(data, "\r\n", "\n", -1) // For windows...
 	fi, err := os.Stat(Loader.PcapPdml)
 	if err != nil {
@@ -67,15 +67,12 @@ func (t *capinfoParseHandler) OnCapinfoData(data string, ch chan struct{}) {
 	} else {
 		CapinfoTime = fi.ModTime()
 	}
-	close(ch)
 }
 
-func (t *capinfoParseHandler) AfterCapinfoEnd(success bool, ch chan<- struct{}) {
-	close(ch)
+func (t *capinfoParseHandler) AfterCapinfoEnd(success bool) {
 }
 
-func (t *capinfoParseHandler) BeforeBegin(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *capinfoParseHandler) BeforeBegin() {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		OpenPleaseWait(appView, t.app)
 	}))
@@ -98,8 +95,7 @@ func (t *capinfoParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 	}, Goroutinewg)
 }
 
-func (t *capinfoParseHandler) AfterEnd(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *capinfoParseHandler) AfterEnd() {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		if !t.pleaseWaitClosed {
 			t.pleaseWaitClosed = true
@@ -124,9 +120,8 @@ type ManageCapinfoCache struct{}
 var _ pcap.INewSource = ManageCapinfoCache{}
 
 // Make sure that existing stream widgets are discarded if the user loads a new pcap.
-func (t ManageCapinfoCache) OnNewSource(closeMe chan<- struct{}) {
+func (t ManageCapinfoCache) OnNewSource() {
 	clearCapinfoState()
-	close(closeMe)
 }
 
 //======================================================================

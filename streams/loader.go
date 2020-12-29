@@ -98,7 +98,7 @@ type ITrackPayload interface {
 type IIndexerCallbacks interface {
 	IOnStreamChunk
 	ITrackPayload
-	AfterIndexEnd(success bool, closeMe chan<- struct{})
+	AfterIndexEnd(success bool)
 }
 
 func (c *Loader) StartLoad(pcap string, proto string, idx int, app gowid.IApp, cb IIndexerCallbacks) {
@@ -234,9 +234,7 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 	}
 
 	defer func() {
-		ch := make(chan struct{})
-		cb.AfterIndexEnd(res, ch)
-		<-ch
+		cb.AfterIndexEnd(res)
 	}()
 
 	err = c.indexerCmd.Start()

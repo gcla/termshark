@@ -28,7 +28,7 @@ type convsParseHandler struct {
 	pleaseWaitClosed bool
 }
 
-func (t *convsParseHandler) OnData(data string, ch chan struct{}) {
+func (t *convsParseHandler) OnData(data string) {
 	data = strings.Replace(data, "\r\n", "\n", -1) // For windows...
 
 	if t.ondata != nil {
@@ -36,20 +36,17 @@ func (t *convsParseHandler) OnData(data string, ch chan struct{}) {
 			t.ondata.OnData(data, app)
 		}))
 	}
-	close(ch)
 }
 
-func (t *convsParseHandler) AfterDataEnd(success bool, ch chan<- struct{}) {
+func (t *convsParseHandler) AfterDataEnd(success bool) {
 	if t.ondata != nil && !success {
 		t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 			t.ondata.OnCancel(app)
 		}))
 	}
-	close(ch)
 }
 
-func (t *convsParseHandler) BeforeBegin(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *convsParseHandler) BeforeBegin() {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		OpenPleaseWait(appView, t.app)
 	}))
@@ -72,8 +69,7 @@ func (t *convsParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 	}, Goroutinewg)
 }
 
-func (t *convsParseHandler) AfterEnd(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *convsParseHandler) AfterEnd() {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		if !t.pleaseWaitClosed {
 			t.pleaseWaitClosed = true

@@ -87,8 +87,8 @@ func (c *Loader) StopLoad() {
 //======================================================================
 
 type IConvsCallbacks interface {
-	OnData(data string, closeMe chan struct{})
-	AfterDataEnd(success bool, closeMe chan<- struct{})
+	OnData(data string)
+	AfterDataEnd(success bool)
 }
 
 func (c *Loader) StartLoad(pcap string, convs []string, filter string, abs bool, resolve bool, app gowid.IApp, cb IConvsCallbacks) {
@@ -169,9 +169,7 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 	}
 
 	defer func() {
-		ch := make(chan struct{})
-		cb.AfterDataEnd(true, ch)
-		<-ch
+		cb.AfterDataEnd(true)
 	}()
 
 	pcap.HandleBegin(cb)
@@ -194,9 +192,7 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(convsOut)
 
-	ch := make(chan struct{})
-	cb.OnData(buf.String(), ch)
-	<-ch
+	cb.OnData(buf.String())
 
 	c.convsCancelFn()
 }

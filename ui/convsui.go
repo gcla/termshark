@@ -121,10 +121,9 @@ type ManageConvsCache struct{}
 var _ pcap.INewSource = ManageConvsCache{}
 
 // Make sure that existing data is discarded if the user loads a new pcap.
-func (t ManageConvsCache) OnNewSource(closeMe chan<- struct{}) {
+func (t ManageConvsCache) OnNewSource() {
 	convsView = nil // which then deletes all refs to loaded data
 	convsPcapSize = 0
-	close(closeMe)
 }
 
 //======================================================================

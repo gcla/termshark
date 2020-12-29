@@ -56,9 +56,8 @@ type ManageStreamCache struct{}
 var _ pcap.INewSource = ManageStreamCache{}
 
 // Make sure that existing stream widgets are discarded if the user loads a new pcap.
-func (t ManageStreamCache) OnNewSource(closeMe chan<- struct{}) {
+func (t ManageStreamCache) OnNewSource() {
 	clearStreamState()
-	close(closeMe)
 }
 
 //======================================================================
@@ -203,8 +202,7 @@ func (t *streamParseHandler) drainPacketIndices() int {
 	return curLen
 }
 
-func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *streamParseHandler) BeforeBegin() {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		OpenPleaseWait(appView, t.app)
 	}))
@@ -263,8 +261,7 @@ func (t *streamParseHandler) BeforeBegin(closeMe chan<- struct{}) {
 	}, Goroutinewg)
 }
 
-func (t *streamParseHandler) AfterIndexEnd(success bool, closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *streamParseHandler) AfterIndexEnd(success bool) {
 	t.wid.SetFinished(success)
 	close(t.stopIndices)
 
@@ -275,8 +272,7 @@ func (t *streamParseHandler) AfterIndexEnd(success bool, closeMe chan<- struct{}
 	}
 }
 
-func (t *streamParseHandler) AfterEnd(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *streamParseHandler) AfterEnd() {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		if !t.pleaseWaitClosed {
 			t.pleaseWaitClosed = true
@@ -307,24 +303,21 @@ func (t *streamParseHandler) TrackPayloadPacket(packet int) {
 	t.pktIndices <- packet
 }
 
-func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader, ch chan struct{}) {
+func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader) {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		t.wid.AddHeader(hdr)
 	}))
-	close(ch)
 }
 
 // Handle a line/chunk of input - one piece of reassembled data, which comes with
 // a client/server direction.
-func (t *streamParseHandler) OnStreamChunk(chunk streams.IChunk, ch chan struct{}) {
+func (t *streamParseHandler) OnStreamChunk(chunk streams.IChunk) {
 	t.Lock()
 	defer t.Unlock()
 	t.chunks <- chunk
-	close(ch)
 }
 
-func (t *streamParseHandler) OnError(err error, closeMe chan<- struct{}) {
-	close(closeMe)
+func (t *streamParseHandler) OnError(err error) {
 	log.Error(err)
 	if !Running {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

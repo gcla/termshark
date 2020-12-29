@@ -165,17 +165,18 @@ var keyState termshark.KeyState
 var marksMap map[rune]termshark.JumpPos
 var globalMarksMap map[rune]termshark.GlobalJumpPos
 var lastJumpPos int
-var savedGlobalJumpPos int
 
 var Loader *pcap.Loader
 var PcapScheduler *pcap.Scheduler
-var DarkMode bool              // global state in app
-var PacketColors bool          // global state in app
-var PacketColorsSupported bool // global state in app - true if it's even possible
-var AutoScroll bool            // true if the packet list should auto-scroll when listening on an interface.
-var newPacketsArrived bool     // true if current updates are due to new packets when listening on an interface.
-var reenableAutoScroll bool    // set to true by keypress processing widgets - used with newPacketsArrived
-var Running bool               // true if gowid/tcell is controlling the terminal
+var NoGlobalJump termshark.GlobalJumpPos // leave as default, like a placeholder
+var DarkMode bool                        // global state in app
+var PacketColors bool                    // global state in app
+var PacketColorsSupported bool           // global state in app - true if it's even possible
+var AutoScroll bool                      // true if the packet list should auto-scroll when listening on an interface.
+var newPacketsArrived bool               // true if current updates are due to new packets when listening on an interface.
+var reenableAutoScroll bool              // set to true by keypress processing widgets - used with newPacketsArrived
+var Running bool                         // true if gowid/tcell is controlling the terminal
+var QuitRequested bool                   // true if a quit has been issued, but not yet processed. Stops some handlers displaying errors.
 
 //======================================================================
 
@@ -188,12 +189,16 @@ func init() {
 	marksMap = make(map[rune]termshark.JumpPos)
 	globalMarksMap = make(map[rune]termshark.GlobalJumpPos)
 	lastJumpPos = -1
-	savedGlobalJumpPos = -1
 
 	EnsureTemplateData()
 	TemplateData["Marks"] = marksMap
 	TemplateData["GlobalMarks"] = globalMarksMap
 	TemplateData["Maps"] = getMappings{}
+}
+
+type globalJump struct {
+	file string
+	pos  int
 }
 
 type getMappings struct{}
@@ -1130,16 +1135,14 @@ func MakeUpdateCurrentCaptureInTitle(app gowid.IApp) updateCurrentCaptureInTitle
 	}
 }
 
-func (t updateCurrentCaptureInTitle) OnNewSource(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t updateCurrentCaptureInTitle) OnNewSource() {
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		currentCapture.SetText(t.Ld.String(), app)
 		currentCaptureWidgetHolder.SetSubWidget(currentCaptureWidget, app)
 	}))
 }
 
-func (t updateCurrentCaptureInTitle) OnClear(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t updateCurrentCaptureInTitle) OnClear() {
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		currentCaptureWidgetHolder.SetSubWidget(nullw, app)
 	}))
@@ -1168,15 +1171,13 @@ func (t updatePacketViews) EnableOperations() {
 	t.Ld.Enable()
 }
 
-func (t updatePacketViews) OnClear(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t updatePacketViews) OnClear() {
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		clearPacketViews(app)
 	}))
 }
 
-func (t updatePacketViews) BeforeBegin(ch chan<- struct{}) {
-	close(ch)
+func (t updatePacketViews) BeforeBegin() {
 	ch2 := Loader.PsmlFinishedChan
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		clearPacketViews(app)
@@ -1201,8 +1202,7 @@ func (t updatePacketViews) BeforeBegin(ch chan<- struct{}) {
 	}))
 }
 
-func (t updatePacketViews) AfterEnd(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t updatePacketViews) AfterEnd() {
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		updatePacketListWithData(t.Ld, app)
 		StopEmptyStructViewTimer()
@@ -1211,8 +1211,7 @@ func (t updatePacketViews) AfterEnd(closeMe chan<- struct{}) {
 	}))
 }
 
-func (t updatePacketViews) OnError(err error, closeMe chan<- struct{}) {
-	close(closeMe)
+func (t updatePacketViews) OnError(err error) {
 	log.Error(err)
 	if !Running {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -1258,7 +1257,6 @@ func reallyClear(app gowid.IApp) {
 								MakeUpdateCurrentCaptureInTitle(app),
 								ManageStreamCache{},
 								ManageCapinfoCache{},
-								MakeCheckForJump(app),
 							},
 						)
 					},
@@ -1535,6 +1533,7 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 								JumpPos:  jpos,
 								Filename: Loader.Pcap(),
 							}
+							termshark.SaveGlobalMarks(globalMarksMap)
 							OpenMessage(fmt.Sprintf("Global mark '%c' set to packet %v.", evk.Rune(), jpos.Pos), appView, app)
 						}
 					}
@@ -1571,8 +1570,7 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 			OpenError("Mark not found.", app)
 		} else {
 			if Loader.Pcap() != markedPacket.Filename {
-				savedGlobalJumpPos = markedPacket.Pos
-				RequestLoadPcapWithCheck(markedPacket.Filename, FilterWidget.Value(), app)
+				RequestLoadPcapWithCheck(markedPacket.Filename, FilterWidget.Value(), markedPacket, app)
 			} else {
 
 				if packetListView != nil {
@@ -2329,7 +2327,6 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 		// preserve these changes when navigating the packet view
 		updateHex(app, walker)
 
-		//}
 	}
 	return res
 }
@@ -2356,7 +2353,7 @@ type SaveRecents struct {
 	App    gowid.IApp
 }
 
-var _ pcap.IAfterEnd = SaveRecents{}
+var _ pcap.IBeforeBegin = SaveRecents{}
 
 func MakeSaveRecents(pcap string, filter string, app gowid.IApp) SaveRecents {
 	return SaveRecents{
@@ -2366,8 +2363,7 @@ func MakeSaveRecents(pcap string, filter string, app gowid.IApp) SaveRecents {
 	}
 }
 
-func (t SaveRecents) AfterEnd(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t SaveRecents) BeforeBegin() {
 	// Run on main goroutine to avoid problems flagged by -race
 	t.App.Run(gowid.RunFunction(func(gowid.IApp) {
 		if t.Pcap != "" {
@@ -2382,17 +2378,19 @@ func (t SaveRecents) AfterEnd(closeMe chan<- struct{}) {
 
 //======================================================================
 
-type checkForJump struct {
-	App gowid.IApp
+type checkGlobalJumpAfterPsml struct {
+	App  gowid.IApp
+	Jump termshark.GlobalJumpPos
 }
 
-var _ pcap.IAfterEnd = checkForJump{}
-var _ pcap.IOnError = checkForJump{}
-var _ pcap.INewSource = checkForJump{}
+var _ pcap.IAfterEnd = checkGlobalJumpAfterPsml{}
+var _ pcap.IOnError = checkGlobalJumpAfterPsml{}
+var _ pcap.INewSource = checkGlobalJumpAfterPsml{}
 
-func MakeCheckForJump(app gowid.IApp) checkForJump {
-	return checkForJump{
-		App: app,
+func MakeCheckGlobalJumpAfterPsml(app gowid.IApp, jmp termshark.GlobalJumpPos) checkGlobalJumpAfterPsml {
+	return checkGlobalJumpAfterPsml{
+		App:  app,
+		Jump: jmp,
 	}
 }
 
@@ -2403,28 +2401,26 @@ func clearMarks() {
 	lastJumpPos = -1
 }
 
-func (t checkForJump) OnNewSource(closeMe chan<- struct{}) {
+func (t checkGlobalJumpAfterPsml) OnNewSource() {
 	clearMarks()
-	close(closeMe)
 }
 
-func (t checkForJump) OnClear(closeMe chan<- struct{}) {
+func (t checkGlobalJumpAfterPsml) OnClear() {
 	clearMarks()
-	close(closeMe)
 }
 
-func (t checkForJump) OnError(err error, closeMe chan<- struct{}) {
-	close(closeMe)
-	savedGlobalJumpPos = -1
+func (t checkGlobalJumpAfterPsml) OnError(err error) {
 }
 
-func (t checkForJump) AfterEnd(closeMe chan<- struct{}) {
-	close(closeMe)
+func (t checkGlobalJumpAfterPsml) AfterEnd() {
 	// Run on main goroutine to avoid problems flagged by -race
 	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		if savedGlobalJumpPos != -1 {
+		if QuitRequested {
+			return
+		}
+		if t.Jump.Filename == Loader.Pcap() {
 			if packetListView != nil {
-				tableRow, err := tableRowFromPacketNumber(savedGlobalJumpPos)
+				tableRow, err := tableRowFromPacketNumber(t.Jump.Pos)
 				if err != nil {
 					OpenError(err.Error(), app)
 				} else {
@@ -2438,7 +2434,6 @@ func (t checkForJump) AfterEnd(closeMe chan<- struct{}) {
 					packetListView.SetFocusXY(app, table.Coords{Column: tableCol, Row: tableRow})
 				}
 			}
-			savedGlobalJumpPos = -1
 		}
 	}))
 }
@@ -2446,14 +2441,14 @@ func (t checkForJump) AfterEnd(closeMe chan<- struct{}) {
 //======================================================================
 
 // Call from app goroutine context
-func RequestLoadPcapWithCheck(pcapf string, displayFilter string, app gowid.IApp) {
+func RequestLoadPcapWithCheck(pcapf string, displayFilter string, jump termshark.GlobalJumpPos, app gowid.IApp) {
 	handlers := pcap.HandlerList{
 		MakeSaveRecents(pcapf, displayFilter, app),
 		MakePacketViewUpdater(app),
 		MakeUpdateCurrentCaptureInTitle(app),
 		ManageStreamCache{},
 		ManageCapinfoCache{},
-		MakeCheckForJump(app),
+		MakeCheckGlobalJumpAfterPsml(app, jump),
 	}
 
 	if _, err := os.Stat(pcapf); os.IsNotExist(err) {
@@ -2510,7 +2505,7 @@ func makeRecentMenuWidget() gowid.IWidget {
 					CB: func(app gowid.IApp, w gowid.IWidget) {
 						savedMenu.Close(app)
 						// capFilter global, set up in cmain()
-						RequestLoadPcapWithCheck(scopy, FilterWidget.Value(), app)
+						RequestLoadPcapWithCheck(scopy, FilterWidget.Value(), NoGlobalJump, app)
 					},
 				},
 			)
@@ -2573,12 +2568,12 @@ var _ pcap.IClear = SetStructWidgets{}
 var _ pcap.IBeforeBegin = SetStructWidgets{}
 var _ pcap.IAfterEnd = SetStructWidgets{}
 
-func (s SetStructWidgets) OnClear(closeMe chan<- struct{}) {
-	close(closeMe)
+func (s SetStructWidgets) OnClear() {
+	s.AfterEnd()
 }
 
-func (s SetStructWidgets) BeforeBegin(ch chan<- struct{}) {
-	s2ch := Loader.Stage2FinishedChan
+func (s SetStructWidgets) BeforeBegin() {
+	s2ch := s.Ld.Stage2FinishedChan
 
 	termshark.TrackedGo(func() {
 		fn2 := func() {
@@ -2592,23 +2587,18 @@ func (s SetStructWidgets) BeforeBegin(ch chan<- struct{}) {
 			time.Duration(2000)*time.Millisecond,
 			10)
 	}, Goroutinewg)
-
-	close(ch)
 }
 
 // Close the channel before the callback. When the global loader state is idle,
 // app.Quit() will stop accepting app callbacks, so the goroutine that waits
 // for ch to be closed will never terminate.
-func (s SetStructWidgets) AfterEnd(ch chan<- struct{}) {
-	close(ch)
+func (s SetStructWidgets) AfterEnd() {
 	s.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		setLowerWidgets(app)
-		singlePacketViewMsgHolder.SetSubWidget(nullw, app)
 	}))
 }
 
-func (s SetStructWidgets) OnError(err error, closeMe chan<- struct{}) {
-	close(closeMe)
+func (s SetStructWidgets) OnError(err error) {
 	log.Error(err)
 	s.App.Run(gowid.RunFunction(func(app gowid.IApp) {
 		OpenLongError(fmt.Sprintf("%v", err), app)

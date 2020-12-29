@@ -542,36 +542,6 @@ func (c *Loader) doNewFilterOperation(newfilt string, cb interface{}, fn RunFn) 
 	}
 }
 
-type IClear interface {
-	OnClear(closeMe chan<- struct{})
-}
-
-type INewSource interface {
-	OnNewSource(closeMe chan<- struct{})
-}
-
-type IOnError interface {
-	OnError(err error, closeMe chan<- struct{})
-}
-
-type IBeforeBegin interface {
-	BeforeBegin(closeMe chan<- struct{})
-}
-
-type IAfterEnd interface {
-	AfterEnd(closeMe chan<- struct{})
-}
-
-type IUnpack interface {
-	Unpack() []interface{}
-}
-
-type HandlerList []interface{}
-
-func (h HandlerList) Unpack() []interface{} {
-	return h
-}
-
 func (c *Loader) doLoadInterfacesOperation(psrcs []IPacketSource, captureFilter string, displayFilter string, tmpfile string, cb interface{}, fn RunFn) {
 	// The channel is unbuffered, and monitored from the same goroutine, so this would block
 	// unless we start a new goroutine
@@ -657,107 +627,6 @@ func (c *Loader) ReadingFromFifo() bool {
 	// in practise are the empty interface, or the read end of a fifo
 	_, ok := c.PcapPsml.(string)
 	return !ok
-}
-
-type unpackedHandlerFunc func(interface{}, ...chan struct{}) bool
-
-func HandleUnpack(cb interface{}, handler unpackedHandlerFunc, chs ...chan struct{}) bool {
-	if c, ok := cb.(IUnpack); ok {
-		ch := getCbChan(chs...)
-		var wg sync.WaitGroup
-		handlers := c.Unpack()
-		wg.Add(len(handlers))
-		for _, cb := range handlers {
-			cbcopy := cb // don't fall into loop variable non-capture trap
-			termshark.TrackedGo(func() {
-				ch2 := make(chan struct{})
-				handler(cbcopy, ch2) // will wait on channel if it has to, doesn't matter if not
-				wg.Done()
-			}, Goroutinewg)
-		}
-		termshark.TrackedGo(func() {
-			wg.Wait()
-			close(ch)
-		}, Goroutinewg)
-		<-ch
-		return true
-	}
-	return false
-}
-
-func getCbChan(chs ...chan struct{}) chan struct{} {
-	if len(chs) > 0 {
-		return chs[0]
-	} else {
-		return make(chan struct{})
-	}
-}
-
-func HandleBegin(cb interface{}, chs ...chan struct{}) bool {
-	res := false
-	if !HandleUnpack(cb, HandleBegin) {
-		if c, ok := cb.(IBeforeBegin); ok {
-			ch := getCbChan(chs...)
-			c.BeforeBegin(ch)
-			<-ch
-			res = true
-		}
-	}
-	return res
-}
-
-func HandleEnd(cb interface{}, chs ...chan struct{}) bool {
-	res := false
-	if !HandleUnpack(cb, HandleEnd, chs...) {
-		if c, ok := cb.(IAfterEnd); ok {
-			ch := getCbChan(chs...)
-			c.AfterEnd(ch)
-			<-ch
-			res = true
-		}
-	}
-	return res
-}
-
-func HandleError(err error, cb interface{}, chs ...chan struct{}) bool {
-	res := false
-	if !HandleUnpack(cb, func(cb2 interface{}, chs2 ...chan struct{}) bool {
-		return HandleError(err, cb2, chs2...)
-	}, chs...) {
-		if ec, ok := cb.(IOnError); ok {
-			ch := getCbChan(chs...)
-			ec.OnError(err, ch)
-			<-ch
-			res = true
-		}
-	}
-	return res
-}
-
-func handleClear(cb interface{}, chs ...chan struct{}) bool {
-	res := false
-	if !HandleUnpack(cb, handleClear) {
-		if c, ok := cb.(IClear); ok {
-			ch := getCbChan(chs...)
-			c.OnClear(ch)
-			<-ch
-			res = true
-		}
-	}
-	return res
-}
-
-func handleNewSource(cb interface{}, chs ...chan struct{}) bool {
-	res := false
-	if !HandleUnpack(cb, handleNewSource) {
-		if c, ok := cb.(INewSource); ok {
-			ch := getCbChan(chs...)
-			c.OnNewSource(ch)
-			<-ch
-			res = true
-		}
-	}
-	return res
 }
 
 // https://stackoverflow.com/a/28005931/784226
@@ -1018,7 +887,8 @@ func (c *Loader) signalStage2Done(cb interface{}) {
 	ch := c.Stage2FinishedChan
 	c.Stage2FinishedChan = make(chan struct{})
 	c.Unlock()
-	HandleEnd(cb, ch)
+	HandleEnd(cb)
+	close(ch)
 }
 
 func (c *Loader) signalStage2Starting(cb interface{}) {
@@ -1538,7 +1408,8 @@ func (c *Loader) signalPsmlStarting(cb interface{}) {
 func (c *Loader) signalPsmlDone(cb interface{}) {
 	ch := c.PsmlFinishedChan
 	c.PsmlFinishedChan = make(chan struct{})
-	HandleEnd(cb, ch)
+	HandleEnd(cb)
+	close(ch)
 }
 
 // Holds a reference to the loader, and wraps Read() around the tail process's

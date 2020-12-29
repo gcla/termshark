@@ -735,9 +735,7 @@ func (c *current) onDataLines1(dl interface{}) (interface{}, error) {
 
 	if cb, ok := c.globalStore["callbacks"]; ok {
 		if cb, ok := cb.(IOnStreamChunk); ok {
-			ch := make(chan struct{})
-			cb.OnStreamChunk(dl.(Bytes), ch)
-			<-ch
+			cb.OnStreamChunk(dl.(Bytes))
 		}
 	}
 
@@ -942,9 +940,7 @@ func (c *current) onHeader1(fc, fic, node0, node1 interface{}) (interface{}, err
 
 	if cb, ok := c.globalStore["callbacks"]; ok {
 		if cb, ok := cb.(IOnStreamHeader); ok {
-			ch := make(chan struct{})
-			cb.OnStreamHeader(fh, ch)
-			<-ch
+			cb.OnStreamHeader(fh)
 		}
 	}
 
