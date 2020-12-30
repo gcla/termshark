@@ -26,6 +26,10 @@ type IAfterEnd interface {
 	AfterEnd()
 }
 
+type IPsmlHeader interface {
+	OnPsmlHeader()
+}
+
 type IUnpack interface {
 	Unpack() []interface{}
 }
@@ -78,6 +82,17 @@ func HandleError(err error, cb interface{}) bool {
 	}) {
 		if ec, ok := cb.(IOnError); ok {
 			ec.OnError(err)
+			res = true
+		}
+	}
+	return res
+}
+
+func handlePsmlHeader(cb interface{}) bool {
+	res := false
+	if !HandleUnpack(cb, handlePsmlHeader) {
+		if c, ok := cb.(IPsmlHeader); ok {
+			c.OnPsmlHeader()
 			res = true
 		}
 	}

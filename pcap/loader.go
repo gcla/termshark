@@ -1986,6 +1986,7 @@ func (c *Loader) loadPsmlAsync(cb interface{}) {
 					c.Lock()
 					c.PacketPsmlHeaders = append(c.PacketPsmlHeaders, string(tok))
 					c.Unlock()
+					handlePsmlHeader(cb)
 				} else {
 					curPsml = append(curPsml, string(format.TranslateHexCodes(tok)))
 					empty = false

@@ -2378,6 +2378,23 @@ func (t SaveRecents) BeforeBegin() {
 
 //======================================================================
 
+
+type SignalPackets struct {
+	done bool
+	C    chan struct{}
+}
+
+var _ pcap.IPsmlHeader = (*SignalPackets)(nil)
+
+func (t *SignalPackets) OnPsmlHeader() {
+	if !t.done {
+		close(t.C)
+		t.done = true
+	}
+}
+
+//======================================================================
+
 type checkGlobalJumpAfterPsml struct {
 	App  gowid.IApp
 	Jump termshark.GlobalJumpPos

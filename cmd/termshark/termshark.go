@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/fsnotify/fsnotify"
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/capinfo"
@@ -703,10 +702,7 @@ func cmain() int {
 
 	// Buffered because I might send something in this goroutine
 	startUIChan := make(chan struct{}, 1)
-	// Used to cancel the display of a message telling the user why there is no UI yet.
-	detectMsgChan := make(chan struct{}, 1)
 
-	var iwatcher *fsnotify.Watcher
 	var ifaceTmpFile string
 
 	if len(pcap.FileSystemSources(psrcs)) == 0 {
@@ -716,34 +712,7 @@ func cmain() int {
 		}
 		ifaceTmpFile = pcap.TempPcapFile(srcNames...)
 
-		iwatcher, err = fsnotify.NewWatcher()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not start filesystem watcher: %v\n", err)
-			return 1
-		}
-		defer func() {
-			if iwatcher != nil {
-				iwatcher.Close()
-			}
-		}()
-
-		// Don't start the UI until this file is created. When listening on a pipe,
-		// termshark will start a process similar to:
-		//
-		// dumpcap -i /dev/fd/3 -w ~/.cache/pcaps/tmp123.pcap
-		//
-		// dumpcap will not actually create that file until it has data to write to it.
-		// So we watch for the creation of that file, and until then, don't launch the UI.
-		// Then if the feeding process needs input first e.g. sudo tcpdump needs password,
-		// there won't be a conflict for reading /dev/tty.
-		//
-		if err := iwatcher.Add(termshark.PcapDir()); err != nil { //&& !os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "Could not set up watcher for %s: %v\n", termshark.PcapDir(), err)
-			return 1
-		}
-
 		fmt.Printf("(The termshark UI will start when packets are detected...)\n")
-
 	} else {
 		// Start UI right away, reading from a file
 		startUIChan <- struct{}{}
@@ -839,6 +808,7 @@ func cmain() int {
 			ifacePcapFilename = ifaceTmpFile
 			ui.PcapScheduler.RequestLoadInterfaces(psrcs, captureFilter, displayFilter, ifaceTmpFile,
 				pcap.HandlerList{
+					&ui.SignalPackets{C: startUIChan},
 					ui.MakeSaveRecents("", displayFilter, app),
 					ui.MakePacketViewUpdater(app),
 					ui.MakeUpdateCurrentCaptureInTitle(app),
@@ -888,8 +858,6 @@ Loop:
 		var psmlFinChan <-chan struct{}
 		var ifaceFinChan <-chan struct{}
 		var pdmlFinChan <-chan struct{}
-		var tmpPcapWatcherChan <-chan fsnotify.Event
-		var tmpPcapWatcherErrorsChan <-chan error
 		var tcellEvents <-chan tcell.Event
 		var afterRenderEvents <-chan gowid.IAfterRenderEvent
 		// For setting struct views empty. This isn't done as soon as a load is initiated because
@@ -963,14 +931,6 @@ Loop:
 			opsChan = ui.PcapScheduler.OperationsChan
 		}
 
-		// This tracks a temporary pcap file which is populated by dumpcap when termshark is
-		// reading from a fifo. If iwatcher is nil, it means we've got data and don't need to
-		// monitor any more.
-		if iwatcher != nil {
-			tmpPcapWatcherChan = iwatcher.Events
-			tmpPcapWatcherErrorsChan = iwatcher.Errors
-		}
-
 		// Only process tcell and gowid events if the UI is running.
 		if ui.Running {
 			tcellEvents = app.TCellEvents
@@ -993,18 +953,6 @@ Loop:
 		case <-finChan:
 			ui.Fin.Advance()
 			app.Redraw()
-
-		case we := <-tmpPcapWatcherChan:
-			if strings.Contains(we.Name, ifaceTmpFile) {
-				log.Infof("Pcap file %v has appeared - launching UI", we.Name)
-				iwatcher.Close()
-				iwatcher = nil
-				startUIChan <- struct{}{}
-			}
-
-		case err := <-tmpPcapWatcherErrorsChan:
-			fmt.Fprintf(os.Stderr, "Unexpected watcher error for %s: %v", ifaceTmpFile, err)
-			return 1
 
 		case <-startUIChan:
 			log.Infof("Launching termshark UI")
@@ -1068,10 +1016,7 @@ Loop:
 			ui.Running = true
 			startedSuccessfully = true
 
-			close(startUIChan)
 			startUIChan = nil // make sure it's not triggered again
-
-			close(detectMsgChan) // don't display the message about waiting for the UI
 
 			defer func() {
 				// Do this to make sure the program quits quickly if quit is invoked
