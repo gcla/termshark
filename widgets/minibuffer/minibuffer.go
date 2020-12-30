@@ -245,7 +245,7 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 
 	case len(words) == 1: // command itself may be partially provided. If there is only
 		// one way for the command to be completed, allow it to be run.
-		// User types "cl", partials would be ["clear", "clear-filter"]
+		// User types "cl", partials would be ["clear-packets", "clear-filter"]
 		partials := w.getPartialsCompletions(false, app)
 		switch len(partials) {
 		case 0:
@@ -294,7 +294,7 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 						extraPrefix += string(c)
 					}
 					longestPrefixPartial := partials[selectedIdx]
-					// e.g. "cl" + "ear-" from ["clear", "clear-filter"]
+					// e.g. "cl" + "ear-" from ["clear-packets", "clear-filter"]
 					longestPrefixPartial.qword = words[len(words)-1] + extraPrefix
 					w.ed.SetText(longestPrefixPartial.Line(), app)
 					w.ed.SetCursorPos(longestPrefixPartial.CursorPos(), app)

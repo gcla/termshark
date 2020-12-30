@@ -1048,7 +1048,7 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
-	MiniBuffer.Register("clear", minibufferFn(func(gowid.IApp, ...string) error {
+	MiniBuffer.Register("clear-packets", minibufferFn(func(gowid.IApp, ...string) error {
 		reallyClear(app)
 		return nil
 	}))
