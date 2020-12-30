@@ -10,6 +10,7 @@
 * [Termshark's colors are limited...](#termsharks-colors-are-limited)
 * [Where are the config and log files?](#where-are-the-config-and-log-files)
 * [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
+* [Can I pass extra arguments to tshark?](#can-i-pass-extra-arguments-to-tshark)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
 * [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
 * [How can termshark capture from extcap interfaces with dumpcap?](#how-can-termshark-capture-from-extcap-interfaces-with-dumpcap)
@@ -132,6 +133,15 @@ You can find the log file, `termshark.log`, in:
 Unfortunately, the standard console window won't let you increase its size beyond its initial bounds using the mouse. To work around this, after termshark starts, right-click on the window title and select "Properties". Click "Layout" and then adjust the "Window Size" settings. When you quit termshark, your console window will be restored to its original size.
 
 ![winconsole](/../gh-pages/images/winconsole.png?raw=true)
+
+## Can I pass extra arguments to tshark?
+
+Yes, via `~/.config/termshark/termshark.toml`. Here is an example I use:
+
+```toml
+[main]
+  tshark-args = ["-d","udp.port==2075,cflow","-d","udp.port==9191,cflow","-d","udp.port==2055,cflow","-d","udp.port==2095,cflow"]
+```
 
 ## How does termshark use tshark?
 
