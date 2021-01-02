@@ -26,6 +26,8 @@
   are loaded from `~/.config/termshark/themes/` or from a small cache built-in
   to termshark. A new minibuffer command `theme` can be used to change theme;
   `no-theme` turns off theming.
+- The Escape key no longer opens the main menu. Instead it puts focus on the menu button. Hit Enter to open.
+  This is more intuitive with the presence of ":" to open the minibuffer.
 
 ### Changed
 

@@ -1048,6 +1048,11 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
+	MiniBuffer.Register("menu", minibufferFn(func(gowid.IApp, ...string) error {
+		openGeneralMenu(app)
+		return nil
+	}))
+
 	MiniBuffer.Register("clear-packets", minibufferFn(func(gowid.IApp, ...string) error {
 		reallyClear(app)
 		return nil
@@ -1747,10 +1752,23 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	return handled
 }
 
+func focusOnMenuButton(app gowid.IApp) {
+	gowid.SetFocusPath(mainview, menuPathMain, app)
+	gowid.SetFocusPath(altview1, menuPathAlt, app)
+	gowid.SetFocusPath(altview2, menuPathAlt, app)
+	gowid.SetFocusPath(viewOnlyPacketList, menuPathMax, app)
+	gowid.SetFocusPath(viewOnlyPacketStructure, menuPathMax, app)
+	gowid.SetFocusPath(viewOnlyPacketHex, menuPathMax, app)
+}
+
+func openGeneralMenu(app gowid.IApp) {
+	focusOnMenuButton(app)
+	generalMenu.Open(openMenuSite, app)
+}
+
 // Keys for the whole app, applicable whichever view is frontmost
 func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	handled := true
-	// gcla later todo - check for rune!
 	isrune := evk.Key() == tcell.KeyRune
 
 	if evk.Key() == tcell.KeyCtrlC {
@@ -1762,14 +1780,7 @@ func appKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	} else if isrune && evk.Rune() == ':' {
 		lastLineMode(app)
 	} else if evk.Key() == tcell.KeyEscape {
-		gowid.SetFocusPath(mainview, menuPathMain, app)
-		gowid.SetFocusPath(altview1, menuPathAlt, app)
-		gowid.SetFocusPath(altview2, menuPathAlt, app)
-		gowid.SetFocusPath(viewOnlyPacketList, menuPathMax, app)
-		gowid.SetFocusPath(viewOnlyPacketStructure, menuPathMax, app)
-		gowid.SetFocusPath(viewOnlyPacketHex, menuPathMax, app)
-
-		generalMenu.Open(openMenuSite, app)
+		focusOnMenuButton(app)
 	} else if isrune && evk.Rune() == '?' {
 		OpenTemplatedDialog(appView, "UIHelp", app)
 	} else if isrune && evk.Rune() == 'Z' && keyState.PartialZCmd {
