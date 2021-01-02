@@ -9,6 +9,7 @@ package pcap
 import (
 	"syscall"
 
+	"github.com/kballard/go-shellquote"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,6 +27,6 @@ func (c *Command) Kill() error {
 	if c.Cmd.Process == nil {
 		return errors.WithStack(ProcessNotStarted{Command: c.Cmd})
 	}
-	log.Infof("Sending SIGTERM to %v: %v", c.Cmd.Process.Pid, c.Cmd)
+	log.Infof("Sending SIGTERM to %v: %v", c.Cmd.Process.Pid, shellquote.Join(c.Cmd.Args...))
 	return syscall.Kill(-c.Cmd.Process.Pid, syscall.SIGTERM)
 }

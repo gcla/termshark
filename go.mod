@@ -16,6 +16,7 @@ require (
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/jessevdk/go-flags v1.4.0
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.9
 	github.com/mreiferson/go-snappystream v0.2.3

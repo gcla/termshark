@@ -9,10 +9,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 
 	"github.com/gcla/termshark/v2"
+	"github.com/kballard/go-shellquote"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,7 +25,7 @@ type ProcessNotStarted struct {
 var _ error = ProcessNotStarted{}
 
 func (e ProcessNotStarted) Error() string {
-	return fmt.Sprintf("Process %v [%v] not started yet", e.Command.Path, strings.Join(e.Command.Args, " "))
+	return fmt.Sprintf("Process %v [%v] not started yet", e.Command.Path, shellquote.Join(e.Command.Args...))
 }
 
 //======================================================================
@@ -38,7 +38,7 @@ type Command struct {
 func (c *Command) String() string {
 	c.Lock()
 	defer c.Unlock()
-	return fmt.Sprintf("%v %v", c.Cmd.Path, c.Cmd.Args)
+	return fmt.Sprintf("%v %v", c.Cmd.Path, shellquote.Join(c.Cmd.Args...))
 }
 
 func (c *Command) Start() error {
