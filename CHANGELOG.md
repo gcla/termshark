@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.2.0] - 2021-01-03
 ### Added 
 
 - Termshark is now available for linux/arm64, NetBSD and OpenBSD.

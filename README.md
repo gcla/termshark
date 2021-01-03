@@ -4,7 +4,7 @@
 # Termshark
 A terminal user-interface for tshark, inspired by Wireshark.
 
-**V2.1 is out now with conversations, packet coloring and more! See the [ChangeLog](CHANGELOG.md#changelog).**
+**V2.2 is out now with vim keys, packet marks, a command-line and themes! See the [ChangeLog](CHANGELOG.md#changelog).**
 
 ![demo21](/../gh-pages/images/demo21.png?raw=true)
 
