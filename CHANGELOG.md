@@ -3,7 +3,7 @@
 ## [Unreleased]
 ### Added 
 
-- Termshark is now available for linux/arm64.
+- Termshark is now available for linux/arm64, NetBSD and OpenBSD.
 - Vim keys h, j, k and l can now be used in widgets that accept left, down, up and right user input.
 - Termshark's tables support vim-style navigation - use G to go to the bottom, gg to go to the top, or
   add a numeric prefix.
@@ -26,8 +26,6 @@
   are loaded from `~/.config/termshark/themes/` or from a small cache built-in
   to termshark. A new minibuffer command `theme` can be used to change theme;
   `no-theme` turns off theming.
-- The Escape key no longer opens the main menu. Instead it puts focus on the menu button. Hit Enter to open.
-  This is more intuitive with the presence of ":" to open the minibuffer.
 
 ### Changed
 
@@ -36,6 +34,8 @@
 - If auto-scroll is enabled, and you navigate to a different packet in the packet list view during a live
   capture, auto-scroll is resumed if you hit 'G' or the `end` key.
 - Fixed a problem preventing the correct operation of piped input to termshark on freebsd.
+- The Escape key no longer opens the main menu. Instead it puts focus on the menu button. Hit Enter to open.
+  This is more intuitive with the presence of ":" to open the minibuffer.
 
 ## [2.1.1] - 2020-02-02
 ### Added
