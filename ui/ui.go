@@ -1606,10 +1606,54 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 				}
 			}
 		} else {
-			mainViewNoKeys.SetSubWidget(viewOnlyPacketList, app)
-			if deep.Equal(fp, maxViewPath) == nil {
-				gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
+			gotov := 0
+			if mainViewNoKeys.SubWidget() == mainview {
+				v1p := gowid.FocusPath(mainview)
+				if deep.Equal(v1p, mainviewPaths[0]) == nil {
+					gotov = 0
+				} else if deep.Equal(v1p, mainviewPaths[1]) == nil {
+					gotov = 1
+				} else {
+					gotov = 2
+				}
+			} else if mainViewNoKeys.SubWidget() == altview1 {
+				v2p := gowid.FocusPath(altview1)
+				if deep.Equal(v2p, altview1Paths[0]) == nil {
+					gotov = 0
+				} else if deep.Equal(v2p, altview1Paths[1]) == nil {
+					gotov = 1
+				} else {
+					gotov = 2
+				}
+			} else if mainViewNoKeys.SubWidget() == altview2 {
+				v3p := gowid.FocusPath(altview2)
+				if deep.Equal(v3p, altview2Paths[0]) == nil {
+					gotov = 0
+				} else if deep.Equal(v3p, altview2Paths[1]) == nil {
+					gotov = 1
+				} else {
+					gotov = 2
+				}
 			}
+
+			switch gotov {
+			case 0:
+				mainViewNoKeys.SetSubWidget(viewOnlyPacketList, app)
+				if deep.Equal(fp, maxViewPath) == nil {
+					gowid.SetFocusPath(viewOnlyPacketList, maxViewPath, app)
+				}
+			case 1:
+				mainViewNoKeys.SetSubWidget(viewOnlyPacketStructure, app)
+				if deep.Equal(fp, maxViewPath) == nil {
+					gowid.SetFocusPath(viewOnlyPacketStructure, maxViewPath, app)
+				}
+			case 2:
+				mainViewNoKeys.SetSubWidget(viewOnlyPacketHex, app)
+				if deep.Equal(fp, maxViewPath) == nil {
+					gowid.SetFocusPath(viewOnlyPacketHex, maxViewPath, app)
+				}
+			}
+
 		}
 	} else if isrune && evk.Rune() == '/' {
 		setFocusOnDisplayFilter(app)
