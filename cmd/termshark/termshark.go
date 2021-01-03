@@ -716,6 +716,43 @@ func cmain() int {
 	} else {
 		// Start UI right away, reading from a file
 		startUIChan <- struct{}{}
+	// Need to figure out possible changes to COLORTERM before creating the
+	// tcell screen. Note that even though apprunner.Start() below will create
+	// a new screen, it will use a terminfo that it constructed the first time
+	// we call NewApp(), because tcell stores these in a global map. So if the
+	// first terminfo is created in an environment with COLORTERM=truecolor,
+	// the terminfo Go struct is extended with codes that emit truecolor-compatible
+	// ansi codes for colors. Then if I later create a new screen without COLORTERM,
+	// tcell will still use the extended terminfo struct and emit truecolor-codes
+	// anyway.
+	//
+	// If you are using base16-shell, the lowest colors 0-21 in the 256 color space
+	// will be remapped to whatever colors the terminal base16 theme sets up. If you
+	// are using a termshark theme that expresses colors in RGB style (#7799AA), and
+	// termshark is running in a 256-color terminal, then termshark will find the closest
+	// match for the RGB color in the 256 color-space. But termshark assumes that colors
+	// 0-21 are set up normally, and not remapped. If the closest match is one of those
+	// colors, then the theme won't look as expected. A workaround is to tell
+	// gowid not to use colors 0-21 when finding the closest match.
+	if termshark.ConfKeyExists("main.ignore-base16-colors") {
+		gowid.IgnoreBase16 = termshark.ConfBool("main.ignore-base16-colors", false)
+	} else {
+		// Try to auto-detect whether or not base16-shell is installed and in-use
+		gowid.IgnoreBase16 = (os.Getenv("BASE16_SHELL") != "")
+	}
+	if gowid.IgnoreBase16 {
+		log.Infof("Will not consider colors 0-21 from the terminal 256-color-space when interpolating theme colors")
+		// If main.respect-colorterm=true then termshark will leave COLORTERM set and use
+		// 24-bit color if possible. The problem with this, in the presence of base16, is that
+		// some terminal-emulators - e.g. gnome-terminal - still seems to map RGB ANSI codes
+		// colors that are set at values 0-21 in the 256-color space. I'm not sure if this is
+		// just an implementation snafu, or if something else is going on... In any case,
+		// termshark will fall back to 256-colors if base16 is detected because I can
+		// programmatically avoid choosing colors 0-21 for anything termshark needs.
+		if os.Getenv("COLORTERM") != "" && !termshark.ConfBool("main.respect-colorterm", false) {
+			log.Infof("Pessimistically disabling 24-bit color to avoid conflicts with base16")
+			os.Unsetenv("COLORTERM")
+		}
 	}
 
 	// Do this before ui.Build. If ui.Build fails (e.g. bad TERM), then the filter will be left
@@ -982,24 +1019,6 @@ Loop:
 				if err != nil {
 					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
 				}
-			}
-
-			// If you are using base16-shell, the lowest colors 0-21 in the 256 color space
-			// will be remapped to whatever colors the terminal base16 theme sets up. If you
-			// are using a termshark theme that expresses colors in RGB style (#7799AA), and
-			// termshark is running in a 256-color terminal, then termshark will find the closest
-			// match for the RGB color in the 256 color-space. But termshark assumes that colors
-			// 0-21 are set up normally, and not remapped. If the closest match is one of those
-			// colors, then the theme won't look as expected. A workaround is to tell
-			// gowid not to use colors 0-21 when finding the closest match.
-			if termshark.ConfKeyExists("main.ignore-base16-colors") {
-				gowid.IgnoreBase16 = termshark.ConfBool("main.ignore-base16-colors", false)
-			} else {
-				// Try to auto-detect whether or not base16-shell is installed and in-use
-				gowid.IgnoreBase16 = (os.Getenv("BASE16_SHELL") != "")
-			}
-			if gowid.IgnoreBase16 {
-				log.Infof("Will not consider colors 0-21 from the terminal 256-color-space when interpolating theme colors")
 			}
 
 			// This needs to run after the toml config file is loaded.
