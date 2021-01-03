@@ -159,7 +159,7 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 							"command": c.streamCmd.String(),
 							"error":   err,
 						})
-						pcap.HandleError(cerr, cb)
+						pcap.HandleError(pcap.StreamCode, app, cerr, cb)
 					}
 				}
 
@@ -187,19 +187,23 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 
 	streamOut, err := c.streamCmd.StdoutReader()
 	if err != nil {
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.StreamCode, app, err, cb)
 		return
 	}
 
-	pcap.HandleBegin(cb)
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		pcap.HandleBegin(pcap.StreamCode, app, cb)
+	}))
 	defer func() {
-		pcap.HandleEnd(cb)
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			pcap.HandleEnd(pcap.StreamCode, app, cb)
+		}))
 	}()
 
 	err = c.streamCmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Error starting stream reassembly %v: %v", c.streamCmd, err)
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.StreamCode, app, err, cb)
 		return
 	}
 
@@ -244,7 +248,7 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 
 	streamOut, err := c.indexerCmd.StdoutReader()
 	if err != nil {
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.StreamCode, app, err, cb)
 		return
 	}
 
@@ -274,7 +278,7 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 							"command": c.indexerCmd.String(),
 							"error":   err,
 						})
-						pcap.HandleError(cerr, cb)
+						pcap.HandleError(pcap.StreamCode, app, cerr, cb)
 					}
 				}
 				streamOut.Close()
@@ -310,7 +314,7 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 	err = c.indexerCmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Error starting stream indexer %v: %v", c.indexerCmd, err)
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.StreamCode, app, err, cb)
 		return
 	}
 

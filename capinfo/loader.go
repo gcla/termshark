@@ -126,7 +126,7 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 							"command": c.capinfoCmd.String(),
 							"error":   err,
 						})
-						pcap.HandleError(cerr, cb)
+						pcap.HandleError(pcap.CapinfoCode, app, cerr, cb)
 					}
 				}
 
@@ -154,7 +154,7 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 
 	capinfoOut, err := c.capinfoCmd.StdoutReader()
 	if err != nil {
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.CapinfoCode, app, err, cb)
 		return
 	}
 
@@ -162,15 +162,19 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 		cb.AfterCapinfoEnd(true)
 	}()
 
-	pcap.HandleBegin(cb)
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		pcap.HandleBegin(pcap.CapinfoCode, app, cb)
+	}))
 	defer func() {
-		pcap.HandleEnd(cb)
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			pcap.HandleEnd(pcap.CapinfoCode, app, cb)
+		}))
 	}()
 
 	err = c.capinfoCmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Error starting capinfo %v: %v", c.capinfoCmd, err)
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.CapinfoCode, app, err, cb)
 		return
 	}
 

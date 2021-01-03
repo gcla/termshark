@@ -138,7 +138,7 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 							"command": c.convsCmd.String(),
 							"error":   err,
 						})
-						pcap.HandleError(cerr, cb)
+						pcap.HandleError(pcap.ConvCode, app, cerr, cb)
 					}
 				}
 
@@ -166,7 +166,7 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 
 	convsOut, err := c.convsCmd.StdoutReader()
 	if err != nil {
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.ConvCode, app, err, cb)
 		return
 	}
 
@@ -174,15 +174,19 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 		cb.AfterDataEnd(true)
 	}()
 
-	pcap.HandleBegin(cb)
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		pcap.HandleBegin(pcap.ConvCode, app, cb)
+	}))
 	defer func() {
-		pcap.HandleEnd(cb)
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			pcap.HandleEnd(pcap.ConvCode, app, cb)
+		}))
 	}()
 
 	err = c.convsCmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Error starting %v: %v", c.convsCmd, err)
-		pcap.HandleError(err, cb)
+		pcap.HandleError(pcap.ConvCode, app, err, cb)
 		return
 	}
 

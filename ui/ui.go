@@ -8,6 +8,7 @@ package ui
 import (
 	"encoding/xml"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"runtime"
@@ -147,8 +148,8 @@ var packetListView *psmlTableRowWidget
 
 var Loadingw gowid.IWidget    // "loading..."
 var MissingMsgw gowid.IWidget // centered, holding singlePacketViewMsgHolder
-var EmptyStructViewTimer *time.Ticker
-var EmptyHexViewTimer *time.Ticker
+var EmptyStructViewTimer *time.Timer
+var EmptyHexViewTimer *time.Timer
 
 var curExpandedStructNodes pdmltree.ExpandedPaths // a path to each expanded node in the packet, preserved while navigating
 var curStructPosition tree.IPos                   // e.g. [0, 2, 1] -> the indices of the expanded nodes
@@ -159,6 +160,8 @@ var CacheRequests []pcap.LoadPcapSlice
 
 var CacheRequestsChan chan struct{} // false means started, true means finished
 var QuitRequestedChan chan struct{}
+var StartUIChan chan struct{}
+var StartUIOnce sync.Once
 
 // Store this for vim-like keypresses that are a sequence e.g. "ZZ"
 var keyState termshark.KeyState
@@ -166,17 +169,18 @@ var marksMap map[rune]termshark.JumpPos
 var globalMarksMap map[rune]termshark.GlobalJumpPos
 var lastJumpPos int
 
-var Loader *pcap.Loader
-var PcapScheduler *pcap.Scheduler
 var NoGlobalJump termshark.GlobalJumpPos // leave as default, like a placeholder
-var DarkMode bool                        // global state in app
-var PacketColors bool                    // global state in app
-var PacketColorsSupported bool           // global state in app - true if it's even possible
-var AutoScroll bool                      // true if the packet list should auto-scroll when listening on an interface.
-var newPacketsArrived bool               // true if current updates are due to new packets when listening on an interface.
-var reenableAutoScroll bool              // set to true by keypress processing widgets - used with newPacketsArrived
-var Running bool                         // true if gowid/tcell is controlling the terminal
-var QuitRequested bool                   // true if a quit has been issued, but not yet processed. Stops some handlers displaying errors.
+
+var Loader *pcap.PacketLoader
+
+var DarkMode bool              // global state in app
+var PacketColors bool          // global state in app
+var PacketColorsSupported bool // global state in app - true if it's even possible
+var AutoScroll bool            // true if the packet list should auto-scroll when listening on an interface.
+var newPacketsArrived bool     // true if current updates are due to new packets when listening on an interface.
+var reenableAutoScroll bool    // set to true by keypress processing widgets - used with newPacketsArrived
+var Running bool               // true if gowid/tcell is controlling the terminal
+var QuitRequested bool         // true if a quit has been issued, but not yet processed. Stops some handlers displaying errors.
 
 //======================================================================
 
@@ -185,6 +189,8 @@ func init() {
 	QuitRequestedChan = make(chan struct{}, 1) // buffered because send happens from ui goroutine, which runs global select
 	CacheRequestsChan = make(chan struct{}, 1000)
 	CacheRequests = make([]pcap.LoadPcapSlice, 0)
+	// Buffered because I might send something in this goroutine
+	StartUIChan = make(chan struct{}, 1)
 	keyState.NumberPrefix = -1 // 0 might be meaningful
 	marksMap = make(map[rune]termshark.JumpPos)
 	globalMarksMap = make(map[rune]termshark.GlobalJumpPos)
@@ -223,22 +229,16 @@ func RequestQuit() {
 }
 
 // Runs in app goroutine
-func UpdateProgressBarForInterface(c *pcap.Loader, app gowid.IApp) {
+func UpdateProgressBarForInterface(c *pcap.InterfaceLoader, app gowid.IApp) {
 	SetProgressIndeterminate(app)
-	switch Loader.State() {
-	case 0:
-		ClearProgressWidget(app)
-	default:
-		loadSpinner.Update()
-		setProgressWidget(app)
-	}
+	loadSpinner.Update()
 }
 
 // Runs in app goroutine
-func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp) float64 {
+func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid.IApp) float64 {
 	SetProgressDeterminate(app)
 
-	psmlProg := Prog{100, 100}
+	psmlProg := Prog{0, 100}
 	pdmlPacketProg := Prog{0, 100}
 	pdmlIdxProg := Prog{0, 100}
 	pcapPacketProg := Prog{0, 100}
@@ -264,16 +264,16 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 				currentRow = int(foo)
 				currentRowMod = int64(currentRow % pktsPerLoad)
 				currentRowDiv = (currentRow / pktsPerLoad) * pktsPerLoad
-				c.Lock()
-				curRowProg.cur, curRowProg.max = int64(currentRow), int64(len(c.PacketPsmlData))
-				c.Unlock()
+				c.PsmlLoader.Lock()
+				curRowProg.cur, curRowProg.max = int64(currentRow), int64(len(c.PsmlData()))
+				c.PsmlLoader.Unlock()
 			}
 		}
 	}
 
 	// Progress determined by how many of the (up to) pktsPerLoad pdml packets are read
 	// If it's not the same chunk of rows, assume it won't affect our view, so no progress needed
-	if c.State()&pcap.LoadingPdml != 0 {
+	if c.PdmlLoader.IsLoading() {
 		if c.LoadingRow() == currentRowDiv {
 			if x, err = c.LengthOfPdmlCacheEntry(c.LoadingRow()); err == nil {
 				pdmlPacketProg.cur = int64(x)
@@ -284,9 +284,9 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 			}
 
 			// Progress determined by how far through the pcap the pdml reader is.
-			c.Lock()
+			c.PdmlLoader.Lock()
 			c2, m, err = system.ProcessProgress(c.PdmlPid, c.PcapPdml)
-			c.Unlock()
+			c.PdmlLoader.Unlock()
 			if err == nil {
 				pdmlIdxProg.cur, pdmlIdxProg.max = c2, m
 				if currentRow != -1 {
@@ -305,9 +305,9 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 			}
 
 			// Progress determined by how far through the pcap the pcap reader is.
-			c.Lock()
+			c.PdmlLoader.Lock()
 			c2, m, err = system.ProcessProgress(c.PcapPid, c.PcapPcap)
-			c.Unlock()
+			c.PdmlLoader.Unlock()
 			if err == nil {
 				pcapIdxProg.cur, pcapIdxProg.max = c2, m
 				if currentRow != -1 {
@@ -318,10 +318,10 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 		}
 	}
 
-	if psml, ok := c.PcapPsml.(string); ok && c.State()&pcap.LoadingPsml != 0 {
-		c.Lock()
+	if psml, ok := c.PcapPsml.(string); ok && c.PsmlLoader.IsLoading() {
+		c.PsmlLoader.Lock()
 		c2, m, err = system.ProcessProgress(termshark.SafePid(c.PsmlCmd), psml)
-		c.Unlock()
+		c.PsmlLoader.Unlock()
 		if err == nil {
 			psmlProg.cur, psmlProg.max = c2, m
 		}
@@ -330,48 +330,35 @@ func UpdateProgressBarForFile(c *pcap.Loader, prevRatio float64, app gowid.IApp)
 	var prog Prog
 
 	// state is guaranteed not to include pcap.Loadingiface if we showing a determinate progress bar
-	switch c.State() {
-	case pcap.LoadingPsml:
-		prog = psmlProg
+	switch {
+	case c.PsmlLoader.IsLoading() && c.PdmlLoader.IsLoading() && c.PdmlLoader.LoadIsVisible():
 		select {
-		case <-c.StartStage2Chan:
-		default:
-			prog.cur = prog.cur / 2 // temporarily divide in 2. Leave original for case above - so that the 50%
-		}
-	case pcap.LoadingPdml:
-		prog = progMin(
-			progMax(pcapPacketProg, pcapIdxProg), // max because the fastest will win and cancel the other
-			progMax(pdmlPacketProg, pdmlIdxProg),
-		)
-	case pcap.LoadingPsml | pcap.LoadingPdml:
-		select {
-		case <-c.StartStage2Chan:
-			prog = progMin( // min because all of these have to complete, so the slowest determines progress
-				psmlProg,
-				progMin(
-					progMax(pcapPacketProg, pcapIdxProg), // max because the fastest will win and cancel the other
+		case <-c.StartStage2ChanFn():
+			prog = psmlProg.Add(
+				progMax(pcapPacketProg, pcapIdxProg).Add(
 					progMax(pdmlPacketProg, pdmlIdxProg),
 				),
 			)
 		default:
-			prog = psmlProg
-			prog.cur = prog.cur / 2 // temporarily divide in 2. Leave original for case above - so that the 50%
+			prog = psmlProg.Div(2) // temporarily divide in 2. Leave original for case above - so that the 50%
 		}
+	case c.PsmlLoader.IsLoading():
+		prog = psmlProg
+	case c.PdmlLoader.IsLoading() && c.PdmlLoader.LoadIsVisible():
+		prog = progMax(pcapPacketProg, pcapIdxProg).Add(
+			progMax(pdmlPacketProg, pdmlIdxProg),
+		)
 	}
 
 	curRatio := float64(prog.cur) / float64(prog.max)
-	if prog.Complete() {
-		if prevRatio < 1.0 {
-			ClearProgressWidget(app)
-		}
-	} else {
+
+	if !prog.Complete() {
 		if prevRatio < curRatio {
 			loadProgress.SetTarget(app, int(prog.max))
 			loadProgress.SetProgress(app, int(prog.cur))
-			setProgressWidget(app)
 		}
 	}
-	return curRatio
+	return math.Max(prevRatio, curRatio)
 }
 
 //======================================================================
@@ -1060,7 +1047,7 @@ func lastLineMode(app gowid.IApp) {
 
 	MiniBuffer.Register("clear-filter", minibufferFn(func(gowid.IApp, ...string) error {
 		FilterWidget.SetValue("", app)
-		ApplyCurrentFilter(app)
+		RequestNewFilter(FilterWidget.Value(), app)
 		return nil
 	}))
 
@@ -1102,8 +1089,8 @@ func getCurrentStructModel(row int) *pdmltree.Model {
 	pktsPerLoad := Loader.PacketsPerLoad()
 	row2 := (row / pktsPerLoad) * pktsPerLoad
 
-	Loader.Lock()
-	defer Loader.Unlock()
+	Loader.PsmlLoader.Lock()
+	defer Loader.PsmlLoader.Unlock()
 	if ws, ok := Loader.PacketCache.Get(row2); ok {
 		srca := ws.(pcap.CacheEntry).Pdml
 		if len(srca) > row%pktsPerLoad {
@@ -1121,130 +1108,6 @@ func getCurrentStructModel(row int) *pdmltree.Model {
 
 //======================================================================
 
-type NoHandlers struct{}
-
-//======================================================================
-
-type updateCurrentCaptureInTitle struct {
-	Ld  *pcap.Scheduler
-	App gowid.IApp
-}
-
-var _ pcap.INewSource = updateCurrentCaptureInTitle{}
-var _ pcap.IClear = updateCurrentCaptureInTitle{}
-
-func MakeUpdateCurrentCaptureInTitle(app gowid.IApp) updateCurrentCaptureInTitle {
-	return updateCurrentCaptureInTitle{
-		Ld:  PcapScheduler,
-		App: app,
-	}
-}
-
-func (t updateCurrentCaptureInTitle) OnNewSource() {
-	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		currentCapture.SetText(t.Ld.String(), app)
-		currentCaptureWidgetHolder.SetSubWidget(currentCaptureWidget, app)
-	}))
-}
-
-func (t updateCurrentCaptureInTitle) OnClear() {
-	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		currentCaptureWidgetHolder.SetSubWidget(nullw, app)
-	}))
-}
-
-//======================================================================
-
-type updatePacketViews struct {
-	Ld  *pcap.Scheduler
-	App gowid.IApp
-}
-
-var _ pcap.IOnError = updatePacketViews{}
-var _ pcap.IClear = updatePacketViews{}
-var _ pcap.IBeforeBegin = updatePacketViews{}
-var _ pcap.IAfterEnd = updatePacketViews{}
-
-func MakePacketViewUpdater(app gowid.IApp) updatePacketViews {
-	res := updatePacketViews{}
-	res.App = app
-	res.Ld = PcapScheduler
-	return res
-}
-
-func (t updatePacketViews) EnableOperations() {
-	t.Ld.Enable()
-}
-
-func (t updatePacketViews) OnClear() {
-	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		clearPacketViews(app)
-	}))
-}
-
-func (t updatePacketViews) BeforeBegin() {
-	ch2 := Loader.PsmlFinishedChan
-	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		clearPacketViews(app)
-		t.Ld.Lock()
-		defer t.Ld.Unlock()
-		setPacketListWidgets(t.Ld, app)
-		setProgressWidget(app)
-
-		// Start this after widgets have been cleared, to get focus change
-		termshark.TrackedGo(func() {
-			fn2 := func() {
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					updatePacketListWithData(Loader, app)
-				}))
-			}
-
-			termshark.RunOnDoubleTicker(ch2, fn2,
-				time.Duration(100)*time.Millisecond,
-				time.Duration(2000)*time.Millisecond,
-				10)
-		}, Goroutinewg)
-	}))
-}
-
-func (t updatePacketViews) AfterEnd() {
-	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		updatePacketListWithData(t.Ld, app)
-		StopEmptyStructViewTimer()
-		StopEmptyHexViewTimer()
-		log.Infof("Load operation complete")
-	}))
-}
-
-func (t updatePacketViews) OnError(err error) {
-	log.Error(err)
-	if !Running {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		RequestQuit()
-	} else {
-
-		var errstr string
-		if kverr, ok := err.(gowid.KeyValueError); ok {
-			errstr = fmt.Sprintf("%v\n\n", kverr.Cause())
-			kvs := make([]string, 0, len(kverr.KeyVals))
-			for k, v := range kverr.KeyVals {
-				kvs = append(kvs, fmt.Sprintf("%v: %v", k, v))
-			}
-			errstr = errstr + strings.Join(kvs, "\n")
-		} else {
-			errstr = fmt.Sprintf("%v", err)
-		}
-
-		t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-			OpenLongError(errstr, app)
-			StopEmptyStructViewTimer()
-			StopEmptyHexViewTimer()
-		}))
-	}
-}
-
-//======================================================================
-
 func reallyClear(app gowid.IApp) {
 	msgt := "Do you want to clear current capture?"
 	msg := text.New(msgt)
@@ -1256,12 +1119,16 @@ func reallyClear(app gowid.IApp) {
 					Msg: "Ok",
 					Action: func(app gowid.IApp, w gowid.IWidget) {
 						YesNo.Close(app)
-						PcapScheduler.RequestClearPcap(
+						Loader.ClearPcap(
 							pcap.HandlerList{
-								MakePacketViewUpdater(app),
-								MakeUpdateCurrentCaptureInTitle(app),
+								SimpleErrors{},
+								MakePacketViewUpdater(),
+								MakeUpdateCurrentCaptureInTitle(),
 								ManageStreamCache{},
 								ManageCapinfoCache{},
+								SetStructWidgets{Loader}, // for OnClear
+								ClearMarksHandler{},
+								CancelledMessage{},
 							},
 						)
 					},
@@ -1461,7 +1328,7 @@ func tableRowFromPacketNumber(savedPacket int) (int, error) {
 	// Map e.g. packet number #123 to the index in the PSML array - e.g. index 10 (order of psml load)
 	packetRowId, ok := Loader.PacketNumberMap[savedPacket]
 	if !ok {
-		return -1, fmt.Errorf("Error mapping packet %v", savedPacket)
+		return -1, fmt.Errorf("Error finding packet %v", savedPacket)
 	}
 	// This psml order is also the table RowId order. The table might be sorted though, so
 	// map this RowId to the actual table row, so we can change focus to it
@@ -1482,11 +1349,11 @@ func packetNumberFromTableRow(tableRow int) (termshark.JumpPos, error) {
 	// e.g. packet #123
 
 	var summary string
-	if len(Loader.PacketPsmlData) > int(packetRowId) {
-		summary = psmlSummary(Loader.PacketPsmlData[packetRowId]).String()
+	if len(Loader.PsmlData()) > int(packetRowId) {
+		summary = psmlSummary(Loader.PsmlData()[packetRowId]).String()
 	}
 
-	packetNum, err := strconv.Atoi(Loader.PacketPsmlData[packetRowId][0])
+	packetNum, err := strconv.Atoi(Loader.PsmlData()[packetRowId][0])
 	if err != nil {
 		return termshark.JumpPos{}, fmt.Errorf("Unexpected error determining no. of packet %d: %v.", tableRow, err)
 	}
@@ -1610,7 +1477,7 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 				if savedPacket != -1 {
 					// Map that packet number #123 to the index in the PSML array - e.g. index 10 (order of psml load)
 					if packetRowId, ok := Loader.PacketNumberMap[savedPacket]; !ok {
-						OpenError(fmt.Sprintf("Error mapping packet %v", savedPacket), app)
+						OpenError(fmt.Sprintf("Error finding packet %v", savedPacket), app)
 					} else {
 						// This psml order is also the table RowId order. The table might be sorted though, so
 						// map this RowId to the actual table row, so we can change focus to it
@@ -1692,8 +1559,8 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 	isrune := evk.Key() == tcell.KeyRune
 
-	if evk.Key() == tcell.KeyCtrlC && Loader.State()&pcap.LoadingPsml != 0 {
-		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // iface and psml
+	if evk.Key() == tcell.KeyCtrlC && Loader.PsmlLoader.IsLoading() {
+		Loader.StopLoadPsmlAndIface(NoHandlers{}) // iface and psml
 	} else if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyBacktab {
 		isTab := (evk.Key() == tcell.KeyTab)
 		var tabMap map[gowid.IWidget]gowid.IWidget
@@ -1834,12 +1701,12 @@ func ClearProgressWidget(app gowid.IApp) {
 	filterCols.SetDimensions(ds, app)
 }
 
-func setProgressWidget(app gowid.IApp) {
+func SetProgressWidget(app gowid.IApp) {
 	stop := button.New(text.New("Stop"))
 	stop2 := styled.NewExt(stop, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
 
 	stop.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		PcapScheduler.RequestStopLoadStage1(NoHandlers{}) // psml and iface
+		Loader.StopLoadPsmlAndIface(NoHandlers{}) // psml and iface
 	}))
 
 	prog := vpadding.New(progressHolder, gowid.VAlignTop{}, flow)
@@ -1884,6 +1751,7 @@ func setLowerWidgets(app gowid.IApp) {
 					),
 				)
 			}
+
 			str := getStructWidgetToDisplay(row, app)
 			if str != nil {
 				sw2 = enableselected.New(str)
@@ -1894,16 +1762,57 @@ func setLowerWidgets(app gowid.IApp) {
 		packetHexViewHolder.SetSubWidget(sw1, app)
 		StopEmptyHexViewTimer()
 	} else {
-		if EmptyHexViewTimer == nil {
-			startEmptyHexViewTimer()
+		// If autoscroll is on, it's annoying to see the constant loading message, so
+		// suppress and just remain on the last displayed hex
+		timer := false
+		if AutoScroll {
+			// Only displaying loading if the current panel is blank. If it's data, leave the data
+			if packetHexViewHolder.SubWidget() == nullw {
+				timer = true
+			}
+		} else {
+			if packetHexViewHolder.SubWidget() != MissingMsgw {
+				timer = true
+			}
+		}
+
+		if timer {
+			if EmptyHexViewTimer == nil {
+				EmptyHexViewTimer = time.AfterFunc(time.Duration(1000)*time.Millisecond, func() {
+					app.Run(gowid.RunFunction(func(app gowid.IApp) {
+						singlePacketViewMsgHolder.SetSubWidget(Loadingw, app)
+						packetHexViewHolder.SetSubWidget(MissingMsgw, app)
+					}))
+				})
+			}
 		}
 	}
 	if sw2 != nil {
 		packetStructureViewHolder.SetSubWidget(sw2, app)
 		StopEmptyStructViewTimer()
 	} else {
-		if EmptyStructViewTimer == nil {
-			startEmptyStructViewTimer()
+		timer := false
+		if AutoScroll {
+			if packetStructureViewHolder.SubWidget() == nullw {
+				timer = true
+			}
+		} else {
+			if packetStructureViewHolder.SubWidget() != MissingMsgw {
+				timer = true
+			}
+		}
+
+		// If autoscroll is on, it's annoying to see the constant loading message, so
+		// suppress and just remain on the last displayed hex
+		if timer {
+			if EmptyStructViewTimer == nil {
+				EmptyStructViewTimer = time.AfterFunc(time.Duration(1000)*time.Millisecond, func() {
+					app.Run(gowid.RunFunction(func(app gowid.IApp) {
+						singlePacketViewMsgHolder.SetSubWidget(Loadingw, app)
+						packetStructureViewHolder.SetSubWidget(MissingMsgw, app)
+					}))
+				})
+			}
 		}
 	}
 
@@ -2041,14 +1950,16 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 			CacheRequests = CacheRequests[:0]
 
 			CacheRequests = append(CacheRequests, pcap.LoadPcapSlice{
-				Row:    (row / pktsPerLoad) * pktsPerLoad,
-				Cancel: true,
+				Row:           (row / pktsPerLoad) * pktsPerLoad,
+				CancelCurrent: true,
 			})
 			if rowm > pktsPerLoad/2 {
+				// Optimistically load the batch below this one
 				CacheRequests = append(CacheRequests, pcap.LoadPcapSlice{
 					Row: ((row / pktsPerLoad) + 1) * pktsPerLoad,
 				})
 			} else {
+				// Optimistically load the batch above this one
 				row2 := ((row / pktsPerLoad) - 1) * pktsPerLoad
 				if row2 < 0 {
 					row2 = 0
@@ -2059,9 +1970,11 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 			}
 
 			CacheRequestsChan <- struct{}{}
-
-			setLowerWidgets(app)
 		}
+
+		// When the focus changes, update the hex and struct view. If they cannot
+		// be populated, display a loading message
+		setLowerWidgets(app)
 	}))
 
 	withScrollbar := withscrollbar.New(packetListView, withscrollbar.Options{
@@ -2358,112 +2271,23 @@ func (r copyModePalette) AlterWidget(w gowid.IWidget, app gowid.IApp) gowid.IWid
 
 //======================================================================
 
-type SaveRecents struct {
-	Pcap   string
-	Filter string
-	App    gowid.IApp
-}
-
-var _ pcap.IBeforeBegin = SaveRecents{}
-
-func MakeSaveRecents(pcap string, filter string, app gowid.IApp) SaveRecents {
-	return SaveRecents{
-		Pcap:   pcap,
-		Filter: filter,
-		App:    app,
-	}
-}
-
-func (t SaveRecents) BeforeBegin() {
-	// Run on main goroutine to avoid problems flagged by -race
-	t.App.Run(gowid.RunFunction(func(gowid.IApp) {
-		if t.Pcap != "" {
-			termshark.AddToRecentFiles(t.Pcap)
-		}
-		if t.Filter != "" {
-			// Run on main goroutine to avoid problems flagged by -race
-			termshark.AddToRecentFilters(t.Filter)
-		}
-	}))
-}
-
-//======================================================================
-
-
-type SignalPackets struct {
-	done bool
-	C    chan struct{}
-}
-
-var _ pcap.IPsmlHeader = (*SignalPackets)(nil)
-
-func (t *SignalPackets) OnPsmlHeader() {
-	if !t.done {
-		close(t.C)
-		t.done = true
-	}
-}
-
-//======================================================================
-
-type checkGlobalJumpAfterPsml struct {
-	App  gowid.IApp
-	Jump termshark.GlobalJumpPos
-}
-
-var _ pcap.IAfterEnd = checkGlobalJumpAfterPsml{}
-var _ pcap.IOnError = checkGlobalJumpAfterPsml{}
-var _ pcap.INewSource = checkGlobalJumpAfterPsml{}
-
-func MakeCheckGlobalJumpAfterPsml(app gowid.IApp, jmp termshark.GlobalJumpPos) checkGlobalJumpAfterPsml {
-	return checkGlobalJumpAfterPsml{
-		App:  app,
-		Jump: jmp,
-	}
-}
-
-func clearMarks() {
-	for k := range marksMap {
-		delete(marksMap, k)
-	}
-	lastJumpPos = -1
-}
-
-func (t checkGlobalJumpAfterPsml) OnNewSource() {
-	clearMarks()
-}
-
-func (t checkGlobalJumpAfterPsml) OnClear() {
-	clearMarks()
-}
-
-func (t checkGlobalJumpAfterPsml) OnError(err error) {
-}
-
-func (t checkGlobalJumpAfterPsml) AfterEnd() {
-	// Run on main goroutine to avoid problems flagged by -race
-	t.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		if QuitRequested {
-			return
-		}
-		if t.Jump.Filename == Loader.Pcap() {
-			if packetListView != nil {
-				tableRow, err := tableRowFromPacketNumber(t.Jump.Pos)
-				if err != nil {
-					OpenError(err.Error(), app)
-				} else {
-
-					tableCol := 0
-					curTablePos, err := packetListView.FocusXY()
-					if err == nil {
-						tableCol = curTablePos.Column
-					}
-
-					packetListView.SetFocusXY(app, table.Coords{Column: tableCol, Row: tableRow})
-				}
-			}
-		}
-	}))
+func RequestLoadInterfaces(psrcs []pcap.IPacketSource, captureFilter string, displayFilter string, tmpfile string, app gowid.IApp) {
+	Loader.Renew()
+	Loader.LoadInterfaces(psrcs, captureFilter, displayFilter, tmpfile,
+		pcap.HandlerList{
+			StartUIWhenThereArePackets{},
+			SimpleErrors{},
+			MakeSaveRecents("", displayFilter),
+			MakePacketViewUpdater(),
+			MakeUpdateCurrentCaptureInTitle(),
+			ManageStreamCache{},
+			ManageCapinfoCache{},
+			SetStructWidgets{Loader}, // for OnClear
+			ClearMarksHandler{},
+			CancelledMessage{},
+		},
+		app,
+	)
 }
 
 //======================================================================
@@ -2471,19 +2295,45 @@ func (t checkGlobalJumpAfterPsml) AfterEnd() {
 // Call from app goroutine context
 func RequestLoadPcapWithCheck(pcapf string, displayFilter string, jump termshark.GlobalJumpPos, app gowid.IApp) {
 	handlers := pcap.HandlerList{
-		MakeSaveRecents(pcapf, displayFilter, app),
-		MakePacketViewUpdater(app),
-		MakeUpdateCurrentCaptureInTitle(app),
+		SimpleErrors{},
+		MakeSaveRecents(pcapf, displayFilter),
+		MakePacketViewUpdater(),
+		MakeUpdateCurrentCaptureInTitle(),
 		ManageStreamCache{},
 		ManageCapinfoCache{},
-		MakeCheckGlobalJumpAfterPsml(app, jump),
+		SetStructWidgets{Loader}, // for OnClear
+		MakeCheckGlobalJumpAfterPsml(jump),
+		ClearMarksHandler{},
+		CancelledMessage{},
 	}
 
 	if _, err := os.Stat(pcapf); os.IsNotExist(err) {
-		pcap.HandleError(err, handlers)
+		pcap.HandleError(pcap.NoneCode, app, err, handlers)
 	} else {
-		PcapScheduler.RequestLoadPcap(pcapf, displayFilter, handlers)
+		// no auto-scroll when reading a file
+		AutoScroll = false
+		Loader.LoadPcap(pcapf, displayFilter, handlers, app)
 	}
+}
+
+//======================================================================
+
+func RequestNewFilter(displayFilter string, app gowid.IApp) {
+	handlers := pcap.HandlerList{
+		SimpleErrors{},
+		MakePacketViewUpdater(),
+		MakeUpdateCurrentCaptureInTitle(),
+		SetStructWidgets{Loader}, // for OnClear
+		ClearMarksHandler{},
+		// Don't use this one - we keep the cancelled flag set so that we
+		// don't restart live captures on clear if ctrl-c has been issued
+		// so we don't want this handler on a new filter because we don't
+		// want to be told again after applying the filter that the load
+		// was cancelled
+		//MakeCancelledMessage(),
+	}
+
+	Loader.NewFilter(displayFilter, handlers, app)
 }
 
 //======================================================================
@@ -2500,6 +2350,15 @@ func (p Prog) Complete() bool {
 
 func (p Prog) String() string {
 	return fmt.Sprintf("cur=%d max=%d", p.cur, p.max)
+}
+
+func (p Prog) Div(y int64) Prog {
+	p.cur /= y
+	return p
+}
+
+func (p Prog) Add(y Prog) Prog {
+	return Prog{cur: p.cur + y.cur, max: p.max + y.max}
 }
 
 func progMin(x, y Prog) Prog {
@@ -2586,63 +2445,6 @@ func (s savedCompleter) Completions(prefix string, cb termshark.IPrefixCompleter
 
 //======================================================================
 
-type SetStructWidgets struct {
-	Ld  *pcap.Loader
-	App gowid.IApp
-}
-
-var _ pcap.IOnError = SetStructWidgets{}
-var _ pcap.IClear = SetStructWidgets{}
-var _ pcap.IBeforeBegin = SetStructWidgets{}
-var _ pcap.IAfterEnd = SetStructWidgets{}
-
-func (s SetStructWidgets) OnClear() {
-	s.AfterEnd()
-}
-
-func (s SetStructWidgets) BeforeBegin() {
-	s2ch := s.Ld.Stage2FinishedChan
-
-	termshark.TrackedGo(func() {
-		fn2 := func() {
-			s.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-				setLowerWidgets(app)
-			}))
-		}
-
-		termshark.RunOnDoubleTicker(s2ch, fn2,
-			time.Duration(100)*time.Millisecond,
-			time.Duration(2000)*time.Millisecond,
-			10)
-	}, Goroutinewg)
-}
-
-// Close the channel before the callback. When the global loader state is idle,
-// app.Quit() will stop accepting app callbacks, so the goroutine that waits
-// for ch to be closed will never terminate.
-func (s SetStructWidgets) AfterEnd() {
-	s.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		setLowerWidgets(app)
-	}))
-}
-
-func (s SetStructWidgets) OnError(err error) {
-	log.Error(err)
-	s.App.Run(gowid.RunFunction(func(app gowid.IApp) {
-		OpenLongError(fmt.Sprintf("%v", err), app)
-	}))
-}
-
-//======================================================================
-
-func startEmptyStructViewTimer() {
-	EmptyStructViewTimer = time.NewTicker(time.Duration(1000) * time.Millisecond)
-}
-
-func startEmptyHexViewTimer() {
-	EmptyHexViewTimer = time.NewTicker(time.Duration(1000) * time.Millisecond)
-}
-
 func StopEmptyStructViewTimer() {
 	if EmptyStructViewTimer != nil {
 		EmptyStructViewTimer.Stop()
@@ -2655,40 +2457,6 @@ func StopEmptyHexViewTimer() {
 		EmptyHexViewTimer.Stop()
 		EmptyHexViewTimer = nil
 	}
-}
-
-//======================================================================
-
-type SetNewPdmlRequests struct {
-	*pcap.Scheduler
-}
-
-var _ pcap.ICacheUpdater = SetNewPdmlRequests{}
-
-func (u SetNewPdmlRequests) WhenLoadingPdml() {
-	u.When(func() bool {
-		return u.State()&pcap.LoadingPdml == pcap.LoadingPdml
-	}, func() {
-		CacheRequestsChan <- struct{}{}
-	})
-}
-
-func (u SetNewPdmlRequests) WhenNotLoadingPdml() {
-	u.When(func() bool {
-		return u.State()&pcap.LoadingPdml == 0
-	}, func() {
-		CacheRequestsChan <- struct{}{}
-	})
-}
-
-func SetStructViewMissing(app gowid.IApp) {
-	singlePacketViewMsgHolder.SetSubWidget(Loadingw, app)
-	packetStructureViewHolder.SetSubWidget(MissingMsgw, app)
-}
-
-func SetHexViewMissing(app gowid.IApp) {
-	singlePacketViewMsgHolder.SetSubWidget(Loadingw, app)
-	packetHexViewHolder.SetSubWidget(MissingMsgw, app)
 }
 
 //======================================================================
@@ -2741,19 +2509,6 @@ func (w *prefixKeyWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 
 	}
 	return handled
-}
-
-//======================================================================
-
-func ApplyCurrentFilter(app gowid.IApp) {
-	PcapScheduler.RequestNewFilter(FilterWidget.Value(),
-		pcap.HandlerList{
-			MakeSaveRecents("", FilterWidget.Value(), app),
-			MakePacketViewUpdater(app),
-			ManageStreamCache{},
-			ManageCapinfoCache{},
-		},
-	)
 }
 
 //======================================================================
@@ -3178,7 +2933,7 @@ func Build() (*gowid.App, error) {
 	})
 
 	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		ApplyCurrentFilter(app)
+		RequestNewFilter(FilterWidget.Value(), app)
 	})
 
 	// Will only be enabled to click if filter is valid

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/pcap"
 )
 
 //======================================================================
@@ -27,6 +28,9 @@ type convsParseHandler struct {
 	ondata           IOnDataSync
 	pleaseWaitClosed bool
 }
+
+var _ pcap.IBeforeBegin = (*convsParseHandler)(nil)
+var _ pcap.IAfterEnd = (*convsParseHandler)(nil)
 
 func (t *convsParseHandler) OnData(data string) {
 	data = strings.Replace(data, "\r\n", "\n", -1) // For windows...
@@ -46,8 +50,11 @@ func (t *convsParseHandler) AfterDataEnd(success bool) {
 	}
 }
 
-func (t *convsParseHandler) BeforeBegin() {
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+func (t *convsParseHandler) BeforeBegin(code pcap.HandlerCode, app gowid.IApp) {
+	if code&pcap.ConvCode == 0 {
+		return
+	}
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		OpenPleaseWait(appView, t.app)
 	}))
 
@@ -59,7 +66,7 @@ func (t *convsParseHandler) BeforeBegin() {
 		for {
 			select {
 			case <-t.tick.C:
-				t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
 					pleaseWaitSpinner.Update()
 				}))
 			case <-t.stop:
@@ -69,7 +76,10 @@ func (t *convsParseHandler) BeforeBegin() {
 	}, Goroutinewg)
 }
 
-func (t *convsParseHandler) AfterEnd() {
+func (t *convsParseHandler) AfterEnd(code pcap.HandlerCode, app gowid.IApp) {
+	if code&pcap.ConvCode == 0 {
+		return
+	}
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		if !t.pleaseWaitClosed {
 			t.pleaseWaitClosed = true

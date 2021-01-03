@@ -691,17 +691,6 @@ func cmain() int {
 		log.Infof("Config specifies pcap-bundle-size as %d - setting to max (%d)", bundleSize, maxBundleSize)
 		bundleSize = maxBundleSize
 	}
-	ui.PcapScheduler = pcap.NewScheduler(
-		pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs, ui.PacketColors),
-		pcap.Options{
-			CacheSize:      cacheSize,
-			PacketsPerLoad: bundleSize,
-		},
-	)
-	ui.Loader = ui.PcapScheduler.Loader
-
-	// Buffered because I might send something in this goroutine
-	startUIChan := make(chan struct{}, 1)
 
 	var ifaceTmpFile string
 
@@ -715,7 +704,9 @@ func cmain() int {
 		fmt.Printf("(The termshark UI will start when packets are detected...)\n")
 	} else {
 		// Start UI right away, reading from a file
-		startUIChan <- struct{}{}
+		close(ui.StartUIChan)
+	}
+
 	// Need to figure out possible changes to COLORTERM before creating the
 	// tcell screen. Note that even though apprunner.Start() below will create
 	// a new screen, it will use a terminfo that it constructed the first time
@@ -777,6 +768,16 @@ func cmain() int {
 
 	appRunner := app.Runner()
 
+	pcap.PcapCmds = pcap.MakeCommands(opts.DecodeAs, tsharkArgs, pdmlArgs, psmlArgs, ui.PacketColors)
+	pcap.PcapOpts = pcap.Options{
+		CacheSize:      cacheSize,
+		PacketsPerLoad: bundleSize,
+	}
+
+	// This is a global. The type supports swapping out the real loader by embedding it via
+	// pointer, but I assume this only happens in the main goroutine.
+	ui.Loader = &pcap.PacketLoader{ParentLoader: pcap.NewPcapLoader(pcap.PcapCmds, &pcap.Runner{app}, pcap.PcapOpts)}
+
 	// Populate the filter widget initially - runs asynchronously
 	go ui.FilterWidget.UpdateCompletions(app)
 
@@ -816,8 +817,6 @@ func cmain() int {
 		}
 		validator.Valid = &filter.ValidateCB{Fn: doit, App: app}
 		validator.Validate(displayFilter)
-		// no auto-scroll when reading a file
-		ui.AutoScroll = false
 	} else {
 
 		// Verifies whether or not we will be able to read from the interface (hopefully)
@@ -843,29 +842,22 @@ func cmain() int {
 				ui.FilterWidget.SetValue(displayFilter, app)
 			}))
 			ifacePcapFilename = ifaceTmpFile
-			ui.PcapScheduler.RequestLoadInterfaces(psrcs, captureFilter, displayFilter, ifaceTmpFile,
-				pcap.HandlerList{
-					&ui.SignalPackets{C: startUIChan},
-					ui.MakeSaveRecents("", displayFilter, app),
-					ui.MakePacketViewUpdater(app),
-					ui.MakeUpdateCurrentCaptureInTitle(app),
-					ui.ManageStreamCache{},
-				},
-			)
+			ui.RequestLoadInterfaces(psrcs, captureFilter, displayFilter, ifaceTmpFile, app)
 		}
 		validator.Valid = &filter.ValidateCB{Fn: ifValid, App: app}
 		validator.Validate(displayFilter)
 	}
 
 	quitIssuedToApp := false
-	prevstate := ui.Loader.State()
-	var prev float64
+
+	wasLoadingPdmlLastTime := ui.Loader.PdmlLoader.IsLoading()
+	wasLoadingAnythingLastTime := ui.Loader.LoadingAnything()
+
+	// Keep track of this across runs of the main loop so we don't go backwards (because
+	// that looks wrong to the user)
+	var prevProgPercentage float64
 
 	progTicker := time.NewTicker(time.Duration(200) * time.Millisecond)
-
-	loaderPsmlFinChan := ui.Loader.PsmlFinishedChan
-	loaderIfaceFinChan := ui.Loader.IfaceFinishedChan
-	loaderPdmlFinChan := ui.Loader.Stage2FinishedChan
 
 	ctrlzLineDisc := tty.TerminalSignals{}
 
@@ -877,25 +869,21 @@ func cmain() int {
 		if ui.StreamLoader != nil {
 			ui.StreamLoader.SuppressErrors = true
 		}
-		ui.Loader.SuppressErrors = true
-		ui.Loader.Close()
+		ui.Loader.CloseMain()
 	}
 
 	inactiveDuration := 30 * time.Second
 	inactivityTimer := time.NewTimer(inactiveDuration)
 
+	var progCancelTimer *time.Timer
+
 Loop:
 	for {
 		var finChan <-chan time.Time
-		var opsChan <-chan pcap.RunFn
 		var tickChan <-chan time.Time
 		var inactivityChan <-chan time.Time
-		var emptyStructViewChan <-chan time.Time
-		var emptyHexViewChan <-chan time.Time
-		var psmlFinChan <-chan struct{}
-		var ifaceFinChan <-chan struct{}
-		var pdmlFinChan <-chan struct{}
 		var tcellEvents <-chan tcell.Event
+		var opsChan <-chan gowid.RunFunction
 		var afterRenderEvents <-chan gowid.IAfterRenderEvent
 		// For setting struct views empty. This isn't done as soon as a load is initiated because
 		// in the case we are loading from an interface and following new packets, we get an ugly
@@ -905,17 +893,14 @@ Loop:
 		// beginning to get new packets). Waiting 500ms to display loading gives enough time, in
 		// practice,
 
-		if ui.EmptyStructViewTimer != nil {
-			emptyStructViewChan = ui.EmptyStructViewTimer.C
-		}
-		// For setting hex views empty
-		if ui.EmptyHexViewTimer != nil {
-			emptyHexViewChan = ui.EmptyHexViewTimer.C
+		// On change of state - check for new pdml requests
+		if ui.Loader.PdmlLoader.IsLoading() != wasLoadingPdmlLastTime {
+			ui.CacheRequestsChan <- struct{}{}
 		}
 
 		// This should really be moved to a handler...
-		if ui.Loader.State() == 0 {
-			if prevstate != 0 {
+		if !ui.Loader.LoadingAnything() {
+			if wasLoadingAnythingLastTime {
 				// If the state has just switched to 0, it means no interface-reading process is
 				// running. That means we will no longer be reading from an interface or a fifo, so
 				// we point the loader at the file we wrote to the cache, and redirect all
@@ -925,13 +910,17 @@ Loop:
 					ui.ClearProgressWidget(app)
 					ui.SetProgressDeterminate(app) // always switch back - for pdml (partial) loads of later data.
 				}))
+
 				// When the progress bar is enabled, track the previous percentage reached. This is
 				// so that I don't go "backwards" if I generate a progress value less than the last
 				// one, using the current algorithm (because it would be confusing to see it go
 				// backwards)
-				prev = 0.0
+				prevProgPercentage = 0.0
 			}
 
+			// EnableOpsVar will be enabled when all the handlers have run, which happen in the main goroutine.
+			// I need them to run because the loader channel is closed in one, and the ticker goroutines
+			// don't terminate until these goroutines stop
 			if ui.QuitRequested {
 				if ui.Running {
 					if !quitIssuedToApp {
@@ -945,27 +934,18 @@ Loop:
 			}
 		}
 
-		if ui.Loader.State()&(pcap.LoadingPdml|pcap.LoadingPsml) != 0 {
+		// Only display the progress bar if PSML is loading or if PDML is loading that is needed
+		// by the UI. If the PDML is an optimistic load out of the display, then no need for
+		// progress.
+		if ui.Loader.PsmlLoader.IsLoading() || (ui.Loader.PdmlLoader.IsLoading() && ui.Loader.PdmlLoader.LoadIsVisible()) {
 			tickChan = progTicker.C // progress is only enabled when a pcap may be loading
+		} else {
+			// Reset for the next load
+			prevProgPercentage = 0.0
 		}
 
-		if ui.Loader.State()&pcap.LoadingPdml != 0 {
-			pdmlFinChan = loaderPdmlFinChan
-		}
-
-		if ui.Loader.State()&pcap.LoadingPsml != 0 {
-			psmlFinChan = loaderPsmlFinChan
-		}
-
-		if ui.Loader.State()&pcap.LoadingIface != 0 {
-			ifaceFinChan = loaderIfaceFinChan
+		if ui.Loader.InterfaceLoader.IsLoading() {
 			inactivityChan = inactivityTimer.C
-		}
-
-		// (User) operations are enabled by default (the test predicate is nil), or if the predicate returns true
-		// meaning the operation has reached its desired state. Only one operation can be in progress at a time.
-		if ui.PcapScheduler.IsEnabled() {
-			opsChan = ui.PcapScheduler.OperationsChan
 		}
 
 		// Only process tcell and gowid events if the UI is running.
@@ -977,9 +957,19 @@ Loop:
 			finChan = ui.Fin.C()
 		}
 
+		// For operations like ClearPcap - need previous loads to be fully finished first. The operations
+		// channel is enabled until an operation starts, then disabled until the operation re-enables it
+		// via a handler.
+		//
+		// Make sure state doesn't change until all handlers have been run
+		if !ui.Loader.PdmlLoader.IsLoading() && !ui.Loader.PsmlLoader.IsLoading() {
+			opsChan = pcap.OpsChan
+		}
+
 		afterRenderEvents = app.AfterRenderEvents
 
-		prevstate = ui.Loader.State()
+		wasLoadingPdmlLastTime = ui.Loader.PdmlLoader.IsLoading()
+		wasLoadingAnythingLastTime = ui.Loader.LoadingAnything()
 
 		select {
 
@@ -991,7 +981,7 @@ Loop:
 			ui.Fin.Advance()
 			app.Redraw()
 
-		case <-startUIChan:
+		case <-ui.StartUIChan:
 			log.Infof("Launching termshark UI")
 
 			// Go to termshark UI view
@@ -1035,7 +1025,7 @@ Loop:
 			ui.Running = true
 			startedSuccessfully = true
 
-			startUIChan = nil // make sure it's not triggered again
+			ui.StartUIChan = nil // make sure it's not triggered again
 
 			defer func() {
 				// Do this to make sure the program quits quickly if quit is invoked
@@ -1052,9 +1042,13 @@ Loop:
 				ui.Running = false
 			}()
 
+		case fn := <-opsChan:
+			app.Run(fn)
+
 		case <-ui.QuitRequestedChan:
 			ui.QuitRequested = true
-			if ui.Loader.State() != 0 {
+			// Without this, a quit during a pcap load won't happen until the load is finished
+			if ui.Loader.LoadingAnything() {
 				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
 				// will happen next time round because the quitRequested flag is checked.
 				stopLoaders()
@@ -1121,78 +1115,55 @@ Loop:
 				ui.RequestQuit()
 			}
 
-		case fn := <-opsChan:
-			// We run the requested operation - because operations are now enabled, since this channel
-			// is listening - and the result tells us when operations can be re-enabled (i.e. the target
-			// state of the operation just started, for example). This means we can let an operation
-			// "complete", moving through a sequence of states to the final state, before accepting
-			// another request.
-			fn()
-
 		case <-ui.CacheRequestsChan:
-			ui.CacheRequests = pcap.ProcessPdmlRequests(ui.CacheRequests, ui.Loader,
-				struct {
-					ui.SetNewPdmlRequests
-					ui.SetStructWidgets
-				}{
-					ui.SetNewPdmlRequests{ui.PcapScheduler},
-					ui.SetStructWidgets{ui.Loader, app},
-				})
-
-		case <-ifaceFinChan:
-			// this state change only happens if the load from the interface is explicitly
-			// stopped by the user (e.g. the stop button). When the current data has come
-			// from loading from an interface, when stopped we still want to be able to filter
-			// on that data. So the load routines should treat it like a regular pcap
-			// (until the interface is started again). That means the psml reader should read
-			// from the file and not the fifo.
-			loaderIfaceFinChan = ui.Loader.IfaceFinishedChan
-			ui.Loader.SetState(ui.Loader.State() & ^pcap.LoadingIface)
-
-		case <-psmlFinChan:
-			if ui.Loader.LoadWasCancelled {
-				// Don't reset cancel state here. If, after stopping an interface load, I
-				// apply a filter, I need to know if the load was cancelled previously because
-				// if it was cancelled, I need to load from the temp pcap; if not cancelled,
-				// (meaning still running), then I just apply a new filter and have the pcap
-				// reader read from the fifo. Only do this if the user isn't quitting the app,
-				// otherwise it looks clumsy.
-				if !ui.QuitRequested {
-					app.Run(gowid.RunFunction(func(app gowid.IApp) {
-						ui.OpenError("Loading was cancelled.", app)
-					}))
-				}
-			}
-			// Reset
-			loaderPsmlFinChan = ui.Loader.PsmlFinishedChan
-			ui.Loader.SetState(ui.Loader.State() & ^pcap.LoadingPsml)
-
-		case <-pdmlFinChan:
-			loaderPdmlFinChan = ui.Loader.Stage2FinishedChan
-			ui.Loader.SetState(ui.Loader.State() & ^pcap.LoadingPdml)
+			ui.CacheRequests = pcap.ProcessPdmlRequests(ui.CacheRequests,
+				ui.Loader.ParentLoader, ui.Loader.PdmlLoader, ui.SetStructWidgets{ui.Loader}, app)
 
 		case <-tickChan:
-			if system.HaveFdinfo && (ui.Loader.State() == pcap.LoadingPdml || !ui.Loader.ReadingFromFifo()) {
+			// We already know that we are LoadingPdml|LoadingPsml
+			ui.SetProgressWidget(app)
+			if progCancelTimer != nil {
+				progCancelTimer.Reset(time.Duration(500) * time.Millisecond)
+			} else {
+				progCancelTimer = time.AfterFunc(time.Duration(500)*time.Millisecond, func() {
+					app.Run(gowid.RunFunction(func(app gowid.IApp) {
+						ui.ClearProgressWidget(app)
+					}))
+				})
+			}
+
+			// Rule:
+			// - prefer progress if we can apply it to psml only (not pdml)
+			// - otherwise use a spinner if interface load or fifo load in operation
+			// - otherwise use progress for pdml
+			doprog := false
+			if system.HaveFdinfo {
+				// Prefer progress, if the OS supports it.
+				doprog = true
+				if ui.Loader.ReadingFromFifo() {
+					// But if we are have an interface load (or a pipe load), then we can't
+					// predict when the data will run out, so use a spinner. That's because we
+					// feed the data to tshark -T psml with a tail command which reads from
+					// the tmp file being created by the pipe/interface source.
+					doprog = false
+					if !ui.Loader.InterfaceLoader.IsLoading() && !ui.Loader.PsmlLoader.IsLoading() {
+						// Unless those loads are finished, and the only loading activity is now
+						// PDML/pcap, which is loaded on demand in blocks of 1000. Then we can
+						// use the progress bar.
+						doprog = true
+					}
+				}
+			}
+
+			if doprog {
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					prev = ui.UpdateProgressBarForFile(ui.Loader, prev, app)
+					prevProgPercentage = ui.UpdateProgressBarForFile(ui.Loader, prevProgPercentage, app)
 				}))
 			} else {
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					ui.UpdateProgressBarForInterface(ui.Loader, app)
+					ui.UpdateProgressBarForInterface(ui.Loader.InterfaceLoader, app)
 				}))
 			}
-
-		case <-emptyStructViewChan:
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				ui.SetStructViewMissing(app)
-				ui.StopEmptyStructViewTimer()
-			}))
-
-		case <-emptyHexViewChan:
-			app.Run(gowid.RunFunction(func(app gowid.IApp) {
-				ui.SetHexViewMissing(app)
-				ui.StopEmptyHexViewTimer()
-			}))
 
 		case ev := <-tcellEvents:
 			app.HandleTCellEvent(ev, gowid.IgnoreUnhandledInput)

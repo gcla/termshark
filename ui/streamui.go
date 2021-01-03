@@ -54,9 +54,14 @@ type streamKey struct {
 type ManageStreamCache struct{}
 
 var _ pcap.INewSource = ManageStreamCache{}
+var _ pcap.IClear = ManageStreamCache{}
 
 // Make sure that existing stream widgets are discarded if the user loads a new pcap.
-func (t ManageStreamCache) OnNewSource() {
+func (t ManageStreamCache) OnNewSource(pcap.HandlerCode, gowid.IApp) {
+	clearStreamState()
+}
+
+func (t ManageStreamCache) OnClear(pcap.HandlerCode, gowid.IApp) {
 	clearStreamState()
 }
 
@@ -104,7 +109,7 @@ func startStreamReassembly(app gowid.IApp) {
 	previousFilterValue := FilterWidget.Value()
 
 	FilterWidget.SetValue(filter, app)
-	PcapScheduler.RequestNewFilter(filter, MakePacketViewUpdater(app))
+	RequestNewFilter(filter, app)
 
 	currentStreamKey = &streamKey{proto: proto, idx: streamIndex.Val()}
 
@@ -136,7 +141,7 @@ func startStreamReassembly(app gowid.IApp) {
 
 		// Use the source context. At app shutdown, canceling main will cancel src which will cancel the stream
 		// loader. And changing source should also cancel the stream loader on all occasions.
-		StreamLoader = streams.NewLoader(streams.MakeCommands(), Loader.SourceContext())
+		StreamLoader = streams.NewLoader(streams.MakeCommands(), Loader.Context())
 
 		sh := &streamParseHandler{
 			app:   app,
@@ -176,6 +181,9 @@ type streamParseHandler struct {
 
 var _ streams.IOnStreamChunk = (*streamParseHandler)(nil)
 var _ streams.IOnStreamHeader = (*streamParseHandler)(nil)
+var _ pcap.IBeforeBegin = (*streamParseHandler)(nil)
+var _ pcap.IAfterEnd = (*streamParseHandler)(nil)
+var _ pcap.IOnError = (*streamParseHandler)(nil)
 
 // Run from the app goroutine
 func (t *streamParseHandler) drainChunks() int {
@@ -202,9 +210,12 @@ func (t *streamParseHandler) drainPacketIndices() int {
 	return curLen
 }
 
-func (t *streamParseHandler) BeforeBegin() {
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		OpenPleaseWait(appView, t.app)
+func (t *streamParseHandler) BeforeBegin(code pcap.HandlerCode, app gowid.IApp) {
+	if code&pcap.StreamCode == 0 {
+		return
+	}
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		OpenPleaseWait(appView, app)
 	}))
 
 	t.tick = time.NewTicker(time.Duration(200) * time.Millisecond)
@@ -216,7 +227,7 @@ func (t *streamParseHandler) BeforeBegin() {
 	// Start this after widgets have been cleared, to get focus change
 	termshark.TrackedGo(func() {
 		fn := func() {
-			t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				t.drainChunks()
 
 				if !t.openedStreams {
@@ -235,7 +246,7 @@ func (t *streamParseHandler) BeforeBegin() {
 
 	termshark.TrackedGo(func() {
 		fn := func() {
-			t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				t.drainPacketIndices()
 			}))
 		}
@@ -251,7 +262,7 @@ func (t *streamParseHandler) BeforeBegin() {
 		for {
 			select {
 			case <-t.tick.C:
-				t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
 					pleaseWaitSpinner.Update()
 				}))
 			case <-t.stopChunks:
@@ -272,11 +283,14 @@ func (t *streamParseHandler) AfterIndexEnd(success bool) {
 	}
 }
 
-func (t *streamParseHandler) AfterEnd() {
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+func (t *streamParseHandler) AfterEnd(code pcap.HandlerCode, app gowid.IApp) {
+	if code&pcap.StreamCode == 0 {
+		return
+	}
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		if !t.pleaseWaitClosed {
 			t.pleaseWaitClosed = true
-			ClosePleaseWait(t.app)
+			ClosePleaseWait(app)
 		}
 		if !t.openedStreams {
 			openStreamUi(t.wid, app)
@@ -317,7 +331,10 @@ func (t *streamParseHandler) OnStreamChunk(chunk streams.IChunk) {
 	t.chunks <- chunk
 }
 
-func (t *streamParseHandler) OnError(err error) {
+func (t *streamParseHandler) OnError(code pcap.HandlerCode, app gowid.IApp, err error) {
+	if code&pcap.StreamCode == 0 {
+		return
+	}
 	log.Error(err)
 	if !Running {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -336,7 +353,7 @@ func (t *streamParseHandler) OnError(err error) {
 			errstr = fmt.Sprintf("%v", err)
 		}
 
-		t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
 			OpenError(errstr, app)
 		}))
 	}
@@ -445,7 +462,8 @@ func makeStreamWidget(previousFilter string, filter string, cap string, proto st
 				}
 
 				FilterWidget.SetValue(newFilter, app)
-				PcapScheduler.RequestNewFilter(newFilter, MakePacketViewUpdater(app))
+				//Loader.NewFilter(newFilter, MakePacketViewUpdater(), app)
+				RequestNewFilter(newFilter, app)
 
 			},
 			CopyModeWidget: CopyModeWidget,

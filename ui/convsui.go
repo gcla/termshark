@@ -121,7 +121,7 @@ type ManageConvsCache struct{}
 var _ pcap.INewSource = ManageConvsCache{}
 
 // Make sure that existing data is discarded if the user loads a new pcap.
-func (t ManageConvsCache) OnNewSource() {
+func (t ManageConvsCache) OnNewSource(pcap.HandlerCode, gowid.IApp) {
 	convsView = nil // which then deletes all refs to loaded data
 	convsPcapSize = 0
 }
@@ -205,7 +205,7 @@ func (p pleaseWait) ClosePleaseWait(app gowid.IApp) {
 func openConvsUi(app gowid.IApp) {
 
 	var convCtx context.Context
-	convCtx, convCancel = context.WithCancel(context.TODO())
+	convCtx, convCancel = context.WithCancel(Loader.Context())
 
 	newSize, reset := termshark.FileSizeDifferentTo(Loader.PcapPdml, convsPcapSize)
 	if reset {
@@ -659,7 +659,7 @@ func (w *ConvsUiWidget) doFilterMenuOp(dirOp FilterMask, app gowid.IApp) {
 				w.focusOnFilter = true
 				OpenMessage("Display filter prepared.", appView, app)
 			} else {
-				PcapScheduler.RequestNewFilter(filter, MakePacketViewUpdater(app))
+				RequestNewFilter(filter, app)
 				w.displayFilter = filter
 				OpenMessage("Display filter applied.", appView, app)
 				w.ReloadNeeded()

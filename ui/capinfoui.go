@@ -32,11 +32,9 @@ func startCapinfo(app gowid.IApp) {
 
 	fi, err := os.Stat(Loader.PcapPdml)
 	if err != nil || CapinfoTime.Before(fi.ModTime()) {
-		CapinfoLoader = capinfo.NewLoader(capinfo.MakeCommands(), Loader.SourceContext())
+		CapinfoLoader = capinfo.NewLoader(capinfo.MakeCommands(), Loader.Context())
 
-		handler := capinfoParseHandler{
-			app: app,
-		}
+		handler := capinfoParseHandler{}
 
 		CapinfoLoader.StartLoad(
 			Loader.PcapPdml,
@@ -51,13 +49,14 @@ func startCapinfo(app gowid.IApp) {
 //======================================================================
 
 type capinfoParseHandler struct {
-	app              gowid.IApp
 	tick             *time.Ticker // for updating the spinner
 	stop             chan struct{}
 	pleaseWaitClosed bool
 }
 
 var _ capinfo.ICapinfoCallbacks = (*capinfoParseHandler)(nil)
+var _ pcap.IBeforeBegin = (*capinfoParseHandler)(nil)
+var _ pcap.IAfterEnd = (*capinfoParseHandler)(nil)
 
 func (t *capinfoParseHandler) OnCapinfoData(data string) {
 	CapinfoData = strings.Replace(data, "\r\n", "\n", -1) // For windows...
@@ -72,9 +71,12 @@ func (t *capinfoParseHandler) OnCapinfoData(data string) {
 func (t *capinfoParseHandler) AfterCapinfoEnd(success bool) {
 }
 
-func (t *capinfoParseHandler) BeforeBegin() {
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		OpenPleaseWait(appView, t.app)
+func (t *capinfoParseHandler) BeforeBegin(code pcap.HandlerCode, app gowid.IApp) {
+	if code&pcap.CapinfoCode == 0 {
+		return
+	}
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
+		OpenPleaseWait(appView, app)
 	}))
 
 	t.tick = time.NewTicker(time.Duration(200) * time.Millisecond)
@@ -85,7 +87,7 @@ func (t *capinfoParseHandler) BeforeBegin() {
 		for {
 			select {
 			case <-t.tick.C:
-				t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
 					pleaseWaitSpinner.Update()
 				}))
 			case <-t.stop:
@@ -95,11 +97,14 @@ func (t *capinfoParseHandler) BeforeBegin() {
 	}, Goroutinewg)
 }
 
-func (t *capinfoParseHandler) AfterEnd() {
-	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
+func (t *capinfoParseHandler) AfterEnd(code pcap.HandlerCode, app gowid.IApp) {
+	if code&pcap.CapinfoCode == 0 {
+		return
+	}
+	app.Run(gowid.RunFunction(func(app gowid.IApp) {
 		if !t.pleaseWaitClosed {
 			t.pleaseWaitClosed = true
-			ClosePleaseWait(t.app)
+			ClosePleaseWait(app)
 		}
 
 		OpenMessageForCopy(CapinfoData, appView, app)
@@ -118,9 +123,14 @@ func clearCapinfoState() {
 type ManageCapinfoCache struct{}
 
 var _ pcap.INewSource = ManageCapinfoCache{}
+var _ pcap.IClear = ManageCapinfoCache{}
 
 // Make sure that existing stream widgets are discarded if the user loads a new pcap.
-func (t ManageCapinfoCache) OnNewSource() {
+func (t ManageCapinfoCache) OnNewSource(pcap.HandlerCode, gowid.IApp) {
+	clearCapinfoState()
+}
+
+func (t ManageCapinfoCache) OnClear(pcap.HandlerCode, gowid.IApp) {
 	clearCapinfoState()
 }
 
