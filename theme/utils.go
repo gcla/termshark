@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/gcla/gowid"
@@ -133,7 +134,7 @@ func Load(name string, app gowid.IApp) error {
 	}
 
 	for _, m := range modes {
-		themeFileName := filepath.Join("/themes", fmt.Sprintf("%s-%s.toml", name, m))
+		themeFileName := path.Join("/themes", fmt.Sprintf("%s-%s.toml", name, m))
 		log.Infof("Trying to load built-in theme %s", themeFileName)
 		var file io.ReadCloser
 		file, err = statikFS.Open(themeFileName)
