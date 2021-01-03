@@ -17,13 +17,17 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Packet List View](#packet-list-view)
   - [Packet Structure View](#packet-structure-view)
   - [Packet Hex View](#packet-hex-view)
+  - [Marking Packets](#marking-packets)
   - [Copy Mode](#copy-mode)
   - [Packet Capture Information](#packet-capture-information)
   - [Stream Reassembly](#stream-reassembly)
   - [Conversations](#conversations)
+  - [Command-Line](#command-line)
+  - [Macros](#macros)
 - [Configuration](#configuration)
   - [Dark Mode](#dark-mode)
   - [Packet Colors](#packet-colors)
+  - [Themes](#themes)
   - [Config File](#config-file)
 - [Troubleshooting](#troubleshooting)
 
@@ -153,7 +157,7 @@ $ sudo tcpdump -i eth0 -w - icmp | termshark
 [sudo] password for gcla:
 ```
 
-If the termshark UI is active in the terminal but you want to see something displayed there before termshark started, you can now issue a SIGTSTP signal (on Unix) and termshark will suspend itself and give up control of the terminal. In bash, this operation is usually bound to ctrl-z.
+If the termshark UI is active in the terminal but you want to see something displayed there before termshark started, you can now issue a SIGTSTP signal (on Unix) and termshark will suspend itself and give up control of the terminal. In bash, this operation is usually bound to `ctrl-z`.
 
 ```console
 $ termshark -r foo.pcap
@@ -190,7 +194,7 @@ When the filter widget is green, you can hit the "Apply" button to make its valu
 
 ### Changing Views
 
-Press `tab` to move between the three packet views. You can also use the mouse to move views by clicking with the left mouse button. When focus is in any of these three views, hit the `\` key to maximize that view:
+Press `tab` or `ctrl-w ctrl-w` to move between the three packet views. You can also use the mouse to move views by clicking with the left mouse button. When focus is in any of these three views, hit the `\` key to maximize that view:
 
 ![max](/../gh-pages/images/max.png?raw=true)
 
@@ -198,15 +202,20 @@ Press `\` to restore the original layout. Press `|` to move the hex view to the 
 
 ![altview](/../gh-pages/images/altview.png?raw=true)
 
-You can also press `<`,`>`,`+` and `-` to change the relative size of each view.
+You can also press `<`,`>`,`+` and `-` to change the relative size of each view. To reset termshark to use its original relative sizes, hit `ctrl-w
+=`. All termshark views support vim-style navigation with `h`, `j`, `k` and `l` along with regular cursor keys.
 
 ### Packet List View
 
-Termshark's top-most view is a list of packets read from the capture (or interface). Termshark generates the data by running `tshark` on the input with the `-T psml` options, and parsing the resulting XML. Currently the columns displayed cannot be configured, and are the same as Wireshark's defaults. When the source is a pcap file, the list can be sorted by column by clicking the button next to each column header:
+Termshark's top-most view is a list of packets read from the capture (or interface). Termshark generates the data by running `tshark` on the input
+with the `-T psml` options, and parsing the resulting XML. Currently the columns displayed cannot be configured, and are the same as Wireshark's
+defaults. When the source is a pcap file, the list can be sorted by column by clicking the button next to each column header:
 
 ![sortcol](/../gh-pages/images/sortcol.png?raw=true)
 
-You can hit `home` to jump to the top of the list or `end` to jump to the bottom. Sometimes, especially if running on a small terminal, the values in a column will be truncated (e.g. long IPv6 addresses). To see the full value, move the purple cursor over the value:
+You can hit `home` or `gg` to jump to the top of the list and `end` or `G` to jump to the bottom. You can jump to a specific packet by entering its
+number - as a prefix - before hitting `gg` or `G` Sometimes, especially if running on a small terminal, the values in a column will be truncated
+(e.g. long IPv6 addresses). To see the full value, move the purple cursor over the value:
 
 ![ipv6](/../gh-pages/images/ipv6.png?raw=true)
 
@@ -221,6 +230,16 @@ As you navigate the packet structure, different sections of the bottom view - a 
 ### Packet Hex View
 
 Termshark's bottom view shows the bytes that the packet comprises. Like Wireshark, they are displayed in a hexdump-like format. As you move around the bytes, the middle (structure) view will update to show you where you are in the packet's structure.
+
+### Marking Packets
+
+To make it easier to compare packets, you can mark a packet in the packet list view and then jump back to it later. Termshark's marks are modeled on vim's. Set a mark by navigating to the packet and then hit `m` followed by a letter - `a` through `z`. 
+
+![marks1](/../gh-pages/images/marks1.png?raw=true)
+
+To jump back to that mark, hit `'` followed by the letter you selected. To jump back to the packet that was selected prior to your jump, hit `''`. When you exit termshark or load a new pcap, these marks are deleted; but termshark also supports cross-pcap marks which are saved in termshark's config file. To make a cross-pcap mark, hit `m` followed by a capital letter - `A` through `Z`. If you jump to a cross-pcap mark made in another pcap, termshark will load that pcap back up. To display your current marks, use the [command-line](#command-line) `marks` command:
+
+![marks2](/../gh-pages/images/marks2.png?raw=true)
 
 ### Copy Mode
 
@@ -298,6 +317,67 @@ In the first pop-up menu, you can choose how to extend the current display filte
 
 ![convs3](/../gh-pages/images/convs3.png?raw=true)
 
+### Command-Line
+
+For fast navigation around the UI, termshark offers a vim-style command-line. To activate the command-line, hit the ':' key:
+
+![cmdline1](/../gh-pages/images/cmdline1.png?raw=true)
+
+Many of termshark's operations can be initiated from the command-line. After opening the command-line, hit tab to show all the commands available:
+
+- **capinfo** - Show the current capture file properties (using the `capinfos` command)
+- **clear** - Clear the current pcap
+- **convs** - Open the conversations view
+- **filter** - Choose a display filter from those recently-used
+- **help** - Show one of several help dialogs
+- **load** - Load a pcap from the filesystem
+- **logs** - Show termshark's log file (Unix-only)
+- **map** - Map a keypress to a key sequence (see `help map`)
+- **marks** - Show file-local and global packet marks
+- **quit** - Quit termshark
+- **recents** - Load a pcap from those recently-used
+- **set** - Set various config properties (see `help set`)
+- **streams** - Open the stream reassemably view
+- **theme** - Set a new termshark theme
+- **unmap** - Remove a keypress mapping made with the `map` command
+
+Some commands require a parameter or more. Candidate completions will be shown when possible; you can then scroll up or down through them and hit tab
+or enter to complete the candidate. Candidates are filtered as you type. Hit enter to run a valid command or hit `ctrl-c` to close the command-line.
+
+### Macros
+
+To support navigational shortcuts that are not directly built-in to the termshark UI, you can now create simple keyboard macros. These are modeled on
+vim's key mappings. To create a macro, open the [command-line](#command-line) and use the `map` command. The first argument is the key to map and the
+second argument is a sequence of keypresses that your first key should now map to. Termshark uses vim-syntax for keys. To express a keypress for a
+printable character, simply use the printable character. Here is the syntax for the other keys that termshark understands:
+
+- `<space>`
+- `<esc>`
+- `<enter>`
+- `<f1>-<f12>`
+- modifiers - `<C-s>`, `<A-/>`
+- `<up>`, `<down>`, `<left>`, `<right>`
+- `<pgup>`, `<pgdn>`
+- `<home>`, `<end>`
+
+Here are some example macros:
+
+- `map <C-s> /` - hit ctrl-s to activate the display filter widget
+- `map <f1> :quit<enter><enter>` - hit f1 to quit termshark without asking for confirmation
+- `map <f1> ZZ` - another way to quit quickly!
+- `map <f2> <esc>d` - toggle dark-mode
+
+A termshark user requested the ability to move up and down the packet list but to keep focus on the packet structure view. This can be accomplished by setting these macros:
+
+- `map <f5> <tab><tab><down><tab>`
+- `map <f6> <tab><tab><up><tab>`
+
+Then with focus on the packet structure view, hit `f5` to go down a packet and `f6` to go up a packet.
+
+Macros are saved in the termshark config file. To display the current list of macros, simply type `map` from the command-line with no arguments.
+
+![macros](/../gh-pages/images/macros.png?raw=true)
+
 ## Configuration
 
 ### Dark Mode
@@ -312,10 +392,117 @@ Your choice is stored in the termshark [config file](UserGuide.md#config-file). 
 
 By default, termshark will now display packets in the packet list view colored according to Wireshark's color rules. With recent installations of Wireshark, you can find this file at `$XDG_CONFIG_HOME/wireshark/colorfilters`. Termshark doesn't provide a way to edit the colors - the colors are provided by `tshark`. You can read about Wireshark's support [here](https://www.wireshark.org/docs/wsug_html_chunked/ChCustColorizationSection.html). If you don't like the way this looks in termshark, you can turn it off using termshark's main menu.
 
+### Themes
+
+Termshark can be themed to better line up with other terminal applications that you use. Most of termshark's UI elements have names and you can tie colors to these names. Here is an example theme:
+
+```toml
+[dracula]
+  gray1 = "#464752"
+  ...
+  orange = "#ffb86c"
+  purple = "#bd93f9"
+  red = "#ff5555"
+  white = "#f8f8f2"
+  yellow = "#f1fa8c"
+
+[dark]
+  button = ["dracula.black","dracula.gray3"]
+  button-focus = ["dracula.white","dracula.magenta"]
+  button-selected = ["dracula.white","dracula.gray3"]
+  ...
+  
+[light]
+  button = ["dracula.black","dracula.white"]
+  button-focus = ["dracula.black","dracula.purple"]
+  button-selected = ["dracula.black","dracula.gray3"]
+  ...  
+```
+
+Termshark finds themes in two ways - from:
+
+- `$XDG_CONFIG_HOME/termshark/themes/*.toml` (e.g. `~/.config/termshark/themes/dracula.toml`)
+- from a small database compiled-in to the termshark binary. 
+
+The termshark command-line provides two commands to interact with themes:
+
+- `theme` - choose a new theme from those provided and apply it.
+- `no-theme` - use no theme.
+
+Termshark saves your selected theme against the terminal color mode, which can be one of
+
+- 16-color
+- 256-color
+- truecolor i.e. 24-bit color
+
+The theme is saved in `termshark.toml` under, respectively, the keys:
+
+- `main.theme-16`
+- `main.theme-256`
+- `main.theme-truecolor`
+
+This means that if you run termshark on the same machine but with a different terminal emulator, you might need to re-apply the theme if the color
+mode has changed (e.g. `xterm` v `gnome terminal`)
+
+If you are running in truecolor/24-bit color, termshark will make the 256-color themes available too. Terminal emulators that support 24-bit color
+will support 256-color mode as well.
+
+If you have enabled termshark's packet colors - shown in the packet list view - then these colors will be reproduced faithfully according to
+Wireshark's rules. These colors don't adhere to termshark's themes.
+
+#### Built-in Themes and Base16
+
+Termshark has four themes built-in:
+
+- `default` - termshark's original color scheme (16-color, 256-color, truecolor)
+- `dracula` - colors based on [Dracula theme](https://draculatheme.com/) project (256-color, truecolor)
+- `solarized` - based on [Ethan Schoonover's](https://ethanschoonover.com/solarized/) work (256-color, truecolor)
+- `base16` - (256-color, truecolor)
+
+If you make another, please submit it! :-)
+
+[Base16](https://github.com/chriskempson/base16) is a set of guidelines for building themes using a limited range of 8 colors and 8 grays. The
+[base16-shell](https://github.com/chriskempson/base16-shell) project is a set of scripts that remap colors 0-21 in the 256-color space of a terminal
+emulator. If you're in 256-color mode, this lets you have consistent coloring of your work in a terminal emulator, whether it's typing at the shell,
+or running a TUI. If you use base16-shell, choose termshark's `base16` theme to make use of your shell theme's colors. 
+
+#### Make a Theme
+
+The layout of a theme is:
+
+- the color definitions - `[mytheme]`
+- set the foreground and background color of UI elements for
+  - dark mode - `[dark]`
+  - regular/light mode - `[light]`
+  
+Here's an [example theme](https://raw.githubusercontent.com/gcla/termshark/master/assets/themes/dracula-256.toml) to follow. This [tcell source
+file](https://github.com/gdamore/tcell/blob/fcaa20f283682d6bbe19ceae067b37df3dc699d7/color.go#L821) shows some sample color names you can use.
+
+The UI elements are listed in the `[dark]` and `[light]` sections. Each element is assigned a pair of colors - foreground and background. The colors
+can be:
+
+- a reference to another field in the theme toml e.g. `dracula.black`
+- a color that termshark understands natively e.g. `#ffcc43`, `dark green`, `g50` (medium gray).
+
+Save your theme toml file under `~/.config/termshark/themes/` with a suffix indicating the color-mode e.g. `mytheme-256.toml`. 
+
+If your theme is a truecolor theme (suffix `-truecolor.toml`), then RGB colors will be reproduced precisely by termshark and so by the terminal
+emulator. If your theme is a 256-color theme (suffix `-256.toml`), you can still use RGB colors in your toml, and termshark will then try to pick the
+closest matching color in the 256-color space. If termshark detects you are using base16-shell, then it will ignore colors 0-21 when choosing the
+closest match, since these will likely be remapped by the base16-shell theme.
+
+Hopefully the meaning of the UI-element names is guessable, but one detail to know is the difference between focus, selected and unselected. In a
+gowid application, one widget at a time will have "focus". For example, if you are navigating the packet's tree structure (the middle pane), one level
+of that protocol structure will be shown in blue, and will be the focus widget. If you hit tab to move to the hex view of the packet's bytes (the
+lower pane), then focus will move to the hex byte under the cursor; but the previously blue protocol structure in the middle pane will still be
+obvious, shown in grey. That protocol level is now "selected", but not in "focus". So selected is a way to highlight a widget in a container of
+widgets that will have focus when control returns to the container. Unselected means neither focus nor selected.
+
 ### Config File
 
 Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
 
+- `auto-scroll` (bool) - if true, termshark will automatically scroll down when packets are read in a live-capture mode (e.g. `-i eth0`)
 - `browse-command` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals `$1` will be replaced by the URL prior to the command being run e.g.
 
 ```toml
@@ -331,7 +518,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `conv-resolve-names` (bool) - if true, have tshark provide conversation data with ethernet names resolved.
 - `conv-use-filter` (bool) - if true, have tshark provide conversation data limited to match the active display filter.
 - `conv-types` (string list) - a list of the conversation types termshark will query for and display in the conversations view. Currently limited to `eth`, `ip`, `ipv6`, `udp`, `tcp`.
-- `copy-command` (string) - the command termshark executes when the user hits ctrl-c in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
+- `copy-command` (string) - the command termshark executes when the user hits `ctrl-c` in copy-mode. The default commands on each platform will copy the selected area to the clipboard.
 
 ```toml
 [main]
@@ -340,9 +527,16 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 
 - `copy-command-timeout` (int) - how long termshark will wait (in seconds) for the copy command to complete before reporting an error.
 - `dark-mode` (bool) - if true, termshark will run in dark-mode.
-- `disable-shark-fin` (bool) - if true then it's safe to go back in the water.
+- `debug` (bool) - if true, run a debug web-server on http://localhost:6060. Shows termshark/golang internals - in case of a problem.
+- `disable-shark-fin` (bool) - if true then turn off the shark-fin screen-saver permanently.
+- `disk-cache-size-mb` (int) - how large termshark will allow `$XDG_CACHE_HOME/termshark/pcaps/` to grow; if the limit is exceeded, termshark will delete pcaps, oldest first. Set to -1 to disable (grow indefinitely).
 - `dumpcap` (string) - make termshark use this specific `dumpcap` (used when reading from an interface).
+- `ignore-base16-colors` (bool) - if true, when running in a terminal with 256-colors, ignore colors 0-21 in the 256-color-space when choosing the best match for a theme's RGB (24-bit) color. This avoids choosing colors that are
+   remapped using e.g. [base16-shell](https://github.com/chriskempson/base16-shell).
+- `key-mappings` (string list) - a list of macros, where each string contains a vim-style keypress, a space, and then a sequence of keypresses.
+- `marks` (string json) - a serialized json structure representing the cross-pcap marks - for each, the keypress (`A` through `Z`); the pcap filename; the packet number; and a short summary of the packet.
 - `packet-colors` (bool) - if true (or missing), termshark will colorize packets according to Wireshark's rules.
+- `pager` (string) - the pager program to use when displaying termshark's log file - run like this: `sh -c "<pager> termshark.log"`
 - `pcap-bundle-size` - (int) - load tshark PDML this many packets at a time. Termshark will lazily load PDML because it's a slow process and uses a lot of RAM. For example, if `pcap-bundle-size`=1000, then on first loading a pcap, termshark will load PDML for packets 1-1000. If you scroll past packet 500, termshark will optimistically load PDML for packets 1001-2000. A higher value will make termshark load more packets at a time; a value of 0 means load the entire pcap's worth of PDML. Termshark stores the data compressed in RAM, but expect approximately 10MB per 1000 packets loaded. If you have the memory, can wait a minute or two for the entire pcap to load, and e.g. plan to use the packet list header to sort the packets in various ways, setting `pcap-bundle-size` to 0 will provide the best experience.
 - `pcap-cache-size` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of `pcap-bundle-size`. This setting determines how many such bundles termshark will keep cached. The default is 32.
 - `pdml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PDML.
@@ -359,6 +553,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
   term = "screen-256color"
 ```
 
+- `theme` (string) - the currently selected theme, if absent, no theme is used.
 - `tshark` (string) - make termshark use this specific `tshark`.
 - `tshark-args` (string list) - these are added to each invocation of `tshark` made by termshark e.g.
 
