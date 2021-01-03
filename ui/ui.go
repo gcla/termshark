@@ -2933,7 +2933,11 @@ func Build() (*gowid.App, error) {
 	})
 
 	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		RequestNewFilter(FilterWidget.Value(), app)
+		if Loader.DisplayFilter() == FilterWidget.Value() {
+			OpenError("Same filter - nothing to do", app)
+		} else {
+			RequestNewFilter(FilterWidget.Value(), app)
+		}
 	})
 
 	// Will only be enabled to click if filter is valid

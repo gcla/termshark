@@ -432,14 +432,6 @@ func (c *PacketLoader) NewFilter(newfilt string, cb interface{}, app gowid.IApp)
 
 	if c.DisplayFilter() == newfilt {
 		log.Infof("No operation - same filter applied ('%s').", newfilt)
-		// This is a hack to avoid displaying an error in the following situation. The user loads
-		// a pcap and applies a filter. Then they hit clear-packets. The filter is still shown.
-		// Then they run clear-filter. That will attempt to apply a new filter, but the loader's
-		// record of the filter is cleared, and the new filter to apply is also clear, so they
-		// are the same, so this error is shown.
-		if newfilt != "" {
-			HandleError(NoneCode, app, fmt.Errorf("Same filter - nothing to do."), cb)
-		}
 	} else {
 		c.stopTail()
 		c.stopLoadPsml()
