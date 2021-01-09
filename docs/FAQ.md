@@ -391,7 +391,7 @@ As much as possible, I want termshark to work "right out of the box", and to me 
 
 Termshark v2 implemented stream reassembly, a "What's next" feature from v1. For Termshark v3, some possibilities are:
 
-- Expose more of tshark's `-z` options (there are many more)
-- Better navigation of the UI with the keyboard e.g. VIM-style commands!
+- Expose many more of tshark's `-z` options
+- Allow the pcap columns to be configured
 - Allow the user to start reading from available interfaces once the UI has started
 - And since tshark can be customized via the TOML config file, don't be so trusting of its output - there are surely bugs lurking here

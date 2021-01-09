@@ -94,7 +94,7 @@ You can also apply a capture filter directly from the command-line:
 termshark -i eth0 tcp
 ```
 
-Termshark will apply the capture filter as it reads, but the UI currently does not provide any indication of the capture filter that is in effect.
+Termshark will apply the capture filter as it reads. The UI will show the capture filter in parentheses at the top, after the name of the packet source.
 
 Termshark supports reading from more than one interface at a time:
 
@@ -563,6 +563,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `psml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PSML.
 - `recent-files` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
 - `recent-filters` (string list) - recently used Wireshark display filters.
+- `respect-colorterm` (bool) - if termshark detects you are using base16-shell, it won't map any theme RGB color names (like #90FF32) to 0-21 in the 256-color space to avoid clashes with the active base16 theme. This shouldn't affect color reproduction if the terminal is 24-bit capable, but some terminal emulators (e.g. gnome-terminal) seem to use the 256-color space anyway. Termshark works around this by falling back to 256-color mode, interpolating RGB colors into the 256-color space and avoiding 0-21. If you really want termshark to run in 24-bit color mode anyway, set this to true.
 - `stream-cache-size` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
 - `stream-view` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
 - `tail-command` (string) - make termshark use this specific `tail` command. This is used when reading from an interface in order to feed `dumpcap`-saved data to `tshark`. The default is `tail -f -c +0 <file>`. If you are running on Windows, the default is to use `termshark` itself with a special hidden `--tail` flag. But probably better to use Wireshark on Windows :-)
@@ -573,7 +574,9 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
   term = "screen-256color"
 ```
 
-- `theme` (string) - the currently selected theme, if absent, no theme is used.
+- `theme-16` (string) - the theme applied when termshark runs in a 16-color terminal. If absent, no theme is used.
+- `theme-256` (string) - the theme applied when termshark runs in a 256-color terminal. If absent, no theme is used.
+- `theme-truecolor` (string) - the theme applied when termshark runs in a terminal that supports 24-bit color. If absent, no theme is used.
 - `tshark` (string) - make termshark use this specific `tshark`.
 - `tshark-args` (string list) - these are added to each invocation of `tshark` made by termshark e.g.
 
