@@ -37,7 +37,7 @@ Termshark is inspired by Wireshark, and depends on tshark for all its intelligen
 
 ```console
 $ termshark -h
-termshark v2.1.1
+termshark v2.2.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
@@ -334,6 +334,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **logs** - Show termshark's log file (Unix-only)
 - **map** - Map a keypress to a key sequence (see `help map`)
 - **marks** - Show file-local and global packet marks
+- **no-theme** - Clear theme for the current terminal color mode
 - **quit** - Quit termshark
 - **recents** - Load a pcap from those recently-used
 - **set** - Set various config properties (see `help set`)
@@ -343,6 +344,25 @@ Many of termshark's operations can be initiated from the command-line. After ope
 
 Some commands require a parameter or more. Candidate completions will be shown when possible; you can then scroll up or down through them and hit tab
 or enter to complete the candidate. Candidates are filtered as you type. Hit enter to run a valid command or hit `ctrl-c` to close the command-line.
+
+### Vim Navigation
+
+Termshark lets you navigate the UI using familiar Vim key bindings and tries to apply other Vim concepts where it makes sense. All tabular views
+support Vim's `hjkl` navigation keys. Here is a list of other Vim-style bindings:
+
+- **gg**      - Go to the top of the current table
+- **G**       - Go to the bottom of the current table
+- **5gg**     - Go to the 5th row of the table
+- **C-w C-w** - Switch panes (same as tab)
+- **C-w =**   - Equalize pane spacing
+- **ma**      - Mark current packet (use a through z)
+- **'a**      - Jump to packet marked 'a'
+- **mA**      - Mark current packet + pcap (use A through Z)
+- **'A**      - Jump to packet + pcap marked 'A'
+- **''**      - After a jump; jump back to prior packet
+- **ZZ**      - Quit without confirmation
+
+The command-line supports some Vim shortcuts too e.g. `:q!` to quit immediately.
 
 ### Macros
 
