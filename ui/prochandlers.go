@@ -39,7 +39,11 @@ func MakeUpdateCurrentCaptureInTitle() updateCurrentCaptureInTitle {
 
 func (t updateCurrentCaptureInTitle) BeforeBegin(code pcap.HandlerCode, app gowid.IApp) {
 	if code&pcap.PsmlCode != 0 {
-		currentCapture.SetText(t.Ld.String(), app)
+		cap := t.Ld.String()
+		if t.Ld.CaptureFilter() != "" {
+			cap = fmt.Sprintf("%s (%s)", cap, t.Ld.CaptureFilter())
+		}
+		currentCapture.SetText(cap, app)
 		currentCaptureWidgetHolder.SetSubWidget(currentCaptureWidget, app)
 	}
 }
