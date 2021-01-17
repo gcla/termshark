@@ -6,10 +6,11 @@ require (
 	github.com/adam-hanna/arrayOperations v0.2.6
 	github.com/antchfx/xmlquery v1.3.3
 	github.com/antchfx/xpath v1.1.11 // indirect
+	github.com/araddon/dateparse v0.0.0-20201001162425-8aadafed4dc4 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.1.1-0.20201029034135-cc3f828591d3
+	github.com/gcla/gowid v1.2.1-0.20210117214920-1a84a417dba2
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gdamore/tcell v1.3.1-0.20200115030318-bff4943f9a29
 	github.com/go-test/deep v1.0.2 // indirect
