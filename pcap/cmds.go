@@ -9,9 +9,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/tshark"
 	"github.com/kballard/go-shellquote"
 	log "github.com/sirupsen/logrus"
 )
@@ -149,6 +151,12 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 		fifo = false
 	}
 
+	cols := tshark.GetPsmlColumnFormat()
+	specs := make([]string, 0, len(cols))
+	for _, w := range cols {
+		specs = append(specs, fmt.Sprintf("\"%s\",\"%s\"", w.Name, w.Field))
+	}
+
 	args := []string{
 		// "-i",
 		// "0",
@@ -157,7 +165,11 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 		//"-f", "-o", fmt.Sprintf("/tmp/foo-%d", delme), "-s", "256", "-tt",
 		//termshark.TSharkBin(),
 		"-T", "psml",
-		"-o", "gui.column.format:\"No.\",\"%m\",\"Time\",\"%t\",\"Source\",\"%s\",\"Destination\",\"%d\",\"Protocol\",\"%p\",\"Length\",\"%L\",\"Info\",\"%i\"",
+
+		// Deliberately add in a No. column as the first, no matter what the user's config says. This is
+		// not added to the UI, but the loader needs it to track packet numbers when a filter is in
+		// effect - so a table row (int) can be mapped to a packet number.
+		"-o", fmt.Sprintf("gui.column.format:\"No.\",\"%%m\",%s", strings.Join(specs, ",")),
 	}
 	if !fifo {
 		// read from cmdline file

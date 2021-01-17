@@ -50,6 +50,7 @@ import (
 	"github.com/gcla/termshark/v2/psmlmodel"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/theme"
+	"github.com/gcla/termshark/v2/tshark"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets"
@@ -1863,8 +1864,34 @@ func setLowerWidgets(app gowid.IApp) {
 }
 
 func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
+	headers := psml.PsmlHeaders()
+
+	avgs := psml.PsmlAverageLengths()
+	maxs := psml.PsmlMaxLengths()
+	widths := make([]gowid.IWidgetDimension, 0, len(avgs))
+	for i := 0; i < len(avgs); i++ {
+		titleLen := 0
+		if i < len(headers) {
+			titleLen = len(headers[i]) + 1 // add 1 because the table clears the last cell
+		}
+		max := gwutil.Max(maxs[i], titleLen)
+
+		// in case there isn't any data yet
+		avg := titleLen
+		if !avgs[i].IsNone() {
+			avg = gwutil.Max(avgs[i].Val(), titleLen)
+		}
+		// This makes the UI look nicer - an extra column of space when the columns are
+		// packed tightly and each column is usually full.
+		if avg == max {
+			widths = append(widths, weightupto(avg, max+1))
+		} else {
+			widths = append(widths, weightupto(avg, max))
+		}
+	}
+
 	packetPsmlTableModel := table.NewSimpleModel(
-		psml.PsmlHeaders(),
+		headers,
 		psml.PsmlData(),
 		table.SimpleOptions{
 			Style: table.StyleOptions{
@@ -1876,15 +1903,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 				CellStyleFocus:      gowid.MakePaletteRef("packet-list-cell-focus"),
 			},
 			Layout: table.LayoutOptions{
-				Widths: []gowid.IWidgetDimension{
-					weightupto(6, 10),
-					weightupto(8, 24),
-					weightupto(14, 32),
-					weightupto(14, 32),
-					weightupto(12, 32),
-					weightupto(8, 8),
-					weight(40),
-				},
+				Widths: widths,
 			},
 		},
 	)
@@ -1893,9 +1912,21 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 		packetPsmlTableModel,
 		gowid.MakePaletteRef("packet-list-row-focus"),
 	)
+
+	// No need to refetch the information from the TOML file each time this is
+	// called. Use a globally cached version
+	cols := tshark.GetPsmlColumnFormatCached()
+
 	if len(expandingModel.Comparators) > 0 {
-		expandingModel.Comparators[0] = table.IntCompare{}
-		expandingModel.Comparators[5] = table.IntCompare{}
+		for i, _ := range expandingModel.Comparators {
+			if i < len(widths) {
+				if field, ok := tshark.AllowedColumnFormats[cols[i].Field]; ok {
+					if field.Comparator != nil {
+						expandingModel.Comparators[i] = field.Comparator
+					}
+				}
+			}
+		}
 	}
 
 	return expandingModel
@@ -1952,6 +1983,8 @@ type psmlInfo interface {
 	PsmlData() [][]string
 	PsmlHeaders() []string
 	PsmlColors() []pcap.PacketColors
+	PsmlAverageLengths() []gwutil.IntOption
+	PsmlMaxLengths() []int
 }
 
 func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
