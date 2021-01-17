@@ -35,6 +35,7 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/vim"
+	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gdamore/tcell"
@@ -768,6 +769,40 @@ func SaveGlobalMarks(m map[rune]GlobalJumpPos) {
 	// Hack to make viper save if I only deleted from the map
 	SetConf("main.lastupdate", time.Now().String())
 }
+
+//======================================================================
+
+// IPCompare is a unit type that satisfies ICompare, and can be used
+// for numerically comparing IP addresses.
+type IPCompare struct{}
+
+func (s IPCompare) Less(i, j string) bool {
+	x := net.ParseIP(i)
+	y := net.ParseIP(j)
+	if x != nil && y != nil {
+		if len(x) != len(y) {
+			return len(x) < len(y)
+		} else {
+			for i := 0; i < len(x); i++ {
+				switch {
+				case x[i] < y[i]:
+					return true
+				case y[i] < x[i]:
+					return false
+				}
+			}
+			return false
+		}
+	} else if x != nil {
+		return true
+	} else if y != nil {
+		return false
+	} else {
+		return i < j
+	}
+}
+
+var _ table.ICompare = IPCompare{}
 
 //======================================================================
 

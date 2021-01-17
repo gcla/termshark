@@ -150,6 +150,19 @@ func TestConv1(t *testing.T) {
 	}
 }
 
+func TestIPComp1(t *testing.T) {
+	var ip IPCompare
+	assert.True(t, ip.Less("x", "y"))
+	assert.True(t, ip.Less("192.168.0.4", "y"))
+	assert.False(t, ip.Less("y", "192.168.0.4"))
+	assert.True(t, ip.Less("192.168.0.253", "192.168.1.4"))
+	assert.False(t, ip.Less("192.168.1.4", "192.168.0.253"))
+	assert.True(t, ip.Less("192.168.0.253", "::ffff:192.168.1.4"))
+	assert.True(t, ip.Less("::ffff:192.168.0.253", "192.168.1.4"))
+	assert.True(t, ip.Less("192.168.0.253", "2001:db8::68"))
+	assert.False(t, ip.Less("2001:db8::68", "192.168.0.253"))
+}
+
 //======================================================================
 // Local Variables:
 // mode: Go
