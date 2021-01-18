@@ -18,12 +18,12 @@ require (
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/magiconair/properties v1.8.4 // indirect
-	github.com/mattn/go-isatty v0.0.12
-	github.com/mitchellh/mapstructure v1.4.0 // indirect
+	github.com/mattn/go-isatty v0.0.9
+	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/mreiferson/go-snappystream v0.2.3
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/pkg/term v1.1.0
+	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942
 	github.com/rakyll/statik v0.1.7
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
 	github.com/sirupsen/logrus v1.7.0
@@ -32,10 +32,10 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.1
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/tevino/abool v1.2.0
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
-	golang.org/x/sys v0.0.0-20210108172913-0df2131ae363 // indirect
+	golang.org/x/sys v0.0.0-20210113181707-4bcb84eeeb78 // indirect
 	golang.org/x/text v0.3.5 // indirect
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 	gopkg.in/ini.v1 v1.62.0 // indirect
