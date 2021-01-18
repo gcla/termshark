@@ -58,10 +58,11 @@ github.com/gcla/gowid v1.2.1-0.20210117214920-1a84a417dba2 h1:4fqsdd0VuRU9NyJpkP
 github.com/gcla/gowid v1.2.1-0.20210117214920-1a84a417dba2/go.mod h1:kwHYNePmuaNa60IAkHfd/OfPeZuoSuz7ww+CeA5q/aQ=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359 h1:3xEhacR7pIJV8daurdBygptxhzTJeYFqJp1V6SDl+pE=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
-github.com/gcla/termshark/v2 v2.2.1-0.20210117215845-d35d83322b03 h1:BviKBt6VVZ9/EWKf4GPo2a/BmD0KjXzBFszG41+gAlc=
-github.com/gcla/termshark/v2 v2.2.1-0.20210117215845-d35d83322b03/go.mod h1:RtTPPQnN2gFb06+JYl1PIg2VWETyYw6NgaFE6mKWipk=
+github.com/gcla/termshark/v2 v2.2.1-0.20210118030027-ae510d062ba6 h1:b/bHld/yOhXYx0piDrmC6K+hC92v7IVDp0PMQdIkX3s=
+github.com/gcla/termshark/v2 v2.2.1-0.20210118030027-ae510d062ba6/go.mod h1:RtTPPQnN2gFb06+JYl1PIg2VWETyYw6NgaFE6mKWipk=
 github.com/gdamore/encoding v1.0.0 h1:+7OoQ1Bc6eTm5niUzBa0Ctsh6JbMW6Ra+YNuAtDBdko=
 github.com/gdamore/encoding v1.0.0/go.mod h1:alR0ol34c49FCSBLjhosxzcPHQbf2trDkoo5dl+VrEg=
+github.com/gdamore/tcell v1.3.1-0.20200115030318-bff4943f9a29 h1:kvzEHvL4/ORuWe6JN6WeaiRYIvVDUVaC2r0gpJIxJ6I=
 github.com/gdamore/tcell v1.3.1-0.20200115030318-bff4943f9a29/go.mod h1:vxEiSDZdW3L+Uhjii9c3375IlDmR05bzxY404ZVSMo0=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
