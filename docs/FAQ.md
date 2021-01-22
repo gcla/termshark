@@ -11,6 +11,7 @@
 * [What settings affect termshark's colors?](#what-settings-affect-termsharks-colors)
 * [How do I rebuild termshark?](#how-do-i-rebuild-termshark)
 * [Where are the config and log files?](#where-are-the-config-and-log-files)
+* [I'm capturing with tcpdump. Can termshark treat that pcap like a live capture?]
 * [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
 * [Can I pass extra arguments to tshark?](#can-i-pass-extra-arguments-to-tshark)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
@@ -177,6 +178,15 @@ You can find the log file, `termshark.log`, in:
 - `${XDG_CACHE_HOME}/termshark/` `(${HOME}/.cache//termshark/)` on Linux
 - `${HOME}/Library/Caches/termshark/` on macOS
 - `%LOCALAPPDATA%\termshark\` `(C:\Users\<User>\AppData\Local\termshark\)` on Windows
+
+## I'm capturing with tcpdump. Can termshark treat that pcap like a live capture?
+
+Yes, at least on Unix systems. Try this:
+
+```bash
+shell1$ tcpdump -i eth0 -w foo.pcap
+shell2$ tail -f -c +0 foo.pcap | termshark
+```
 
 ## The console is too narrow on Windows
 
