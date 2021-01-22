@@ -11,7 +11,7 @@
 * [What settings affect termshark's colors?](#what-settings-affect-termsharks-colors)
 * [How do I rebuild termshark?](#how-do-i-rebuild-termshark)
 * [Where are the config and log files?](#where-are-the-config-and-log-files)
-* [I'm capturing with tcpdump. Can termshark treat that pcap like a live capture?]
+* [I'm capturing with tcpdump. Can termshark treat that pcap like a live capture?](#im-capturing-with-tcpdump-can-termshark-treat-that-pcap-like-a-live-capture)
 * [The console is too narrow on Windows](#the-console-is-too-narrow-on-windows)
 * [Can I pass extra arguments to tshark?](#can-i-pass-extra-arguments-to-tshark)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
