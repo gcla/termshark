@@ -537,7 +537,7 @@ func makeStructNodeWidget(pos tree.IPos, tr tree.IModel) gowid.IWidget {
 
 //======================================================================
 
-// I want to have prefered position work on this, but you have to choose a subwidget
+// I want to have preferred position work on this, but you have to choose a subwidget
 // to navigate to. We have three. I know that my use of them is very similar, so I'll
 // just pick the first
 type selectedComposite struct {
@@ -645,7 +645,7 @@ func (t *rowFocusTableWidget) At(lpos list.IWalkerPosition) gowid.IWidget {
 		return nil
 	}
 
-	// Composite so it passes through prefered column
+	// Composite so it passes through preferred column
 	var res gowid.IWidget = &selectedComposite{
 		Widget: isselected.New(w,
 			styled.New(w, gowid.MakePaletteRef(t.rowSelected)),
@@ -2246,7 +2246,7 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 
 		// if not nil, it means the user has interacted with some struct widget at least once causing
 		// a focus change. We track the current focus e.g. [0, 2, 1] - the indices through the tree leading
-		// to the focused item. We programatically adjust the focus widget of the new struct (e.g. after
+		// to the focused item. We programmatically adjust the focus widget of the new struct (e.g. after
 		// navigating down one in the packet list), but only if we can move focus to the same PDML field
 		// as the old struct. For example, if we are on tcp.srcport in the old packet, and we can
 		// open up tcp.srcport in the new packet, then we do so. This is not perfect, because I use the old

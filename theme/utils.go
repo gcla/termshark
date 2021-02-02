@@ -32,7 +32,7 @@ const (
 
 var theme *viper.Viper
 
-// MakeColorSafe extends gowid's MakeColorSafe function, prefering to interpret
+// MakeColorSafe extends gowid's MakeColorSafe function, preferring to interpret
 // its string argument as a toml file config key lookup first; if this fails, then
 // fall back to gowid.MakeColorSafe, which will then read colors as urwid color names,
 // #-prefixed hex digits, grayscales, etc.
@@ -88,7 +88,7 @@ func (m Mode) String() string {
 
 // Load will set the package-level theme object to a viper object representing the
 // toml file either (a) read from disk, or failing that (b) built-in to termshark.
-// Disk themes are prefered and take precedence.
+// Disk themes are preferred and take precedence.
 func Load(name string, app gowid.IApp) error {
 	var err error
 
