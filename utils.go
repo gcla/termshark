@@ -868,7 +868,7 @@ func ConvertArgToTShark(arg string) (string, string, bool) {
 
 var UnexpectedOutput = fmt.Errorf("Unexpected output")
 
-// Use tshark's output, becauses the indices can then be used to select
+// Use tshark's output, because the indices can then be used to select
 // an interface to sniff on, and net.Interfaces returns the interfaces in
 // a different order.
 func Interfaces() (map[int][]string, error) {
