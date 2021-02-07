@@ -2410,7 +2410,29 @@ func RequestNewFilter(displayFilter string, app gowid.IApp) {
 		//MakeCancelledMessage(),
 	}
 
-	Loader.NewFilter(displayFilter, handlers, app)
+	if Loader.DisplayFilter() == displayFilter {
+		log.Infof("No operation - same filter applied ('%s').", displayFilter)
+	} else {
+		Loader.Reload(displayFilter, handlers, app)
+	}
+}
+
+func RequestReload(app gowid.IApp) {
+	handlers := pcap.HandlerList{
+		SimpleErrors{},
+		MakePacketViewUpdater(),
+		MakeUpdateCurrentCaptureInTitle(),
+		SetStructWidgets{Loader}, // for OnClear
+		ClearMarksHandler{},
+		// Don't use this one - we keep the cancelled flag set so that we
+		// don't restart live captures on clear if ctrl-c has been issued
+		// so we don't want this handler on a new filter because we don't
+		// want to be told again after applying the filter that the load
+		// was cancelled
+		//MakeCancelledMessage(),
+	}
+
+	Loader.Reload(Loader.DisplayFilter(), handlers, app)
 }
 
 //======================================================================

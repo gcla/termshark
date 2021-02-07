@@ -427,35 +427,27 @@ func (c *ParentLoader) StopLoadPsmlAndIface(cb interface{}) {
 
 //======================================================================
 
-// NewFilter is essentially a completely new load - psml + pdml. But not iface, if that's running
-func (c *PacketLoader) NewFilter(newfilt string, cb interface{}, app gowid.IApp) {
+func (c *PacketLoader) Reload(filter string, cb interface{}, app gowid.IApp) {
+	c.stopTail()
+	c.stopLoadPsml()
+	c.stopLoadPdml()
 
-	log.Infof("Requested application of display filter '%v'", newfilt)
+	OpsChan <- gowid.RunFunction(func(app gowid.IApp) {
+		c.RenewPsmlLoader()
+		c.RenewPdmlLoader()
 
-	if c.DisplayFilter() == newfilt {
-		log.Infof("No operation - same filter applied ('%s').", newfilt)
-	} else {
-		c.stopTail()
-		c.stopLoadPsml()
-		c.stopLoadPdml()
+		// This is not ideal. I'm clearing the views, but I'm about to
+		// restart. It's not really a new source, so called the new source
+		// handler is an untify way of updating the current capture in the
+		// title bar again
+		handleClear(NoneCode, app, cb)
 
-		OpsChan <- gowid.RunFunction(func(app gowid.IApp) {
-			c.RenewPsmlLoader()
-			c.RenewPdmlLoader()
+		c.displayFilter = filter
 
-			// This is not ideal. I'm clearing the views, but I'm about to
-			// restart. It's not really a new source, so called the new source
-			// handler is an untify way of updating the current capture in the
-			// title bar again
-			handleClear(NoneCode, app, cb)
+		log.Infof("Applying display filter '%s'", filter)
 
-			c.displayFilter = newfilt
-
-			log.Infof("Applying new display filter '%s'", newfilt)
-
-			c.loadPsmlSync(c.InterfaceLoader, c, cb, app)
-		})
-	}
+		c.loadPsmlSync(c.InterfaceLoader, c, cb, app)
+	})
 }
 
 func (c *PacketLoader) LoadPcap(pcap string, displayFilter string, cb interface{}, app gowid.IApp) {
