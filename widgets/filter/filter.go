@@ -124,7 +124,7 @@ func New(opt Options) *Widget {
 		}
 	}
 
-	drop := menu.New("filter", menuListBox2, gowid.RenderWithUnits{U: opt.MaxCompletions + 2},
+	drop := menu.New("filter", menuListBox2, fixed,
 		menu.Options{
 			IgnoreKeysProvided: true,
 			IgnoreKeys:         ign,

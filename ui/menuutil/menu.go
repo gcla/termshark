@@ -16,11 +16,12 @@ import (
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/keypress"
+	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/menu"
-	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
+	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
@@ -37,25 +38,38 @@ func MakeMenuDivider() SimpleMenuItem {
 	return SimpleMenuItem{}
 }
 
-func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
+func MakeMenuWithHotKeys(items []SimpleMenuItem) (gowid.IWidget, int) {
+	return makeMenuWithHotKeys(items, true)
+}
+
+func MakeMenu(items []SimpleMenuItem) (gowid.IWidget, int) {
+	return makeMenuWithHotKeys(items, false)
+}
+
+func makeMenuWithHotKeys(items []SimpleMenuItem, showKeys bool) (gowid.IWidget, int) {
 	menu1Widgets := make([]gowid.IWidget, len(items))
 	menu1HotKeys := make([]gowid.IWidget, len(items))
 
 	// Figure out the length of the longest hotkey string representation
-	max := 0
+	maxHK := 0
 	for _, w := range items {
 		if w.Txt != "" {
 			k := fmt.Sprintf("%v", w.Key)
-			if len(k) > max {
-				max = len(k)
+			if len(k) > maxHK {
+				maxHK = len(k)
 			}
 		}
 	}
+
+	maxVal := 0
 
 	// Construct the hotkey widget and menu item widget for each menu entry
 	for i, w := range items {
 		if w.Txt != "" {
 			load1B := button.NewBare(text.New(w.Txt))
+			if len(w.Txt) > maxVal {
+				maxVal = len(w.Txt)
+			}
 			var ks string
 			if w.Key != nil {
 				ks = fmt.Sprintf("%v", w.Key)
@@ -83,14 +97,20 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 
 	fixed := gowid.RenderFixed{}
 
+	startCol := 0
+	if showKeys {
+		startCol = 2
+	}
+
 	// Build the menu "row" for each menu entry
 	menu1Widgets2 := make([]gowid.IWidget, len(menu1Widgets))
 	for i, w := range menu1Widgets {
 		if w == nil {
-			menu1Widgets2[i] = divider.NewUnicode()
+			menu1Widgets2[i] = vpadding.New(divider.NewUnicode(), gowid.VAlignTop{}, gowid.RenderFlow{})
 		} else {
-			menu1Widgets2[i] = columns.New(
-				[]gowid.IContainerWidget{
+			containerWidgets := make([]gowid.IContainerWidget, 0, 3)
+			if showKeys {
+				containerWidgets = append(containerWidgets,
 					&gowid.ContainerWidget{
 						IWidget: hpadding.New(
 							// size is translated from flowwith{20} to fixed; fixed gives size 6, flowwith aligns right to 12
@@ -102,7 +122,7 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 								fixed,
 							),
 							gowid.HAlignLeft{},
-							gowid.RenderFlowWith{C: max},
+							gowid.RenderFlowWith{C: maxHK},
 						),
 						D: fixed,
 					},
@@ -110,29 +130,22 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 						IWidget: text.New("| "),
 						D:       fixed,
 					},
-					&gowid.ContainerWidget{
-						IWidget: w,
-						D:       fixed,
-					},
-				},
-				columns.Options{
-					StartColumn: 2,
+				)
+			}
+			containerWidgets = append(containerWidgets,
+				&gowid.ContainerWidget{
+					IWidget: w,
+					D:       fixed,
+					//D: gowid.RenderWithUnits{U: 20},
 				},
 			)
-		}
-	}
 
-	menu1cwidgets := make([]gowid.IContainerWidget, len(menu1Widgets2))
-	for i, w := range menu1Widgets2 {
-		var dim gowid.IWidgetDimension
-		if menu1Widgets[i] != nil {
-			dim = fixed
-		} else {
-			dim = gowid.RenderFlow{}
-		}
-		menu1cwidgets[i] = &gowid.ContainerWidget{
-			IWidget: w,
-			D:       dim,
+			menu1Widgets2[i] = columns.New(
+				containerWidgets,
+				columns.Options{
+					StartColumn: startCol,
+				},
+			)
 		}
 	}
 
@@ -148,9 +161,7 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 		cellmod.Opaque(
 			styled.New(
 				framed.NewUnicode(
-					pile.New(menu1cwidgets, pile.Options{
-						Wrap: true,
-					}),
+					list.New(list.NewSimpleListWalker(menu1Widgets2)),
 				),
 				gowid.MakePaletteRef("default"),
 			),
@@ -169,7 +180,7 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 		}
 	}))
 
-	return menuListBox1
+	return menuListBox1, maxHK + maxVal + 2 + 2 // "| " + border
 }
 
 //======================================================================

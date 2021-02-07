@@ -244,13 +244,13 @@ func MakeConvMenu() (*holder.Widget, *menu.Widget) {
 }
 
 func (w *Widget) updateConvMenuWidget(app gowid.IApp) {
-	convListBox := w.makeConvMenuWidget()
+	convListBox, _ := w.makeConvMenuWidget()
 	w.convMenuHolder.SetSubWidget(convListBox, app)
 	w.setConvButtonText(app)
 	w.setTurnText(app)
 }
 
-func (w *Widget) makeConvMenuWidget() gowid.IWidget {
+func (w *Widget) makeConvMenuWidget() (gowid.IWidget, int) {
 	savedItems := make([]menuutil.SimpleMenuItem, 0)
 
 	savedItems = append(savedItems,
@@ -295,9 +295,7 @@ func (w *Widget) makeConvMenuWidget() gowid.IWidget {
 		)
 	}
 
-	convListBox := menuutil.MakeMenuWithHotKeys(savedItems)
-
-	return convListBox
+	return menuutil.MakeMenuWithHotKeys(savedItems)
 }
 
 // Turns an array of stream chunks into a pair of (a) a scrollable table

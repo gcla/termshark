@@ -2456,7 +2456,7 @@ func progMax(x, y Prog) Prog {
 
 //======================================================================
 
-func makeRecentMenuWidget() gowid.IWidget {
+func makeRecentMenuWidget() (gowid.IWidget, int) {
 	savedItems := make([]menuutil.SimpleMenuItem, 0)
 	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
@@ -2475,13 +2475,11 @@ func makeRecentMenuWidget() gowid.IWidget {
 			)
 		}
 	}
-	savedListBox := menuutil.MakeMenuWithHotKeys(savedItems)
-
-	return savedListBox
+	return menuutil.MakeMenuWithHotKeys(savedItems)
 }
 
 func UpdateRecentMenu(app gowid.IApp) {
-	savedListBox := makeRecentMenuWidget()
+	savedListBox, _ := makeRecentMenuWidget()
 	savedListBoxWidgetHolder.SetSubWidget(savedListBox, app)
 }
 
@@ -2830,7 +2828,7 @@ func Build() (*gowid.App, error) {
 		)
 	}
 
-	generalMenuListBox := menuutil.MakeMenuWithHotKeys(generalMenuItems)
+	generalMenuListBox, generalMenuWidth := menuutil.MakeMenuWithHotKeys(generalMenuItems)
 
 	var generalNext menuutil.NextMenu
 
@@ -2842,7 +2840,10 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	generalMenu = menu.New("main", generalMenuListBoxWithKeys, fixed, menu.Options{
+	// Hack. What's a more general way of doing this? The length of the <Menu> button I suppose
+	openMenuSite.Options.XOffset = -generalMenuWidth + 8
+
+	generalMenu = menu.New("main", generalMenuListBoxWithKeys, units(generalMenuWidth), menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
 		CloseKeys: []gowid.IKey{
@@ -2862,7 +2863,7 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	openAnalysisSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
+	openAnalysisSite = menu.NewSite(menu.SiteOptions{XOffset: -12, YOffset: 1})
 	openAnalysis.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
 		analysisMenu.Open(openAnalysisSite, app)
 	}))
@@ -2894,7 +2895,7 @@ func Build() (*gowid.App, error) {
 		},
 	}
 
-	analysisMenuListBox := menuutil.MakeMenuWithHotKeys(analysisMenuItems)
+	analysisMenuListBox, analysisMenuWidth := menuutil.MakeMenuWithHotKeys(analysisMenuItems)
 
 	var analysisNext menuutil.NextMenu
 
@@ -2906,7 +2907,7 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	analysisMenu = menu.New("analysis", analysisMenuListBoxWithKeys, fixed, menu.Options{
+	analysisMenu = menu.New("analysis", analysisMenuListBoxWithKeys, units(analysisMenuWidth), menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
 		CloseKeys: []gowid.IKey{
@@ -2928,7 +2929,7 @@ func Build() (*gowid.App, error) {
 		Styler: gowid.MakePaletteRef("progress-spinner"),
 	})
 
-	savedListBox := makeRecentMenuWidget()
+	savedListBox, _ := makeRecentMenuWidget()
 	savedListBoxWidgetHolder = holder.New(savedListBox)
 
 	savedMenu = menu.New("saved", savedListBoxWidgetHolder, fixed, menu.Options{

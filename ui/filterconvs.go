@@ -89,9 +89,8 @@ func makeFilterConvsMenuWidget() gowid.IWidget {
 		)
 	}
 
-	convListBox := menuutil.MakeMenuWithHotKeys(menuItems)
-
-	return convListBox
+	lb, _ := menuutil.MakeMenuWithHotKeys(menuItems)
+	return lb
 }
 
 func makeFilterConvs2MenuWidget() gowid.IWidget {
@@ -122,7 +121,7 @@ func makeFilterConvs2MenuWidget() gowid.IWidget {
 		)
 	}
 
-	convListBox := menuutil.MakeMenuWithHotKeys(menuItems)
+	convListBox, _ := menuutil.MakeMenuWithHotKeys(menuItems)
 
 	return convListBox
 }
