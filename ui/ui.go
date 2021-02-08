@@ -1036,6 +1036,11 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
+	MiniBuffer.Register("columns", minibufferFn(func(gowid.IApp, ...string) error {
+		openEditColumns(app)
+		return nil
+	}))
+
 	MiniBuffer.Register("menu", minibufferFn(func(gowid.IApp, ...string) error {
 		openGeneralMenu(app)
 		return nil
@@ -2751,6 +2756,14 @@ func Build() (*gowid.App, error) {
 				generalMenu.Close(app)
 				reallyClear(app)
 			},
+		},
+		menuutil.SimpleMenuItem{
+			Txt: "Edit Columns",
+			Key: gowid.MakeKey('e'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				generalMenu.Close(app)
+				openEditColumns(app)
+			},
 		}}...)
 
 	if runtime.GOOS != "windows" {
@@ -2799,7 +2812,7 @@ func Build() (*gowid.App, error) {
 		menuutil.MakeMenuDivider(),
 		menuutil.SimpleMenuItem{
 			Txt: "Found a Bug?",
-			Key: gowid.MakeKey('B'),
+			Key: gowid.MakeKey('b'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				generalMenu.Close(app)
 				if !termshark.RunningRemotely() {
@@ -2810,7 +2823,7 @@ func Build() (*gowid.App, error) {
 		},
 		menuutil.SimpleMenuItem{
 			Txt: "Feature Request?",
-			Key: gowid.MakeKey('F'),
+			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				generalMenu.Close(app)
 				if !termshark.RunningRemotely() {
@@ -3406,6 +3419,8 @@ func Build() (*gowid.App, error) {
 
 	buildStreamUi()
 	buildFilterConvsMenu()
+	buildNamesMenu(app)
+	buildFieldsMenu(app)
 
 	mainView = appkeys.New(
 		appkeys.New(
@@ -3485,6 +3500,8 @@ func Build() (*gowid.App, error) {
 		conversationMenu,
 		filterConvsMenu1,
 		filterConvsMenu2,
+		colNamesMenu,
+		colFieldsMenu,
 	}
 
 	menus = append(menus, FilterWidget.Menus()...)
