@@ -6,11 +6,10 @@ require (
 	github.com/adam-hanna/arrayOperations v0.2.6
 	github.com/antchfx/xmlquery v1.3.3
 	github.com/antchfx/xpath v1.1.11 // indirect
-	github.com/araddon/dateparse v0.0.0-20201001162425-8aadafed4dc4 // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.2.1-0.20210117214920-1a84a417dba2
+	github.com/gcla/gowid v1.2.1-0.20210208053511-4450a4324017
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gdamore/tcell v1.3.1-0.20200115030318-bff4943f9a29
 	github.com/go-test/deep v1.0.2 // indirect
@@ -19,6 +18,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/mattn/go-isatty v0.0.12
+	github.com/mitchellh/go-homedir v1.0.0
 	github.com/mitchellh/mapstructure v1.4.0 // indirect
 	github.com/mreiferson/go-snappystream v0.2.3
 	github.com/pelletier/go-toml v1.8.1 // indirect
@@ -32,7 +32,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.7.1
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/tevino/abool v1.2.0
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
 	golang.org/x/sys v0.0.0-20210108172913-0df2131ae363 // indirect
