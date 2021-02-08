@@ -48,9 +48,9 @@ import (
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/psmlmodel"
+	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/theme"
-	"github.com/gcla/termshark/v2/tshark"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets"
@@ -1915,12 +1915,12 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 
 	// No need to refetch the information from the TOML file each time this is
 	// called. Use a globally cached version
-	cols := tshark.GetPsmlColumnFormatCached()
+	cols := shark.GetPsmlColumnFormatCached()
 
 	if len(expandingModel.Comparators) > 0 {
 		for i, _ := range expandingModel.Comparators {
 			if i < len(widths) {
-				if field, ok := tshark.AllowedColumnFormats[cols[i].Field]; ok {
+				if field, ok := shark.AllowedColumnFormats[cols[i].Field]; ok {
 					if field.Comparator != nil {
 						expandingModel.Comparators[i] = field.Comparator
 					}

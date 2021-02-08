@@ -23,10 +23,10 @@ import (
 	"github.com/gcla/termshark/v2/cli"
 	"github.com/gcla/termshark/v2/convs"
 	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/theme"
-	"github.com/gcla/termshark/v2/tshark"
 	"github.com/gcla/termshark/v2/tty"
 	"github.com/gcla/termshark/v2/ui"
 	"github.com/gcla/termshark/v2/widgets/filter"
@@ -810,7 +810,7 @@ func cmain() int {
 	// cached. If so, print a message to console - "initializing". I'm not doing
 	// anything smarter or async - it's not worth it, this should take a fraction
 	// of a second.
-	err = tshark.InitValidColumns()
+	err = shark.InitValidColumns()
 
 	// If this message is needed, we want it to appear after the init message for the packet
 	// columns - after InitValidColumns

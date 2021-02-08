@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/tshark"
+	"github.com/gcla/termshark/v2/shark"
 	"github.com/kballard/go-shellquote"
 	log "github.com/sirupsen/logrus"
 )
@@ -151,7 +151,7 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 		fifo = false
 	}
 
-	cols := tshark.GetPsmlColumnFormat()
+	cols := shark.GetPsmlColumnFormat()
 	specs := make([]string, 0, len(cols))
 	for _, w := range cols {
 		specs = append(specs, fmt.Sprintf("\"%s\",\"%s\"", w.Name, w.Field))
