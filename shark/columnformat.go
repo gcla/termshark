@@ -216,49 +216,6 @@ func (w *ColumnsFromTshark) InitNoCache() error {
 
 //======================================================================
 
-func stripQuotes(s string) string {
-	if len(s) > 0 && s[0] == '"' {
-		s = s[1:]
-	}
-	if len(s) > 0 && s[len(s)-1] == '"' {
-		s = s[:len(s)-1]
-	}
-	return s
-}
-
-// gcla later todo delete
-// func WriteColumnFormat2(cols []string) error {
-// 	if (len(cols)/2)*2 != len(cols) {
-// 		return gowid.WithKVs(ColumnsFormatError, map[string]interface{}{
-// 			"columns": cols,
-// 		})
-// 	}
-
-// 	tcols := make([]string, 0)
-// 	for i := 0; i < len(cols); i += 2 {
-// 		tcols = append(tcols, fmt.Sprintf("%s %s", stripQuotes(cols[i+1]), stripQuotes(cols[i])))
-// 	}
-// 	logrus.Infof("GCLA: TCOLS is %v", tcols)
-// 	termshark.SetConf("main.column-format", tcols)
-// 	return nil
-// }
-
-// func WriteColumnFormat(cols []string) error {
-// 	if (len(cols)/2)*2 != len(cols) {
-// 		return gowid.WithKVs(ColumnsFormatError, map[string]interface{}{
-// 			"columns": cols,
-// 		})
-// 	}
-
-// 	tcols := make([]string, 0)
-// 	for i := 0; i < len(cols); i += 2 {
-// 		tcols = append(tcols, fmt.Sprintf("%s %s", stripQuotes(cols[i+1]), stripQuotes(cols[i])))
-// 	}
-// 	logrus.Infof("GCLA: TCOLS is %v", tcols)
-// 	termshark.SetConf("main.column-format", tcols)
-// 	return nil
-// }
-
 func GetPsmlColumnFormatCached() []PsmlColumnSpec {
 	cachedPsmlColumnFormatMutex.Lock()
 	defer cachedPsmlColumnFormatMutex.Unlock()
