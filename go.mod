@@ -1,6 +1,6 @@
 module github.com/gcla/termshark/v2
 
-go 1.12
+go 1.13
 
 require (
 	github.com/adam-hanna/arrayOperations v0.2.6
