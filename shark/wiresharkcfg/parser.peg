@@ -94,7 +94,7 @@ StringValue <- [^\n\t\r]+ {
 
 ListKeyValue <- Comment* k:ListKey ':' _ lv:ListValue {
    lists := make(map[string][]string)
-   lists[k.(string)] = lv.([]string)
+   lists[string(k.([]uint8))] = lv.([]string)
    res := &Config{
      Lists: lists,
      Strings: make(map[string]string),
@@ -102,8 +102,8 @@ ListKeyValue <- Comment* k:ListKey ':' _ lv:ListValue {
    return res, nil
 }
 
-ListKey <- "gui.column.format" {
-   return string(c.text), nil
+ListKey <- "gui.column.format" / "gui.column.hidden" {
+   return c.text, nil
 }
 
 ListItem <- [^\n\t\r,]+ {

@@ -233,7 +233,7 @@ func TestArgConv(t *testing.T) {
 
 # Packet list hidden columns
 # List all columns to hide in the packet list.
-gui.column.hidden: 
+gui.column.hidden: %Yut,%Cus:ip.flags:0:R
 
 # Packet list column format
 # Each pair of strings consists of a column title and its format
@@ -245,7 +245,9 @@ gui.column.format:
 	"Protocol", "%p",
 	"Length", "%L",
 	"Info", "%i",
-	"gcla1", "%Yut"
+	"gcla1", "%Yut",
+	"Flags", "%Cus:ip.flags:0:R",
+	"Authority RRs", "%Cus:nbns.count.auth_rr:0:R"
 
 ####### User Interface: Font ########
 
@@ -5276,12 +5278,15 @@ gui.qt.font_name: Liberation Mono,11,-1,5,50,0,0,0,0,0
 
 		cfg := parsed.(*Config)
 		assert.Contains(t, cfg.Lists, "gui.column.format")
-		assert.Contains(t, cfg.Strings, "gui.column.hidden")
+		assert.Contains(t, cfg.Lists, "gui.column.hidden")
 		assert.Contains(t, cfg.Strings, "gui.qt.font_name")
 
-		assert.Equal(t, 16, len(cfg.Lists["gui.column.format"]))
+		assert.Equal(t, 20, len(cfg.Lists["gui.column.format"]))
 		assert.Equal(t, "\"gcla1\"", cfg.Lists["gui.column.format"][14])
 		assert.Equal(t, "\"%Yut\"", cfg.Lists["gui.column.format"][15])
+
+		assert.Equal(t, 2, len(cfg.Lists["gui.column.hidden"]))
+		assert.Equal(t, "%Yut", cfg.Lists["gui.column.hidden"][0])
 	}
 }
 
