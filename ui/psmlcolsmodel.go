@@ -274,7 +274,7 @@ func (p *psmlColumnsModel) ReadFromWireshark(app gowid.IApp) error {
 func (p *psmlColumnsModel) UpdateFromField(field string, idx int, app gowid.IApp) {
 
 	if p.spec[idx].Field.Token == "%Cus" && field != "%Cus" {
-		err := m.widgets[idx].customFilter.Close()
+		err := p.widgets[idx].customFilter.Close()
 		if err != nil {
 			log.Warnf("Unexpected response when closing filter: %v", err)
 		}
