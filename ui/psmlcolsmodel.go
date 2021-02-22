@@ -9,10 +9,13 @@ import (
 	"fmt"
 
 	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/widgets/button"
+	"github.com/gcla/gowid/widgets/checkbox"
 	"github.com/gcla/gowid/widgets/clicktracker"
 	"github.com/gcla/gowid/widgets/columns"
 	"github.com/gcla/gowid/widgets/edit"
+	"github.com/gcla/gowid/widgets/fill"
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/menu"
 	"github.com/gcla/gowid/widgets/styled"
@@ -21,20 +24,35 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/shark/wiresharkcfg"
+	"github.com/gcla/termshark/v2/widgets"
+	"github.com/gcla/termshark/v2/widgets/filter"
+	"github.com/gcla/termshark/v2/widgets/number"
+	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
 
 var ColumnsFormatError = fmt.Errorf("The supplied list of columns and names is invalid")
 
+var filler *fill.Widget
+
 // psmlColumnsModel is itself a gowid table widget. This allows me to use the model
 // directly in the widget hierarchy, and has the advantage that if I update the model,
 // I can regenerate the embedded table widget because I have a handle to it. Otherwise
 // I would need to build a more complicated model with callbacks when data changes, and
 // have those callbacks tied to the table displaying the data.
+
+type psmlDialogWidgets struct {
+	customName   *edit.Widget // save the user-configured name
+	customFilter *filter.Widget
+	occurrence   *number.Widget
+	visible      *checkbox.Widget // save the visible selections
+}
+
 type psmlColumnsModel struct {
-	spec        []shark.PsmlColumnSpec // the actual rows - field name, long name
-	customNames []*edit.Widget         // save the user-configured name
+	spec       []shark.PsmlColumnSpec // the actual rows - field name, long name
+	widgets    []psmlDialogWidgets
+	haveCustom bool
 	*table.Widget
 }
 
@@ -49,7 +67,11 @@ var (
 
 //======================================================================
 
-func NewDefaultPsmlColumnsModel() *psmlColumnsModel {
+func init() {
+	filler = fill.New(' ')
+}
+
+func NewDefaultPsmlColumnsModel(app gowid.IApp) *psmlColumnsModel {
 	spec := shark.DefaultPsmlColumnSpec
 	// copy it to protect from alterations
 	specCopy := make([]shark.PsmlColumnSpec, len(spec))
@@ -59,61 +81,148 @@ func NewDefaultPsmlColumnsModel() *psmlColumnsModel {
 	res := &psmlColumnsModel{
 		spec: specCopy,
 	}
-	res.fixup()
+	res.fixup(app)
 	return res
 }
 
-func NewPsmlColumnsModel() *psmlColumnsModel {
+func NewPsmlColumnsModel(app gowid.IApp) *psmlColumnsModel {
 	spec := shark.GetPsmlColumnFormat()
 	res := &psmlColumnsModel{
 		spec: spec,
 	}
-	res.fixup()
+	res.fixup(app)
 	return res
 }
 
-func NewPsmlColumnsModelFrom(key string) *psmlColumnsModel {
-	spec := shark.GetPsmlColumnFormatFrom(key)
+func NewPsmlColumnsModelFrom(colsKey string, visKey string, app gowid.IApp) *psmlColumnsModel {
+	spec := shark.GetPsmlColumnFormatFrom(colsKey, visKey)
 	res := &psmlColumnsModel{
 		spec: spec,
 	}
-	res.fixup()
+	res.fixup(app)
 	return res
+}
+
+//======================================================================
+
+func (p *psmlColumnsModel) Close() error {
+	var err error
+	for i := 0; i < len(p.widgets); i++ {
+		if p.widgets[i].customFilter != nil {
+			err2 := p.widgets[i].customFilter.Close()
+			if err == nil {
+				err = err2
+			}
+		}
+	}
+	return err
 }
 
 func (p *psmlColumnsModel) String() string {
 	return fmt.Sprintf("%v", p.spec)
 }
 
+func (p *psmlColumnsModel) FieldToString(i int) string {
+	field := p.spec[i].Field.Token
+	if field == "%Cus" {
+		field = fmt.Sprintf("%s:%s:%d:R",
+			field,
+			p.widgets[i].customFilter.Value(),
+			p.widgets[i].occurrence.Value,
+		)
+	}
+	return field
+}
+
+// ToConfigList converts the information in the current PSML columns model to
+// a slice of strings suitable for writing to the termshark toml file.
 func (p *psmlColumnsModel) ToConfigList() []string {
 	res := make([]string, 0, len(p.spec))
 	for i := 0; i < len(p.spec); i++ {
-		custom := p.customNames[i].Text()
-		if custom == "" {
-			res = append(res, p.spec[i].Field)
-		} else {
-			res = append(res, fmt.Sprintf("%s %s", p.spec[i].Field, custom))
+		res = append(res, p.FieldToString(i))
+		res = append(res, p.widgets[i].customName.Text())
+	}
+	return res
+}
+
+// HiddenToConfigList returns a list of hidden fields, according to the current
+// PSML columns model (from the open dialog)
+func (p *psmlColumnsModel) HiddenToConfigList() []string {
+	res := make([]string, 0)
+	for i := 0; i < len(p.spec); i++ {
+		if !p.widgets[i].visible.IsChecked() {
+			res = append(res, p.FieldToString(i))
 		}
 	}
 	return res
 }
 
+type specToWidgets shark.PsmlColumnSpec
+
+func (sp *specToWidgets) widgets() psmlDialogWidgets {
+	return psmlDialogWidgets{
+		customName: edit.New(edit.Options{
+			Text: sp.Name,
+		}),
+		customFilter: filter.New("foof", filter.Options{
+			Completer:  savedCompleter{def: termshark.NewFields()},
+			MenuOpener: widgets.MenuOpenerFunc(openTermsharkMenu),
+			Position:   filter.Below,
+		}),
+		visible: checkbox.New(!sp.Hidden),
+		occurrence: number.New(number.Options{
+			Value: sp.Field.Occurrence,
+			Min:   gwutil.SomeInt(0),
+			Styler: func(w gowid.IWidget) gowid.IWidget {
+				return styled.NewInvertedFocus(w, gowid.MakePaletteRef("dialog"))
+			},
+		}),
+	}
+}
+
 func (p *psmlColumnsModel) AddRow() {
-	p.spec = append(p.spec, shark.PsmlColumnSpec{Field: "%m", Name: "No."})
-	p.customNames = append(p.customNames, edit.New(edit.Options{
-		Text: p.spec[len(p.spec)-1].Name,
-	}))
+	p.spec = append(p.spec, shark.PsmlColumnSpec{Field: shark.PsmlField{Token: "%m"}, Name: "No."})
+
+	sp := specToWidgets(p.spec[len(p.spec)-1])
+	w := sp.widgets()
+	p.widgets = append(p.widgets, w)
+
+	if sp.Field.Token == "%Cus" {
+		p.haveCustom = true
+	}
+
+	p.Widget = table.New(p)
+}
+
+// cacheHaveCustom keeps track of whther the current model has any custom columns. This
+// is done each time the model is updated. If custom columns are present, the table is
+// displayed with two extra columns.
+func (p *psmlColumnsModel) cacheHaveCustom() {
+	for _, w := range p.spec {
+		if w.Field.Token == "%Cus" {
+			p.haveCustom = true
+			return
+		}
+	}
+	p.haveCustom = false
 }
 
 // Make rest of data structure consistent with recent changes
-func (p *psmlColumnsModel) fixup() {
-	cnames := make([]*edit.Widget, len(p.spec))
-	for i := 0; i < len(cnames); i++ {
-		cnames[i] = edit.New(edit.Options{
-			Text: p.spec[i].Name,
-		})
+func (p *psmlColumnsModel) fixup(app gowid.IApp) {
+	p.haveCustom = false
+	p.widgets = make([]psmlDialogWidgets, 0)
+	for i := 0; i < len(p.spec); i++ {
+		sp := specToWidgets(p.spec[i])
+		w := sp.widgets()
+
+		if p.spec[i].Field.Token == "%Cus" {
+			p.haveCustom = true
+			w.customFilter.SetValue(p.spec[i].Field.Filter, app)
+		}
+
+		p.widgets = append(p.widgets, w)
 	}
-	p.customNames = cnames
+
 	p.Widget = table.New(p)
 }
 
@@ -127,7 +236,7 @@ func stripQuotes(s string) string {
 	return s
 }
 
-func (p *psmlColumnsModel) ReadFromWireshark() error {
+func (p *psmlColumnsModel) ReadFromWireshark(app gowid.IApp) error {
 	wcfg, err := wiresharkcfg.NewDefault()
 	if err != nil {
 		return err
@@ -146,38 +255,30 @@ func (p *psmlColumnsModel) ReadFromWireshark() error {
 
 	specs := make([]shark.PsmlColumnSpec, 0)
 	for i := 0; i < len(wcols); i += 2 {
+		var field shark.PsmlField
+		err := field.FromString(stripQuotes(wcols[i+1]))
+		if err != nil {
+			return err
+		}
 		specs = append(specs, shark.PsmlColumnSpec{
-			Field: stripQuotes(wcols[i+1]),
+			Field: field,
 			Name:  stripQuotes(wcols[i]),
 		})
 	}
 
 	p.spec = specs
-	p.fixup()
+	p.fixup(app)
 	return nil
 }
 
-func (p *psmlColumnsModel) UpdateFromField(field string, idx int) {
-	p.spec[idx].Field = field
+// Called when user chooses from a menu - so will only have PsmlField Token name
+func (p *psmlColumnsModel) UpdateFromField(field string, idx int, app gowid.IApp) {
+	p.spec[idx].Field.Token = field
 	p.spec[idx].Name = shark.AllowedColumnFormats[field].Long
 
-	p.Widget = table.New(p)
-}
-
-func (p *psmlColumnsModel) UpdateFromField2(field string, idx int) {
-	p.spec[idx].Field = field
-	p.spec[idx].Name = shark.AllowedColumnFormats[field].Long
+	p.cacheHaveCustom()
 
 	p.Widget = table.New(p)
-}
-
-// WriteToConfig writes the PSML column model to the termshark toml
-func (m *psmlColumnsModel) WriteToConfig() {
-	tcols := make([]string, 0)
-	for _, v := range m.spec {
-		tcols = append(tcols, fmt.Sprintf("%s %s", v.Field, v.Name))
-	}
-	termshark.SetConf("main.column-format", tcols)
 }
 
 func (m *psmlColumnsModel) moveDown(row int, app gowid.IApp) {
@@ -185,7 +286,7 @@ func (m *psmlColumnsModel) moveDown(row int, app gowid.IApp) {
 	j := row + 1
 
 	m.spec[i], m.spec[j] = m.spec[j], m.spec[i]
-	m.customNames[i], m.customNames[j] = m.customNames[j], m.customNames[i]
+	m.widgets[i], m.widgets[j] = m.widgets[j], m.widgets[i]
 
 	m.Widget = table.New(m)
 }
@@ -195,7 +296,7 @@ func (m *psmlColumnsModel) moveUp(row int, app gowid.IApp) {
 	j := row - 1
 
 	m.spec[i], m.spec[j] = m.spec[j], m.spec[i]
-	m.customNames[i], m.customNames[j] = m.customNames[j], m.customNames[i]
+	m.widgets[i], m.widgets[j] = m.widgets[j], m.widgets[i]
 
 	m.Widget = table.New(m)
 }
@@ -203,8 +304,17 @@ func (m *psmlColumnsModel) moveUp(row int, app gowid.IApp) {
 // row is the screen position
 func (m *psmlColumnsModel) deleteRow(trow table.RowId, app gowid.IApp) {
 	row := int(trow)
+
+	// Do this to close the filter goroutines
+	err := m.widgets[row].customFilter.Close()
+	if err != nil {
+		log.Warnf("Unexpected response when closing filter: %v", err)
+	}
+
 	m.spec = append(m.spec[:row], m.spec[row+1:]...)
-	m.customNames = append(m.customNames[:row], m.customNames[row+1:]...)
+	m.widgets = append(m.widgets[:row], m.widgets[row+1:]...)
+
+	m.cacheHaveCustom()
 
 	m.Widget = table.New(m)
 }
@@ -229,21 +339,22 @@ func (p *psmlColumnsModel) CellWidgets(row table.RowId) []gowid.IWidget {
 				),
 			),
 			pos,
-			gowid.RenderFixed{},
+			fixed,
 		)
 	}
 
 	colsMenuFieldsSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
 	// Field name
-	colsMenuFieldsButton := button.NewBare(text.New(p.spec[rowi].Field))
+	colsMenuFieldsButton := button.NewBare(text.New(p.spec[rowi].Field.Token))
 	colsMenuFieldsButton.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
 		wid, hei := rebuildPsmlFieldListBox(app)
 		colsCurrentModelRow = rowi
 		colFieldsMenu.SetWidth(units(wid), app)
 		colFieldsMenu.SetHeight(units(hei), app)
-		colFieldsMenu.Open(colsMenuFieldsSite, app)
+		openTermsharkMenu(true, colFieldsMenu, colsMenuFieldsSite, app)
 	}))
 
+	// "^"
 	if rowi == 0 {
 		res = append(res, nullw)
 	} else {
@@ -254,6 +365,7 @@ func (p *psmlColumnsModel) CellWidgets(row table.RowId) []gowid.IWidget {
 		}))
 	}
 
+	// "v"
 	if rowi == len(p.spec)-1 {
 		res = append(res, nullw)
 	} else {
@@ -263,30 +375,66 @@ func (p *psmlColumnsModel) CellWidgets(row table.RowId) []gowid.IWidget {
 			}
 		}))
 	}
-	res = append(res,
-		columns.NewFixed(
-			colsMenuFieldsSite,
-			clicktracker.New(
+
+	// "[X]"
+	res = append(res, hpadding.New(
+		clicktracker.New(
+			styled.NewExt(
+				p.widgets[row].visible,
+				gowid.MakePaletteRef("dialog"),
+				gowid.MakePaletteRef("dialog-button"),
+			),
+		),
+		left,
+		fixed,
+	))
+
+	// %Yut prep
+	fcols := columns.New([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{
+			IWidget: colsMenuFieldsSite,
+			D:       fixed,
+		},
+		&gowid.ContainerWidget{
+			IWidget: clicktracker.New(
 				styled.NewExt(
 					colsMenuFieldsButton,
 					gowid.MakePaletteRef("button"),
 					gowid.MakePaletteRef("button-focus"),
 				),
 			),
-		),
-	)
-	res = append(res, p.customNames[row])
+			D: fixed,
+		},
+	})
+
+	// %Yut
+	res = append(res, fcols)
+
+	// Filter
+	if p.haveCustom {
+		if p.spec[row].Field.Token == "%Cus" {
+			res = append(res, p.widgets[row].customFilter)
+			res = append(res, hpadding.New(p.widgets[row].occurrence, mid, fixed))
+		} else {
+			res = append(res, nullw)
+			res = append(res, nullw)
+		}
+	}
+
+	// "gcla1"
+	res = append(res, p.widgets[row].customName)
 
 	colsMenuSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
-	colsMenuButton := button.NewBare(text.New(shark.AllowedColumnFormats[p.spec[row].Field].Long))
+	colsMenuButton := button.NewBare(text.New(shark.AllowedColumnFormats[p.spec[row].Field.Token].Long))
 	colsMenuButton.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
 		wid, hei := rebuildPsmlNamesListBox(p, app)
 		colsCurrentModelRow = rowi
 		colNamesMenu.SetWidth(units(wid), app)
 		colNamesMenu.SetHeight(units(hei), app)
-		colNamesMenu.Open(colsMenuSite, app)
+		openTermsharkMenu(true, colNamesMenu, colsMenuSite, app)
 	}))
 
+	//
 	res = append(res,
 		columns.NewFixed(
 			colsMenuSite,
@@ -300,6 +448,7 @@ func (p *psmlColumnsModel) CellWidgets(row table.RowId) []gowid.IWidget {
 		),
 	)
 
+	// "X"
 	if len(p.spec) <= 1 {
 		res = append(res, nullw)
 	} else {
@@ -314,17 +463,38 @@ func (p *psmlColumnsModel) CellWidgets(row table.RowId) []gowid.IWidget {
 }
 
 func (p *psmlColumnsModel) Columns() int {
-	return 6
+	if !p.haveCustom {
+		return 7
+	} else {
+		return 7 + 2
+	}
 }
 
 func (p *psmlColumnsModel) Widths() []gowid.IWidgetDimension {
-	return []gowid.IWidgetDimension{
-		gowid.RenderWithUnits{U: 3},
-		gowid.RenderWithUnits{U: 4},
-		gowid.RenderWithWeight{W: 1},
-		gowid.RenderWithWeight{W: 1},
-		gowid.RenderWithWeight{W: 1},
-		gowid.RenderWithUnits{U: 9},
+	if !p.haveCustom {
+		return []gowid.IWidgetDimension{
+			gowid.RenderWithUnits{U: 3},
+			gowid.RenderWithUnits{U: 4},
+			gowid.RenderWithWeight{W: 1},
+			gowid.RenderWithWeight{W: 1},
+			gowid.RenderWithWeight{W: 2},
+			gowid.RenderWithWeight{W: 3},
+			gowid.RenderWithUnits{U: 9},
+		}
+	} else {
+		return []gowid.IWidgetDimension{
+			gowid.RenderWithUnits{U: 3},
+			gowid.RenderWithUnits{U: 4},
+			gowid.RenderWithWeight{W: 1},
+			gowid.RenderWithWeight{W: 1},
+			//
+			gowid.RenderWithWeight{W: 4},
+			gowid.RenderWithUnits{U: 8},
+			//
+			gowid.RenderWithWeight{W: 2},
+			gowid.RenderWithWeight{W: 3},
+			gowid.RenderWithUnits{U: 9},
+		}
 	}
 }
 
@@ -347,13 +517,30 @@ func (p *psmlColumnsModel) HeaderWidgets() []gowid.IWidget {
 		return styled.NewExt(w, gowid.ColorInverter{pr}, gowid.ColorInverter{pr})
 	}
 
-	return []gowid.IWidget{
-		st(text.New("")),
-		st(text.New(" ")),
-		st(text.New("  Field ")),
-		st(text.New("  Custom ")),
-		st(text.New("  Name ")),
-		st(text.New("  Remove ")),
+	if !p.haveCustom {
+		return []gowid.IWidget{
+			st(text.New("")),
+			st(text.New("")),
+			st(text.New("Show")),
+			st(text.New("Field")),
+			st(text.New("Your Name")),
+			st(text.New("Official")),
+			st(text.New("Remove")),
+		}
+	} else {
+		return []gowid.IWidget{
+			st(text.New("")),
+			st(text.New("")),
+			st(text.New("Show")),
+			st(text.New("Field")),
+			//
+			st(text.New("Filter")),
+			st(text.New("#Occ")),
+			//
+			st(text.New("Your Name")),
+			st(text.New("Official")),
+			st(text.New("Remove")),
+		}
 	}
 }
 

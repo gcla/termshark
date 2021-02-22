@@ -6,6 +6,7 @@
 package ui
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/gcla/termshark/v2/shark/wiresharkcfg"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gdamore/tcell"
+	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
@@ -46,6 +48,22 @@ var colsCurrentModelRow int
 
 var colNamesMenuListBoxHolder *holder.Widget
 var colFieldsMenuListBoxHolder *holder.Widget
+
+//======================================================================
+
+// psmlColumnInfoArraySortLong allows for sorting an array of PsmlColumnInfo by the
+// longer name - for use in the long-name drop down menu
+type psmlColumnInfoArraySortLong []shark.PsmlColumnInfo
+
+func (a psmlColumnInfoArraySortLong) Len() int {
+	return len(a)
+}
+func (a psmlColumnInfoArraySortLong) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+func (a psmlColumnInfoArraySortLong) Less(i, j int) bool {
+	return a[i].Long < a[j].Long
+}
 
 //======================================================================
 
@@ -82,18 +100,6 @@ func buildFieldsMenu(app gowid.IApp) {
 	colFieldsMenu.SetHeight(units(hei), app)
 }
 
-type psmlColumnInfoArraySortLong []shark.PsmlColumnInfo
-
-func (a psmlColumnInfoArraySortLong) Len() int {
-	return len(a)
-}
-func (a psmlColumnInfoArraySortLong) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-func (a psmlColumnInfoArraySortLong) Less(i, j int) bool {
-	return a[i].Long < a[j].Long
-}
-
 // return width needed
 func rebuildPsmlNamesListBox(p *psmlColumnsModel, app gowid.IApp) (int, int) {
 	colsMenuItems := make([]menuutil.SimpleMenuItem, 0)
@@ -106,14 +112,13 @@ func rebuildPsmlNamesListBox(p *psmlColumnsModel, app gowid.IApp) (int, int) {
 	sort.Sort(specs)
 
 	for _, spec := range specs {
-		speccopy := spec
+		specCopy := spec
 		colsMenuItems = append(colsMenuItems,
 			menuutil.SimpleMenuItem{
 				Txt: spec.Long,
 				CB: func(app gowid.IApp, w gowid.IWidget) {
-					colNamesMenu.Close(app)
-					p.UpdateFromField(speccopy.Field, colsCurrentModelRow)
-					app.Sync()
+					openTermsharkMenu(false, colNamesMenu, nil, app)
+					p.UpdateFromField(specCopy.Field, colsCurrentModelRow, app)
 				},
 			},
 		)
@@ -137,14 +142,13 @@ func rebuildPsmlFieldListBox(app gowid.IApp) (int, int) {
 	sort.Strings(columnNames)
 
 	for _, cname := range columnNames {
-		cname2 := cname
+		cnameCopy := cname
 		colsMenuItems = append(colsMenuItems,
 			menuutil.SimpleMenuItem{
 				Txt: cname,
 				CB: func(app gowid.IApp, w gowid.IWidget) {
-					colFieldsMenu.Close(app)
-					p.UpdateFromField(cname2, colsCurrentModelRow)
-					app.Sync()
+					openTermsharkMenu(false, colFieldsMenu, nil, app)
+					p.UpdateFromField(cnameCopy, colsCurrentModelRow, app)
 				},
 			},
 		)
@@ -159,7 +163,7 @@ func rebuildPsmlFieldListBox(app gowid.IApp) (int, int) {
 //======================================================================
 
 func openEditColumns(app gowid.IApp) {
-	pcols := NewPsmlColumnsModel()
+	pcols := NewPsmlColumnsModel(app)
 	colsCurrentModel = pcols
 
 	var mainw gowid.IWidget
@@ -188,8 +192,8 @@ func openEditColumns(app gowid.IApp) {
 		if cols != nil {
 			btn := button.New(text.New("Import"))
 			btn.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
-				newPcols := NewPsmlColumnsModel()
-				err = newPcols.ReadFromWireshark()
+				newPcols := NewPsmlColumnsModel(app)
+				err = newPcols.ReadFromWireshark(app)
 				if err != nil {
 					OpenError(err.Error(), app)
 					return
@@ -222,7 +226,7 @@ func openEditColumns(app gowid.IApp) {
 	if len(bakCols) != 0 {
 		btn := button.New(text.New("Restore"))
 		btn.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
-			newPcols := NewPsmlColumnsModelFrom("main.column-format-bak")
+			newPcols := NewPsmlColumnsModelFrom("main.column-format-bak", "main.hidden-columns-bak", app)
 			if len(newPcols.spec) == 0 {
 				OpenMessage("Error: backup column-format is empty in toml file", appView, app)
 				return
@@ -252,7 +256,7 @@ func openEditColumns(app gowid.IApp) {
 
 	restoreBtn := button.New(text.New("Restore"))
 	restoreBtn.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
-		*pcols = *NewDefaultPsmlColumnsModel()
+		*pcols = *NewDefaultPsmlColumnsModel(app)
 		pcols.Widget = table.New(pcols)
 		OpenMessage("Imported default column preferences", appView, app)
 	}))
@@ -284,19 +288,55 @@ func openEditColumns(app gowid.IApp) {
 	okButton := dialog.Button{
 		Msg: "Ok",
 		Action: gowid.WidgetChangedFunction(func(app gowid.IApp, widget gowid.IWidget) {
+			for i := 0; i < len(pcols.spec); i++ {
+				if pcols.spec[i].Field.Token == "%Cus" && !pcols.widgets[i].customFilter.IsValid() {
+					OpenMessage(fmt.Sprintf("Custom column %d is invalid", i+1), appView, app)
+					return
+				}
+			}
+
 			newcols := pcols.ToConfigList()
 			curcols := termshark.ConfStringSlice("main.column-format", []string{})
 
+			newvis := pcols.HiddenToConfigList()
+			curvis := termshark.ConfStringSlice("main.hidden-columns", []string{})
+
+			updated := false
 			if !reflect.DeepEqual(newcols, curcols) {
 				termshark.SetConf("main.column-format-bak", curcols)
-				termshark.SetConf("main.column-format", pcols.ToConfigList())
-			} else {
-				OpenMessage("No change - same columns configured", appView, app)
+				termshark.SetConf("main.column-format", newcols)
+				updated = true
+			}
+			if !reflect.DeepEqual(newvis, curvis) {
+				termshark.SetConf("main.hidden-columns-bak", curvis)
+				termshark.SetConf("main.hidden-columns", newvis)
+				updated = true
+			}
+
+			err := pcols.Close()
+			if err != nil {
+				log.Warnf("Unexpected result closing PSML columns dialog: %v", err)
 			}
 
 			editColsDialog.Close(app)
 
-			RequestReload(app)
+			if !updated {
+				OpenMessage("No change - same columns configured", appView, app)
+			} else {
+				RequestReload(app)
+			}
+		}),
+	}
+
+	cancelButton := dialog.Button{
+		Msg: "Cancel",
+		Action: gowid.WidgetChangedFunction(func(app gowid.IApp, widget gowid.IWidget) {
+			err := pcols.Close()
+			if err != nil {
+				log.Warnf("Unexpected result closing PSML columns dialog: %v", err)
+			}
+
+			editColsDialog.Close(app)
 		}),
 	}
 
@@ -305,7 +345,7 @@ func openEditColumns(app gowid.IApp) {
 			mainw,
 		),
 		dialog.Options{
-			Buttons:         []dialog.Button{okButton, dialog.Cancel},
+			Buttons:         []dialog.Button{okButton, cancelButton},
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
@@ -313,7 +353,7 @@ func openEditColumns(app gowid.IApp) {
 		},
 	)
 
-	editColsDialog.Open(appView, ratio(0.5), app)
+	editColsDialog.Open(appView, ratio(0.7), app)
 }
 
 //======================================================================

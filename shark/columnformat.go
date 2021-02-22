@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -20,19 +21,71 @@ import (
 
 //======================================================================
 
+type PsmlField struct {
+	Token      string
+	Filter     string
+	Occurrence int
+}
+
+func (p PsmlField) FullString() string {
+	return fmt.Sprintf("%s:%s:%d:R", p.Token, p.Filter, p.Occurrence)
+}
+
+func (p PsmlField) String() string {
+	if p.Filter == "" {
+		return p.Token
+	} else {
+		return p.FullString()
+	}
+}
+
+var InvalidCustomColumnError = fmt.Errorf("The custom column is invalid")
+
+func (p *PsmlField) FromString(s string) error {
+	fields := strings.Split(s, ":")
+	if len(fields) == 1 {
+		if fields[0] == "%Cus" {
+			//logrus.Warnf("Found a custom column with no definition - ignoring")
+			return InvalidCustomColumnError
+		}
+		*p = PsmlField{Token: fields[0]}
+	} else if len(fields) != 4 {
+		return InvalidCustomColumnError
+		//logrus.Warnf("Found an unexpected custom column '%s' - ignoring", pieces[0])
+		//continue
+	} else {
+		occ, err := strconv.ParseInt(fields[2], 10, 32)
+		if err != nil {
+			return InvalidCustomColumnError
+			//logrus.Warnf("Found an unexpected occurrence in a custom column '%s' - ignoring", pieces[0])
+			//continue
+		}
+		*p = PsmlField{
+			Token:      fields[0],
+			Filter:     fields[1],
+			Occurrence: int(occ),
+		}
+		//p.Field.Token = fields[0]
+		//p.Field.Filter = fields[1]
+		//p.Field.Occurrence = int(occ)
+	}
+	return nil
+}
+
 type PsmlColumnSpec struct {
-	Field string
-	Name  string
+	Name   string
+	Field  PsmlField
+	Hidden bool
 }
 
 var DefaultPsmlColumnSpec = []PsmlColumnSpec{
-	PsmlColumnSpec{Field: "%m", Name: "No."},
-	PsmlColumnSpec{Field: "%t", Name: "Time"},
-	PsmlColumnSpec{Field: "%s", Name: "Source"},
-	PsmlColumnSpec{Field: "%d", Name: "Dest"},
-	PsmlColumnSpec{Field: "%p", Name: "Proto"},
-	PsmlColumnSpec{Field: "%L", Name: "Length"},
-	PsmlColumnSpec{Field: "%i", Name: "Info"},
+	PsmlColumnSpec{Field: PsmlField{Token: "%m"}, Name: "No."},
+	PsmlColumnSpec{Field: PsmlField{Token: "%t"}, Name: "Time"},
+	PsmlColumnSpec{Field: PsmlField{Token: "%s"}, Name: "Source"},
+	PsmlColumnSpec{Field: PsmlField{Token: "%d"}, Name: "Dest"},
+	PsmlColumnSpec{Field: PsmlField{Token: "%p"}, Name: "Proto"},
+	PsmlColumnSpec{Field: PsmlField{Token: "%L"}, Name: "Length"},
+	PsmlColumnSpec{Field: PsmlField{Token: "%i"}, Name: "Info"},
 }
 
 type PsmlColumnInfo struct {
@@ -153,11 +206,11 @@ func InitValidColumns() error {
 	}
 	for _, f := range validColumns.fields {
 		// Use short names that we understand
-		if cached, ok := BuiltInColumnFormats[f.Field]; ok {
-			AllowedColumnFormats[f.Field] = cached.WithLongName(f.Name)
+		if cached, ok := BuiltInColumnFormats[f.Field.Token]; ok {
+			AllowedColumnFormats[f.Field.Token] = cached.WithLongName(f.Name)
 		} else {
 			// We don't have a short name from tshark... :(
-			AllowedColumnFormats[f.Field] = PsmlColumnInfo{Short: f.Name, Long: f.Name}
+			AllowedColumnFormats[f.Field.Token] = PsmlColumnInfo{Short: f.Name, Long: f.Name}
 		}
 	}
 	return err
@@ -203,7 +256,7 @@ func (w *ColumnsFromTshark) InitNoCache() error {
 		fields := re.Split(scanner.Text(), 2)
 		if len(fields) == 2 && strings.HasPrefix(fields[0], "%") {
 			w.fields = append(w.fields, PsmlColumnSpec{
-				Field: fields[0],
+				Field: PsmlField{Token: fields[0]},
 				Name:  fields[1],
 			})
 		}
@@ -221,7 +274,7 @@ func GetPsmlColumnFormatCached() []PsmlColumnSpec {
 	defer cachedPsmlColumnFormatMutex.Unlock()
 
 	if cachedPsmlColumnFormat == nil {
-		cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format")
+		cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format", "main.hidden-columns")
 	}
 
 	return cachedPsmlColumnFormat
@@ -231,44 +284,72 @@ func GetPsmlColumnFormat() []PsmlColumnSpec {
 	cachedPsmlColumnFormatMutex.Lock()
 	defer cachedPsmlColumnFormatMutex.Unlock()
 
-	cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format")
+	cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format", "main.hidden-columns")
 
 	return cachedPsmlColumnFormat
 }
 
-func GetPsmlColumnFormatFrom(key string) []PsmlColumnSpec {
-	return getPsmlColumnFormatWithoutLock(key)
+func GetPsmlColumnFormatFrom(colKey string, visKey string) []PsmlColumnSpec {
+	return getPsmlColumnFormatWithoutLock(colKey, visKey)
 }
 
-func getPsmlColumnFormatWithoutLock(key string) []PsmlColumnSpec {
+func getPsmlColumnFormatWithoutLock(colKey string, visKey string) []PsmlColumnSpec {
 	res := make([]PsmlColumnSpec, 0)
-	widths := termshark.ConfStringSlice(key, []string{})
-	if len(widths) == 0 {
+	widths := termshark.ConfStringSlice(colKey, []string{})
+	if len(widths) == 0 || (len(colKey)/2)*2 != len(colKey) {
 		res = DefaultPsmlColumnSpec
 	} else {
 		// Cross references with those column specs that we know about from having
 		// queried tshark with tshark -G column-formats. Any that are not known
 		// are discarded. If none are left, use our safe defaults
-		for _, w := range widths {
-			var p PsmlColumnSpec
-			pieces := strings.Split(w, " ")
+		pieces := [2]string{}
 
-			if _, ok := AllowedColumnFormats[pieces[0]]; !ok {
+		for i := 0; i < len(widths); i += 2 {
+			pieces[0] = widths[i]
+			pieces[1] = widths[i+1]
+
+			var spec PsmlColumnSpec
+
+			err := spec.Field.FromString(pieces[0])
+			if err != nil {
+				logrus.Warnf(err.Error())
+				continue
+			}
+
+			if _, ok := AllowedColumnFormats[spec.Field.Token]; !ok {
 				logrus.Warnf("Do not understand PSML column format token '%s' - skipping its use", pieces[0])
 				continue
 			}
-			p.Field = pieces[0]
-			if len(pieces) >= 2 {
-				p.Name = strings.Join(pieces[1:], " ")
+
+			if pieces[1] != "" {
+				spec.Name = pieces[1]
 			} else {
 				// Already confirmed it's in map
-				p.Name = AllowedColumnFormats[pieces[0]].Short
+				spec.Name = AllowedColumnFormats[pieces[0]].Short
 			}
-			res = append(res, p)
+			res = append(res, spec)
 		}
 		if len(res) == 0 {
 			logrus.Warnf("No configured PSML column formats were understood. Using safe default")
 			res = DefaultPsmlColumnSpec
+		}
+
+		vis := termshark.ConfStringSlice(visKey, []string{})
+		for _, v := range vis {
+			var f PsmlField
+			err := f.FromString(v)
+			if err != nil {
+				logrus.Warnf("Ignoring unparsable hidden column '%s'", v)
+				continue
+			}
+		loop:
+			for i, _ := range res {
+				// Compare the whole field i.e. "%Cus:<filter>:0:R"
+				if res[i].Field == f {
+					res[i].Hidden = true
+					break loop
+				}
+			}
 		}
 	}
 	return res
