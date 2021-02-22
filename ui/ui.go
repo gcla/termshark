@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -113,6 +114,7 @@ var view1idx int
 var view2idx int
 var generalMenu *menu.Widget
 var analysisMenu *menu.Widget
+var useAsColumnMenu *menu.Widget
 var savedMenu *menu.Widget
 var FilterWidget *filter.Widget
 var Fin *rossshark.Widget
@@ -130,6 +132,9 @@ var loadSpinner *spinner.Widget
 var savedListBoxWidgetHolder *holder.Widget
 var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
 var keyMapper *mapkeys.Widget
+
+// For deconstructing the @showname PDML attribute into a short form for the UI
+var shownameRe = regexp.MustCompile(`(.*?= )?([^:]+)`)
 
 type MenuHolder struct {
 	gowid.IMenuCompatible
@@ -163,6 +168,8 @@ var curExpandedStructNodes pdmltree.ExpandedPaths // a path to each expanded nod
 var curStructPosition tree.IPos                   // e.g. [0, 2, 1] -> the indices of the expanded nodes
 var curPdmlPosition []string                      // e.g. [ , tcp, tcp.srcport ] -> the path from focus to root in the current struct
 var curStructWidgetState interface{}              // e.g. {linesFromTop: 1, ...} -> the positioning of the current struct widget
+var curColumnFilter string                        // e.g. tcp.port - updated as the user moves through the struct widget
+var curColumnFilterName string                    // e.g. "TCP port" - from the showname attribute in the PDML
 
 var CacheRequests []pcap.LoadPcapSlice
 
@@ -253,6 +260,44 @@ func openTermsharkMenu(open bool, m *menu.Widget, site *menu.SiteWidget, app gow
 		}
 	}
 }
+
+//======================================================================
+
+//
+// Handle examples like
+// .... ..1. .... .... .... .... = LG bit: Locally administered address (this is NOT the factory default)
+// Extract just
+// LG bit
+//
+// I'm trying to copy what Wireshark does, more or less
+//
+func columnNameFromShowname(showname string) string {
+	matches := shownameRe.FindStringSubmatch(showname)
+	if len(matches) >= 3 {
+		return matches[2]
+	}
+	return showname
+}
+
+func useAsColumn(filter string, name string, app gowid.IApp) {
+	newCols := termshark.ConfStringSlice("main.column-format", []string{})
+	colsBak := make([]string, len(newCols))
+	for i, col := range newCols {
+		colsBak[i] = col
+	}
+
+	newCols = append(newCols,
+		fmt.Sprintf("%%Cus:%s:0:R", filter),
+		columnNameFromShowname(name),
+	)
+
+	termshark.SetConf("main.column-format-bak", colsBak)
+	termshark.SetConf("main.column-format", newCols)
+
+	RequestReload(app)
+}
+
+//======================================================================
 
 func RequestQuit() {
 	select {
@@ -480,7 +525,16 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 		panic(errors.WithStack(gowid.WithKVs(termshark.BadState, map[string]interface{}{"tree": tr})))
 	}
 
+	// Create an empty one here because the selectIf widget needs to have a pointer
+	// to it, and it's constructed below as a child.
+	rememberSel := &rememberSelected{}
+
 	inner := wmaker.MakeWidget(pos, tr)
+	inner = &selectIf{
+		IWidget:      inner,
+		iWasSelected: rememberSel,
+	}
+
 	if ct.HasChildren() {
 
 		var bn *button.Widget
@@ -555,21 +609,77 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 
 	res = columns.New(cwidgets)
 
+	rememberSel.IWidget = res
+
 	res = expander.New(
 		isselected.New(
-			res,
-			styled.New(res, gowid.MakePaletteRef("packet-struct-selected")),
-			styled.New(res, gowid.MakePaletteRef("packet-struct-focus")),
+			rememberSel,
+			styled.New(rememberSel, gowid.MakePaletteRef("packet-struct-selected")),
+			styled.New(rememberSel, gowid.MakePaletteRef("packet-struct-focus")),
 		),
 	)
 
 	return res
 }
 
+// rememberSelected, when rendered, will save whether or not the selected flag was set.
+// Another widget (deeper in the hierarchy) can then consult it to see whether it should
+// render differently as the grandchild of a selected widget.
+type rememberSelected struct {
+	gowid.IWidget
+	selectedThisTime bool
+}
+
+type iWasSelected interface {
+	WasSelected() bool
+}
+
+func (w *rememberSelected) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
+	w.selectedThisTime = focus.Selected
+	return w.IWidget.Render(size, focus, app)
+}
+
+func (w *rememberSelected) WasSelected() bool {
+	return w.selectedThisTime
+}
+
+// selectIf sets the selected flag on its child if its iWasSelected type returns true
+type selectIf struct {
+	gowid.IWidget
+	iWasSelected
+}
+
+func (w *selectIf) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
+	if w.iWasSelected.WasSelected() {
+		focus = focus.SelectIf(true)
+	}
+	return w.IWidget.Render(size, focus, app)
+}
+
 // The widget representing the data at this level in the tree. Simply use what we extract from
 // the PDML.
 func makeStructNodeWidget(pos tree.IPos, tr tree.IModel) gowid.IWidget {
-	return text.New(tr.Leaf())
+	pdmlMenuButton := button.NewBare(text.New("[=]"))
+	pdmlMenuButtonSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
+	pdmlMenuButton.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+		curColumnFilter = tr.(*pdmltree.Model).Name
+		curColumnFilterName = tr.(*pdmltree.Model).UiName
+		openTermsharkMenu(true, useAsColumnMenu, pdmlMenuButtonSite, app)
+	}))
+
+	styledButton1 := styled.New(pdmlMenuButton, gowid.MakePaletteRef("packet-struct-selected"))
+	styledButton2 := styled.New(
+		pdmlMenuButton,
+		gowid.MakeStyledAs(gowid.StyleBold),
+	)
+
+	structText := text.New(tr.Leaf())
+
+	structIfNotSel := columns.NewFixed(structText)
+	structIfSel := columns.NewFixed(structText, colSpace, pdmlMenuButtonSite, styledButton1)
+	structIfFocus := columns.NewFixed(structText, colSpace, pdmlMenuButtonSite, styledButton2)
+
+	return selectable.New(isselected.New(structIfNotSel, structIfSel, structIfFocus))
 }
 
 //======================================================================
@@ -2991,6 +3101,31 @@ func Build() (*gowid.App, error) {
 
 	//======================================================================
 
+	useAsColumnItems := []menuutil.SimpleMenuItem{
+		menuutil.SimpleMenuItem{
+			Txt: "Apply as Column",
+			Key: gowid.MakeKey('a'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				openTermsharkMenu(false, useAsColumnMenu, nil, app)
+				useAsColumn(curColumnFilter, curColumnFilterName, app)
+			},
+		},
+	}
+
+	useAsColumnListBox, useAsColumnWidth := menuutil.MakeMenuWithHotKeys(useAsColumnItems)
+
+	useAsColumnMenu = menu.New("useascolumn", useAsColumnListBox, units(useAsColumnWidth), menu.Options{
+		Modal:             true,
+		CloseKeysProvided: true,
+		CloseKeys: []gowid.IKey{
+			gowid.MakeKey('q'),
+			gowid.MakeKeyExt(tcell.KeyLeft),
+			gowid.MakeKeyExt(tcell.KeyEscape),
+			gowid.MakeKeyExt(tcell.KeyCtrlC),
+		},
+	})
+
+	//======================================================================
 	loadProgress = progress.New(progress.Options{
 		Normal:   gowid.MakePaletteRef("progress-default"),
 		Complete: gowid.MakePaletteRef("progress-complete"),
