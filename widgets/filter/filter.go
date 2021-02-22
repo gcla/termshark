@@ -100,7 +100,13 @@ type Options struct {
 	MaxCompletions int
 }
 
-func New(opt Options) *Widget {
+type stringNamer string
+
+func (f stringNamer) Name() string {
+	return string(f)
+}
+
+func New(name string, opt Options) *Widget {
 	res := &Widget{}
 
 	ed := edit.New()
@@ -140,7 +146,7 @@ func New(opt Options) *Widget {
 		}
 	}
 
-	drop := menu.New("filter", menuListBox2, fixed,
+	drop := menu.New(name, menuListBox2, fixed,
 		menu.Options{
 			IgnoreKeysProvided: true,
 			IgnoreKeys:         ign,
@@ -155,6 +161,7 @@ func New(opt Options) *Widget {
 	}
 
 	site := menu.NewSite(menu.SiteOptions{
+		Namer:   stringNamer("filtersite"),
 		YOffset: yOff,
 	})
 
