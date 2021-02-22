@@ -61,7 +61,7 @@ unused = "#79e11a"
 
 [light]
   button = ["solarized.black","solarized.white"]
-  button-focus = ["solarized.black","solarized.purple"]
+  button-focus = ["solarized.white","solarized.purple"]
   button-selected = ["solarized.black","solarized.gray3"]
   cmdline = ["solarized.black","solarized.yellow"]
   cmdline-button = ["solarized.yellow","solarized.black"]

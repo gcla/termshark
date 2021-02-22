@@ -62,7 +62,7 @@ unused = "#79e11a"
 
 [light]
   button = ["default.black","default.white"]
-  button-focus = ["default.black","default.purple"]
+  button-focus = ["default.white","default.purple"]
   button-selected = ["default.black","default.gray04"]
   cmdline = ["default.black","default.yellow"]
   cmdline-button = ["default.yellow","default.black"]

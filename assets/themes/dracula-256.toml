@@ -19,7 +19,7 @@ unused = "#79e11a"
 
 [dark]
   button = ["dracula.black","dracula.gray3"]
-  button-focus = ["dracula.white","dracula.magenta"]
+  button-focus = ["dracula.black","dracula.magenta"]
   button-selected = ["dracula.white","dracula.gray3"]
   cmdline = ["dracula.black","dracula.yellow"]
   cmdline-button = ["dracula.yellow","dracula.black"]
