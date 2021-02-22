@@ -22,6 +22,7 @@ import (
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/streams"
+	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/streamwidget"
 	"github.com/gdamore/tcell"
@@ -319,7 +320,7 @@ func (t *streamParseHandler) TrackPayloadPacket(packet int) {
 
 func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader) {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		t.wid.AddHeader(hdr)
+		t.wid.AddHeader(hdr, app)
 	}))
 }
 
@@ -439,6 +440,7 @@ func makeStreamWidget(previousFilter string, filter string, cap string, proto st
 	return streamwidget.New(filter, cap, proto,
 		conversationMenu, conversationMenuHolder, &keyState,
 		streamwidget.Options{
+			MenuOpener: widgets.MenuOpenerFunc(openTermsharkMenu),
 			DefaultDisplay: func() streamwidget.DisplayFormat {
 				view := streamwidget.Hex
 				choice := termshark.ConfString("main.stream-view", "hex")

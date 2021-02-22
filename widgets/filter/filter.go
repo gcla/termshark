@@ -2,7 +2,7 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-// Package filter prpvides a termshark-specific edit widget which changes
+// Package filter provides a termshark-specific edit widget which changes
 // color according to the validity of its input, and which activates a
 // drop-down menu of possible completions for the term at point.
 package filter
@@ -32,6 +32,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
@@ -84,6 +85,7 @@ type SubmitCB struct{}
 
 type Options struct {
 	Completer      termshark.IPrefixCompleter
+	MenuOpener     widgets.IMenuOpener
 	MaxCompletions int
 }
 
@@ -105,6 +107,10 @@ func New(opt Options) *Widget {
 
 	if opt.MaxCompletions == 0 {
 		opt.MaxCompletions = 20
+	}
+
+	if opt.MenuOpener == nil {
+		opt.MenuOpener = widgets.MenuOpenerFunc(widgets.OpenSimpleMenu)
 	}
 
 	menuListBox2 := styled.New(
@@ -625,9 +631,9 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	// be submitted. Then the best UX is to not display the drop down until further input
 	// or cursor movement.
 	if focus.Focus && len(w.completions) > 0 && !*w.temporarilyDisabled {
-		w.dropDown.Open(w.dropDownSite, app)
+		w.opts.MenuOpener.OpenMenu(w.dropDown, w.dropDownSite, app)
 	} else {
-		w.dropDown.Close(app)
+		w.opts.MenuOpener.CloseMenu(w.dropDown, app)
 	}
 	return w.wrapped.Render(size, focus, app)
 }

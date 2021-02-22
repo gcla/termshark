@@ -131,6 +131,13 @@ var savedListBoxWidgetHolder *holder.Widget
 var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
 var keyMapper *mapkeys.Widget
 
+type MenuHolder struct {
+	gowid.IMenuCompatible
+}
+
+var multiMenu *MenuHolder = &MenuHolder{}
+var multiMenuWidget *holder.Widget
+
 var tabViewsForward map[gowid.IWidget]gowid.IWidget
 var tabViewsBackward map[gowid.IWidget]gowid.IWidget
 
@@ -216,6 +223,35 @@ func (g getMappings) Get() []termshark.KeyMapping {
 
 func (g getMappings) None() bool {
 	return len(termshark.LoadKeyMappings()) == 0
+}
+
+//======================================================================
+
+// openTermsharkMenu implements widgets.IMenuHolder. It is used to integrate widgets
+// that need to open menus into the overall application. This is needed because the menu
+// widget needs to be rendered first - specifically the screen under the menu - so that
+// the menu can read out of the resulting canvas the coordinates on the screen at which
+// it should open.
+func openTermsharkMenu(open bool, m *menu.Widget, site *menu.SiteWidget, app gowid.IApp) bool {
+	if open {
+		if multiMenu.IMenuCompatible != m {
+			multiMenu.IMenuCompatible = m
+			m.SetSubWidget(appView, app)
+			m.Open(site, app)
+			app.Redraw()
+			return true
+		} else {
+			return false
+		}
+	} else {
+		if multiMenu.IMenuCompatible == m {
+			m.Close(app)
+			multiMenu.IMenuCompatible = holder.New(appView)
+			return true
+		} else {
+			return false
+		}
+	}
 }
 
 func RequestQuit() {
@@ -1680,7 +1716,7 @@ func focusOnMenuButton(app gowid.IApp) {
 
 func openGeneralMenu(app gowid.IApp) {
 	focusOnMenuButton(app)
-	generalMenu.Open(openMenuSite, app)
+	openTermsharkMenu(true, generalMenu, openMenuSite, app)
 }
 
 // Keys for the whole app, applicable whichever view is frontmost
@@ -2494,7 +2530,7 @@ func makeRecentMenuWidget() (gowid.IWidget, int) {
 					Txt: s,
 					Key: gowid.MakeKey('a' + rune(i)),
 					CB: func(app gowid.IApp, w gowid.IWidget) {
-						savedMenu.Close(app)
+						openTermsharkMenu(false, savedMenu, nil, app)
 						// capFilter global, set up in cmain()
 						RequestLoadPcapWithCheck(scopy, FilterWidget.Value(), NoGlobalJump, app)
 					},
@@ -2722,7 +2758,7 @@ func Build() (*gowid.App, error) {
 
 	openMenuSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
 	openMenu.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
-		generalMenu.Open(openMenuSite, app)
+		openTermsharkMenu(true, generalMenu, openMenuSite, app)
 	}))
 
 	//======================================================================
@@ -2734,7 +2770,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Refresh Screen",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlL, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				app.Sync()
 			},
 		},
@@ -2743,7 +2779,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Toggle Dark Mode",
 			Key: gowid.MakeKey('d'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				DarkMode = !DarkMode
 				termshark.SetConf("main.dark-mode", DarkMode)
 			},
@@ -2753,7 +2789,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Clear Packets",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlW, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				reallyClear(app)
 			},
 		},
@@ -2761,7 +2797,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Edit Columns",
 			Key: gowid.MakeKey('e'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				openEditColumns(app)
 			},
 		}}...)
@@ -2771,7 +2807,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Show Log",
 			Key: gowid.MakeKey('l'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				openTermsharkMenu(false, analysisMenu, nil, app)
 				openLogsUi(app)
 			},
 		})
@@ -2783,7 +2819,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Help",
 			Key: gowid.MakeKey('?'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				OpenTemplatedDialog(appView, "UIHelp", app)
 			},
 		},
@@ -2791,7 +2827,7 @@ func Build() (*gowid.App, error) {
 			Txt: "User Guide",
 			Key: gowid.MakeKey('u'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.UserGuideURL)
 				}
@@ -2802,7 +2838,7 @@ func Build() (*gowid.App, error) {
 			Txt: "FAQ",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.FAQURL)
 				}
@@ -2814,7 +2850,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Found a Bug?",
 			Key: gowid.MakeKey('b'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.BugURL)
 				}
@@ -2825,7 +2861,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Feature Request?",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.FeatureURL)
 				}
@@ -2837,7 +2873,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Quit",
 			Key: gowid.MakeKey('q'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				openTermsharkMenu(false, generalMenu, nil, app)
 				reallyQuit(app)
 			},
 		},
@@ -2852,7 +2888,7 @@ func Build() (*gowid.App, error) {
 						Txt: "Toggle Packet Colors",
 						Key: gowid.MakeKey('c'),
 						CB: func(app gowid.IApp, w gowid.IWidget) {
-							generalMenu.Close(app)
+							openTermsharkMenu(false, generalMenu, nil, app)
 							PacketColors = !PacketColors
 							termshark.SetConf("main.packet-colors", PacketColors)
 						},
@@ -2900,7 +2936,7 @@ func Build() (*gowid.App, error) {
 
 	openAnalysisSite = menu.NewSite(menu.SiteOptions{XOffset: -12, YOffset: 1})
 	openAnalysis.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
-		analysisMenu.Open(openAnalysisSite, app)
+		openTermsharkMenu(true, analysisMenu, openAnalysisSite, app)
 	}))
 
 	analysisMenuItems := []menuutil.SimpleMenuItem{
@@ -2908,7 +2944,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Capture file properties",
 			Key: gowid.MakeKey('p'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				openTermsharkMenu(false, analysisMenu, nil, app)
 				startCapinfo(app)
 			},
 		},
@@ -2916,7 +2952,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Reassemble stream",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				openTermsharkMenu(false, analysisMenu, nil, app)
 				startStreamReassembly(app)
 			},
 		},
@@ -2924,7 +2960,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Conversations",
 			Key: gowid.MakeKey('c'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				openTermsharkMenu(false, analysisMenu, nil, app)
 				openConvsUi(app)
 			},
 		},
@@ -3015,6 +3051,7 @@ func Build() (*gowid.App, error) {
 	generalNext.Next = analysisMenu
 	generalNext.Site = openAnalysisSite
 	generalNext.Container = titleCols
+	generalNext.MenuOpener = widgets.MenuOpenerFunc(openTermsharkMenu)
 	generalNext.Focus = 4 // should really find by ID
 
 	// <<generalmenu2>>
@@ -3022,6 +3059,7 @@ func Build() (*gowid.App, error) {
 	analysisNext.Next = generalMenu
 	analysisNext.Site = openMenuSite
 	analysisNext.Container = titleCols
+	analysisNext.MenuOpener = widgets.MenuOpenerFunc(openTermsharkMenu)
 	analysisNext.Focus = 6 // should really find by ID
 
 	packetListViewHolder = holder.New(nullw)
@@ -3041,8 +3079,9 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	FilterWidget = filter.New(filter.Options{
-		Completer: savedCompleter{def: termshark.NewFields()},
+	FilterWidget = filter.New("filter", filter.Options{
+		Completer:  savedCompleter{def: termshark.NewFields()},
+		MenuOpener: widgets.MenuOpenerFunc(openTermsharkMenu),
 	})
 
 	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
@@ -3076,7 +3115,7 @@ func Build() (*gowid.App, error) {
 	)
 	savedBtnSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
 	savedw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		savedMenu.Open(savedBtnSite, app)
+		openTermsharkMenu(true, savedMenu, savedBtnSite, app)
 	}))
 
 	progWidgetIdx = 7 // adjust this if nullw moves position in filterCols
@@ -3492,19 +3531,19 @@ func Build() (*gowid.App, error) {
 		appView = holder.New(mbView)
 	}
 
+	// A restriction on the multiMenu is that it only holds one open menu, so using
+	// this trick, only one menu can be open at a time.
+	multiMenu.IMenuCompatible = holder.New(appView)
+
 	var lastMenu gowid.IWidget = appView
 	menus := []gowid.IMenuCompatible{
-		savedMenu,
-		analysisMenu,
-		generalMenu,
-		conversationMenu,
+		// These menus can both be open at the same time, so I have special
+		// handling here. I should use a more general method for all menus. The
+		// current method only allows one menu to be open at a time.
 		filterConvsMenu1,
 		filterConvsMenu2,
-		colNamesMenu,
-		colFieldsMenu,
+		multiMenu,
 	}
-
-	menus = append(menus, FilterWidget.Menus()...)
 
 	for _, w := range menus {
 		w.SetSubWidget(lastMenu, app)

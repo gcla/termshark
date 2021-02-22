@@ -22,6 +22,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/gowid/widgets/vpadding"
+	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
@@ -186,11 +187,12 @@ func makeMenuWithHotKeys(items []SimpleMenuItem, showKeys bool) (gowid.IWidget, 
 //======================================================================
 
 type NextMenu struct {
-	Cur       *menu.Widget
-	Next      *menu.Widget // nil if menu is nil
-	Site      *menu.SiteWidget
-	Container gowid.IFocus // container holding menu buttons, etc
-	Focus     int          // index of next menu in container
+	Cur        *menu.Widget
+	Next       *menu.Widget // nil if menu is nil
+	Site       *menu.SiteWidget
+	Container  gowid.IFocus        // container holding menu buttons, etc
+	Focus      int                 // index of next menu in container
+	MenuOpener widgets.IMenuOpener // For integrating with UI app - the menu needs to be told what's underneath when opened
 }
 
 func MakeMenuNavigatingKeyPress(left *NextMenu, right *NextMenu) appkeys.KeyInputFn {
@@ -204,15 +206,15 @@ func MenuNavigatingKeyPress(evk *tcell.EventKey, left *NextMenu, right *NextMenu
 	switch evk.Key() {
 	case tcell.KeyLeft:
 		if left != nil {
-			left.Cur.Close(app)
-			left.Next.Open(left.Site, app)
+			left.MenuOpener.CloseMenu(left.Cur, app)
+			left.MenuOpener.OpenMenu(left.Next, left.Site, app)
 			left.Container.SetFocus(app, left.Focus) // highlight next menu selector
 			res = true
 		}
 	case tcell.KeyRight:
 		if right != nil {
-			right.Cur.Close(app)
-			right.Next.Open(right.Site, app)
+			right.MenuOpener.CloseMenu(right.Cur, app)
+			right.MenuOpener.OpenMenu(right.Next, right.Site, app)
 			right.Container.SetFocus(app, right.Focus) // highlight next menu selector
 			res = true
 		}
