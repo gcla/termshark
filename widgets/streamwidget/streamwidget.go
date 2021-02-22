@@ -98,7 +98,7 @@ type Options struct {
 	ChunkClicker   IChunkClicked                // UI changes to make when stream chunk in table is clicked
 	ErrorHandler   IOnError                     // UI action to take on error
 	CopyModeWidget gowid.IWidget                // What to display when copy-mode is started.
-	MenuOpener     widgets.IMenuOpener          // For integrating with UI app - the menu needs to be told what's underneath when opened
+	MenuOpener     menu.IOpener                 // For integrating with UI app - the menu needs to be told what's underneath when opened
 }
 
 //======================================================================
@@ -143,7 +143,7 @@ func New(displayFilter string, captureDevice string, proto streams.Protocol,
 	}
 
 	if opt.MenuOpener == nil {
-		opt.MenuOpener = widgets.MenuOpenerFunc(widgets.OpenSimpleMenu)
+		opt.MenuOpener = menu.OpenerFunc(widgets.OpenSimpleMenu)
 	}
 
 	res := &Widget{
@@ -233,12 +233,13 @@ func (w *Widget) makeHeaderWidget() gowid.IWidget {
 	return headerView
 }
 
-func MakeConvMenu() (*holder.Widget, *menu.Widget) {
+func MakeConvMenu(opener menu.IOpener) (*holder.Widget, *menu.Widget) {
 	convListBoxWidgetHolder := holder.New(null.New())
 
 	convMenu := menu.New("conv", convListBoxWidgetHolder, fixed, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        opener,
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKey('q'),
 			gowid.MakeKeyExt(tcell.KeyLeft),

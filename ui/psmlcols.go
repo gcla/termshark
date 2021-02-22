@@ -75,6 +75,7 @@ func buildNamesMenu(app gowid.IApp) {
 	colNamesMenu = menu.New("psmlcols", colNamesMenuListBoxHolder, gowid.RenderWithUnits{U: wid}, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyEscape),
 			gowid.MakeKeyExt(tcell.KeyCtrlC),
@@ -92,6 +93,7 @@ func buildFieldsMenu(app gowid.IApp) {
 	colFieldsMenu = menu.New("psmlfieldscols", colFieldsMenuListBoxHolder, gowid.RenderWithUnits{U: wid}, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyEscape),
 			gowid.MakeKeyExt(tcell.KeyCtrlC),

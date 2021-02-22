@@ -239,12 +239,12 @@ func (g getMappings) None() bool {
 // widget needs to be rendered first - specifically the screen under the menu - so that
 // the menu can read out of the resulting canvas the coordinates on the screen at which
 // it should open.
-func openTermsharkMenu(open bool, m *menu.Widget, site *menu.SiteWidget, app gowid.IApp) bool {
+func openTermsharkMenu(open bool, m *menu.Widget, site menu.ISite, app gowid.IApp) bool {
 	if open {
 		if multiMenu.IMenuCompatible != m {
 			multiMenu.IMenuCompatible = m
 			m.SetSubWidget(appView, app)
-			m.Open(site, app)
+			m.OpenImpl(site, app)
 			app.Redraw()
 			return true
 		} else {
@@ -252,7 +252,7 @@ func openTermsharkMenu(open bool, m *menu.Widget, site *menu.SiteWidget, app gow
 		}
 	} else {
 		if multiMenu.IMenuCompatible == m {
-			m.Close(app)
+			m.CloseImpl(app)
 			multiMenu.IMenuCompatible = holder.New(appView)
 			return true
 		} else {
@@ -3027,6 +3027,7 @@ func Build() (*gowid.App, error) {
 	generalMenu = menu.New("main", generalMenuListBoxWithKeys, units(generalMenuWidth), menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyEscape),
 			gowid.MakeKeyExt(tcell.KeyCtrlC),
@@ -3091,6 +3092,7 @@ func Build() (*gowid.App, error) {
 	analysisMenu = menu.New("analysis", analysisMenuListBoxWithKeys, units(analysisMenuWidth), menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKey('q'),
 			gowid.MakeKeyExt(tcell.KeyLeft),
@@ -3117,6 +3119,7 @@ func Build() (*gowid.App, error) {
 	useAsColumnMenu = menu.New("useascolumn", useAsColumnListBox, units(useAsColumnWidth), menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKey('q'),
 			gowid.MakeKeyExt(tcell.KeyLeft),
@@ -3141,6 +3144,7 @@ func Build() (*gowid.App, error) {
 	savedMenu = menu.New("saved", savedListBoxWidgetHolder, fixed, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyLeft),
 			gowid.MakeKeyExt(tcell.KeyEscape),
@@ -3186,7 +3190,7 @@ func Build() (*gowid.App, error) {
 	generalNext.Next = analysisMenu
 	generalNext.Site = openAnalysisSite
 	generalNext.Container = titleCols
-	generalNext.MenuOpener = widgets.MenuOpenerFunc(openTermsharkMenu)
+	generalNext.MenuOpener = menu.OpenerFunc(openTermsharkMenu)
 	generalNext.Focus = 4 // should really find by ID
 
 	// <<generalmenu2>>
@@ -3194,7 +3198,7 @@ func Build() (*gowid.App, error) {
 	analysisNext.Next = generalMenu
 	analysisNext.Site = openMenuSite
 	analysisNext.Container = titleCols
-	analysisNext.MenuOpener = widgets.MenuOpenerFunc(openTermsharkMenu)
+	analysisNext.MenuOpener = menu.OpenerFunc(openTermsharkMenu)
 	analysisNext.Focus = 6 // should really find by ID
 
 	packetListViewHolder = holder.New(nullw)
@@ -3216,7 +3220,7 @@ func Build() (*gowid.App, error) {
 
 	FilterWidget = filter.New("filter", filter.Options{
 		Completer:  savedCompleter{def: termshark.NewFields()},
-		MenuOpener: widgets.MenuOpenerFunc(openTermsharkMenu),
+		MenuOpener: menu.OpenerFunc(openTermsharkMenu),
 	})
 
 	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
@@ -3675,9 +3679,9 @@ func Build() (*gowid.App, error) {
 		// These menus can both be open at the same time, so I have special
 		// handling here. I should use a more general method for all menus. The
 		// current method only allows one menu to be open at a time.
+		multiMenu,
 		filterConvsMenu1,
 		filterConvsMenu2,
-		multiMenu,
 	}
 
 	for _, w := range menus {

@@ -22,7 +22,6 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/gowid/widgets/vpadding"
-	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
@@ -190,9 +189,9 @@ type NextMenu struct {
 	Cur        *menu.Widget
 	Next       *menu.Widget // nil if menu is nil
 	Site       *menu.SiteWidget
-	Container  gowid.IFocus        // container holding menu buttons, etc
-	Focus      int                 // index of next menu in container
-	MenuOpener widgets.IMenuOpener // For integrating with UI app - the menu needs to be told what's underneath when opened
+	Container  gowid.IFocus // container holding menu buttons, etc
+	Focus      int          // index of next menu in container
+	MenuOpener menu.IOpener // For integrating with UI app - the menu needs to be told what's underneath when opened
 }
 
 func MakeMenuNavigatingKeyPress(left *NextMenu, right *NextMenu) appkeys.KeyInputFn {

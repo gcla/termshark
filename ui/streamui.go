@@ -22,7 +22,6 @@ import (
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/streams"
-	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/streamwidget"
 	"github.com/gdamore/tcell"
@@ -440,7 +439,7 @@ func makeStreamWidget(previousFilter string, filter string, cap string, proto st
 	return streamwidget.New(filter, cap, proto,
 		conversationMenu, conversationMenuHolder, &keyState,
 		streamwidget.Options{
-			MenuOpener: widgets.MenuOpenerFunc(openTermsharkMenu),
+			MenuOpener: menu.OpenerFunc(openTermsharkMenu),
 			DefaultDisplay: func() streamwidget.DisplayFormat {
 				view := streamwidget.Hex
 				choice := termshark.ConfString("main.stream-view", "hex")
@@ -498,7 +497,7 @@ func closeStreamUi(app gowid.IApp, refocus bool) {
 //======================================================================
 
 func buildStreamUi() {
-	conversationMenuHolder, conversationMenu = streamwidget.MakeConvMenu()
+	conversationMenuHolder, conversationMenu = streamwidget.MakeConvMenu(menu.OpenerFunc(openTermsharkMenu))
 
 	streamViewNoKeysHolder = holder.New(null.New())
 

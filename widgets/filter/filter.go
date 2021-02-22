@@ -33,7 +33,6 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
@@ -95,7 +94,7 @@ const (
 
 type Options struct {
 	Completer      termshark.IPrefixCompleter
-	MenuOpener     widgets.IMenuOpener
+	MenuOpener     menu.IOpener
 	Position       Pos
 	MaxCompletions int
 }
@@ -125,10 +124,6 @@ func New(name string, opt Options) *Widget {
 		opt.MaxCompletions = 20
 	}
 
-	if opt.MenuOpener == nil {
-		opt.MenuOpener = widgets.MenuOpenerFunc(widgets.OpenSimpleMenu)
-	}
-
 	menuListBox2 := styled.New(
 		framed.NewUnicode(cellmod.Opaque(filterActivator)),
 		gowid.MakePaletteRef("filter-menu"),
@@ -152,6 +147,7 @@ func New(name string, opt Options) *Widget {
 			IgnoreKeys:         ign,
 			CloseKeysProvided:  true,
 			CloseKeys:          []gowid.IKey{},
+			OpenCloser:         opt.MenuOpener,
 		},
 	)
 

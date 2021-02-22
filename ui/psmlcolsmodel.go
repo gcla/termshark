@@ -24,7 +24,6 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/shark/wiresharkcfg"
-	"github.com/gcla/termshark/v2/widgets"
 	"github.com/gcla/termshark/v2/widgets/filter"
 	"github.com/gcla/termshark/v2/widgets/number"
 	log "github.com/sirupsen/logrus"
@@ -164,9 +163,9 @@ func (sp *specToWidgets) widgets() psmlDialogWidgets {
 		customName: edit.New(edit.Options{
 			Text: sp.Name,
 		}),
-		customFilter: filter.New("foof", filter.Options{
+		customFilter: filter.New("psmlfilter", filter.Options{
 			Completer:  savedCompleter{def: termshark.NewFields()},
-			MenuOpener: widgets.MenuOpenerFunc(openTermsharkMenu),
+			MenuOpener: menu.OpenerFunc(openTermsharkMenu),
 			Position:   filter.Below,
 		}),
 		visible: checkbox.New(!sp.Hidden),
