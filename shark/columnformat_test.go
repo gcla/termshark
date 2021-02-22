@@ -21,7 +21,7 @@ func TestCF1(t *testing.T) {
 	cfmap := make(map[string]PsmlColumnSpec)
 	for _, f := range fields.fields {
 		fmt.Printf("GCLA: adding %v\n", f)
-		cfmap[f.Field] = f
+		cfmap[f.Field.Token] = f
 	}
 
 	m1, ok := cfmap["%At"]
