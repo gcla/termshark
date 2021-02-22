@@ -154,7 +154,9 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 	cols := shark.GetPsmlColumnFormat()
 	specs := make([]string, 0, len(cols))
 	for _, w := range cols {
-		specs = append(specs, fmt.Sprintf("\"%s\",\"%s\"", w.Name, w.Field))
+		if !w.Hidden {
+			specs = append(specs, fmt.Sprintf("\"%s\",\"%s\"", w.Name, w.Field))
+		}
 	}
 
 	args := []string{
