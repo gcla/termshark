@@ -6,7 +6,7 @@
   "files": [
     "README.md"
   ],
-  "imageSize": 80,
+  "imageSize": 72,
   "commit": false,
   "commitConvention": "none",
   "contributors": [
@@ -416,6 +416,15 @@
       "name": "zoulja",
       "avatar_url": "https://avatars1.githubusercontent.com/u/10187203?v=4",
       "profile": "https://github.com/zoulja",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "freddii",
+      "name": "freddii",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7213207?v=4",
+      "profile": "https://github.com/freddii",
       "contributions": [
         "bug"
       ]
