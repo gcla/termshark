@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+  Termshark's columns can now be changed. Use the minibuffer `columns` command to show the current column
+  set. Columns can be added, removed or hidden from view. If your Wireshark config is available, termshark can
+  import your Wireshark column configuration. Custom columns can be chosen via a display filter expression.
+- The packet structure view now provides a contextual menu with options to
+  - apply the filter representing the current level of structure as a custom column
+  - prepare or directly apply the same filter as a display filter
+
+### Changed
+
+  Fixed a bug that caused "And" and "Or" conversation filters to be incorrect if the current display filter is
+  empty.
+
 ## [2.2.0] - 2021-01-03
 ### Added 
 
