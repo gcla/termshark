@@ -317,30 +317,30 @@ func openEditColumns(app gowid.IApp) {
 		}),
 	}
 
-	cancelButton := dialog.Button{
-		Msg: "Cancel",
-		Action: gowid.WidgetChangedFunction(func(app gowid.IApp, widget gowid.IWidget) {
-			err := pcols.Close()
-			if err != nil {
-				log.Warnf("Unexpected result closing PSML columns dialog: %v", err)
-			}
-
-			editColsDialog.Close(app)
-		}),
-	}
-
 	editColsDialog = dialog.New(
 		framed.NewSpace(
 			mainw,
 		),
 		dialog.Options{
-			Buttons:         []dialog.Button{okButton, cancelButton},
+			Buttons:         []dialog.Button{okButton, dialog.Cancel},
 			NoShadow:        true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 		},
 	)
+
+	dialogOpen := false
+	editColsDialog.OnOpenClose(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
+		dialogOpen = !dialogOpen
+		if !dialogOpen {
+			err := pcols.Close()
+			if err != nil {
+				log.Warnf("Unexpected result closing PSML columns dialog: %v", err)
+			}
+
+		}
+	}))
 
 	editColsDialog.Open(appView, ratio(0.7), app)
 }
