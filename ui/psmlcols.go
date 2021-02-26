@@ -228,7 +228,7 @@ func openEditColumns(app gowid.IApp) {
 	if len(bakCols) != 0 {
 		btn := button.New(text.New("Restore"))
 		btn.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
-			newPcols := NewPsmlColumnsModelFrom("main.column-format-bak", "main.hidden-columns-bak", app)
+			newPcols := NewPsmlColumnsModelFrom("main.column-format-bak", app)
 			if len(newPcols.spec) == 0 {
 				OpenMessage("Error: backup column-format is empty in toml file", appView, app)
 				return
@@ -300,24 +300,11 @@ func openEditColumns(app gowid.IApp) {
 			newcols := pcols.ToConfigList()
 			curcols := termshark.ConfStringSlice("main.column-format", []string{})
 
-			newvis := pcols.HiddenToConfigList()
-			curvis := termshark.ConfStringSlice("main.hidden-columns", []string{})
-
 			updated := false
 			if !reflect.DeepEqual(newcols, curcols) {
 				termshark.SetConf("main.column-format-bak", curcols)
 				termshark.SetConf("main.column-format", newcols)
 				updated = true
-			}
-			if !reflect.DeepEqual(newvis, curvis) {
-				termshark.SetConf("main.hidden-columns-bak", curvis)
-				termshark.SetConf("main.hidden-columns", newvis)
-				updated = true
-			}
-
-			err := pcols.Close()
-			if err != nil {
-				log.Warnf("Unexpected result closing PSML columns dialog: %v", err)
 			}
 
 			editColsDialog.Close(app)

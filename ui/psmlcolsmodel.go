@@ -93,8 +93,8 @@ func NewPsmlColumnsModel(app gowid.IApp) *psmlColumnsModel {
 	return res
 }
 
-func NewPsmlColumnsModelFrom(colsKey string, visKey string, app gowid.IApp) *psmlColumnsModel {
-	spec := shark.GetPsmlColumnFormatFrom(colsKey, visKey)
+func NewPsmlColumnsModelFrom(colsKey string, app gowid.IApp) *psmlColumnsModel {
+	spec := shark.GetPsmlColumnFormatFrom(colsKey)
 	res := &psmlColumnsModel{
 		spec: spec,
 	}
@@ -140,18 +140,7 @@ func (p *psmlColumnsModel) ToConfigList() []string {
 	for i := 0; i < len(p.spec); i++ {
 		res = append(res, p.FieldToString(i))
 		res = append(res, p.widgets[i].customName.Text())
-	}
-	return res
-}
-
-// HiddenToConfigList returns a list of hidden fields, according to the current
-// PSML columns model (from the open dialog)
-func (p *psmlColumnsModel) HiddenToConfigList() []string {
-	res := make([]string, 0)
-	for i := 0; i < len(p.spec); i++ {
-		if !p.widgets[i].visible.IsChecked() {
-			res = append(res, p.FieldToString(i))
-		}
+		res = append(res, fmt.Sprintf("%v", p.widgets[i].visible.IsChecked()))
 	}
 	return res
 }

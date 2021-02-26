@@ -274,7 +274,7 @@ func GetPsmlColumnFormatCached() []PsmlColumnSpec {
 	defer cachedPsmlColumnFormatMutex.Unlock()
 
 	if cachedPsmlColumnFormat == nil {
-		cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format", "main.hidden-columns")
+		cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format")
 	}
 
 	return cachedPsmlColumnFormat
@@ -284,29 +284,30 @@ func GetPsmlColumnFormat() []PsmlColumnSpec {
 	cachedPsmlColumnFormatMutex.Lock()
 	defer cachedPsmlColumnFormatMutex.Unlock()
 
-	cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format", "main.hidden-columns")
+	cachedPsmlColumnFormat = getPsmlColumnFormatWithoutLock("main.column-format")
 
 	return cachedPsmlColumnFormat
 }
 
-func GetPsmlColumnFormatFrom(colKey string, visKey string) []PsmlColumnSpec {
-	return getPsmlColumnFormatWithoutLock(colKey, visKey)
+func GetPsmlColumnFormatFrom(colKey string) []PsmlColumnSpec {
+	return getPsmlColumnFormatWithoutLock(colKey)
 }
 
-func getPsmlColumnFormatWithoutLock(colKey string, visKey string) []PsmlColumnSpec {
+func getPsmlColumnFormatWithoutLock(colKey string) []PsmlColumnSpec {
 	res := make([]PsmlColumnSpec, 0)
 	widths := termshark.ConfStringSlice(colKey, []string{})
-	if len(widths) == 0 || (len(colKey)/2)*2 != len(colKey) {
+	if len(widths) == 0 || (len(colKey)/3)*3 != len(colKey) {
 		res = DefaultPsmlColumnSpec
 	} else {
 		// Cross references with those column specs that we know about from having
 		// queried tshark with tshark -G column-formats. Any that are not known
 		// are discarded. If none are left, use our safe defaults
-		pieces := [2]string{}
+		pieces := [3]string{}
 
-		for i := 0; i < len(widths); i += 2 {
+		for i := 0; i < len(widths); i += 3 {
 			pieces[0] = widths[i]
 			pieces[1] = widths[i+1]
+			pieces[2] = widths[i+2]
 
 			var spec PsmlColumnSpec
 
@@ -327,6 +328,14 @@ func getPsmlColumnFormatWithoutLock(colKey string, visKey string) []PsmlColumnSp
 				// Already confirmed it's in map
 				spec.Name = AllowedColumnFormats[pieces[0]].Short
 			}
+
+			visible, err := strconv.ParseBool(pieces[2])
+			if err != nil {
+				logrus.Warnf("Do not understand PSML column format hidden token '%s' - skipping its use", pieces[2])
+				continue
+			}
+			spec.Hidden = !visible
+
 			res = append(res, spec)
 		}
 		if len(res) == 0 {
@@ -334,23 +343,6 @@ func getPsmlColumnFormatWithoutLock(colKey string, visKey string) []PsmlColumnSp
 			res = DefaultPsmlColumnSpec
 		}
 
-		vis := termshark.ConfStringSlice(visKey, []string{})
-		for _, v := range vis {
-			var f PsmlField
-			err := f.FromString(v)
-			if err != nil {
-				logrus.Warnf("Ignoring unparsable hidden column '%s'", v)
-				continue
-			}
-		loop:
-			for i, _ := range res {
-				// Compare the whole field i.e. "%Cus:<filter>:0:R"
-				if res[i].Field == f {
-					res[i].Hidden = true
-					break loop
-				}
-			}
-		}
 	}
 	return res
 }
