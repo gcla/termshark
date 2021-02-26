@@ -288,13 +288,21 @@ The information is displayed in a table by conversation type. If the user has a 
 tshark -r my.pcap -q -z conv,eth,http -z conv,ip,http -z conv,tcp,http
 ```
 
-Finally, termshark uses tshark in one more way - to generate the possible completions for prefixes of display filter terms. If you type `tcp.` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
+Termshark also uses tshark to generate the possible completions for prefixes of display filter terms. If you type `tcp.` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
 
 ```bash
 tshark -G fields
 ```
 
 then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv2.gob.gz`.
+
+Finally, termshark runs tshark to generate the list of all valid columns and their names. These are used to populate a dropdown menu showing valid column choices when the user configures their column set. Termshark runs
+
+```bash
+tshark -G column-formats
+```
+
+and serializes this list to `$XDG_CACHE_HOME/termshark/tsharkcolumnsv2.gob.gz`.
 
 Termshark also uses the `capinfos` binary to compute the information displayed via the menu "Analysis -> Capture file properties". `capinfos` is typically distributed with tshark. 
 

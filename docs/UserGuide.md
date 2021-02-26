@@ -22,6 +22,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Packet Capture Information](#packet-capture-information)
   - [Stream Reassembly](#stream-reassembly)
   - [Conversations](#conversations)
+  - [Columns](#columns)
   - [Command-Line](#command-line)
   - [Macros](#macros)
 - [Configuration](#configuration)
@@ -225,7 +226,9 @@ Termshark's middle view shows the structure of the packet selected in the list v
 
 ![structure](/../gh-pages/images/structure.png?raw=true)
 
-As you navigate the packet structure, different sections of the bottom view - a hex representation of the packet - will be highlighted.
+As you navigate the packet structure, different sections of the bottom view - a hex representation of the packet - will be highlighted. The currently selected line in this view will display a small button at the right hand-side. This button opens a contextual menu from which you can add a custom column or apply a filter based on the current level of the packet structure.
+
+![pdmlmenu](/../gh-pages/images/termshark-pdml-menu.png?raw=true)
 
 ### Packet Hex View
 
@@ -317,6 +320,25 @@ In the first pop-up menu, you can choose how to extend the current display filte
 
 ![convs3](/../gh-pages/images/convs3.png?raw=true)
 
+### Columns
+
+Like Wireshark, you can configure the columns that termshark displays. To do this, choose "Edit Columns" from the main menu, or type `columns` from the command-line.
+
+![configcolumns](/../gh-pages/images/custom-columns.png?raw=true)
+
+From this dialog, you can:
+
+- Rearrange your current column set
+- Hide columns or make them visible
+- Delete and add columns
+- Give each of your columns a custom name
+
+If termshark can find your Wireshark config, it also offers the option of importing your Wireshark column set.
+
+Use the drop-down menus to choose the column type. If you select a custom column, termshark will require you to provide a valid display filter
+expression. Like Wireshark, the syntax of valid column expressions is a subset of those for display filters - essentially the disjunction (or) of
+filter fields. Note that termshark follows Wireshark and currently allows you to enter *any* valid display filter expression.
+
 ### Command-Line
 
 For fast navigation around the UI, termshark offers a vim-style command-line. To activate the command-line, hit the ':' key:
@@ -327,6 +349,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 
 - **capinfo** - Show the current capture file properties (using the `capinfos` command)
 - **clear** - Clear the current pcap
+- **columns** - Configure termshark's columns
 - **convs** - Open the conversations view
 - **filter** - Choose a display filter from those recently-used
 - **help** - Show one of several help dialogs
@@ -534,6 +557,8 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `capture-command` (string) - use this binary to capture packets, passing `-i`, `-w` and `-f` flags. 
 - `color-tsharks` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
 - `colors` (bool) - if true, and tshark supports the feature, termshark will colorize packets in its list view.
+- `column-format` (string list) - a list of columns, each a group of three strings: field name, display name, and visibility.
+- `column-format-bak` (string list) - the value of `column-format` prior to its last change; for restoring previous settings.
 - `conv-absolute-time` (bool) - if true, have tshark provide conversation data with a relative start time field.
 - `conv-resolve-names` (bool) - if true, have tshark provide conversation data with ethernet names resolved.
 - `conv-use-filter` (bool) - if true, have tshark provide conversation data limited to match the active display filter.
