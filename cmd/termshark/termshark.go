@@ -23,6 +23,7 @@ import (
 	"github.com/gcla/termshark/v2/cli"
 	"github.com/gcla/termshark/v2/convs"
 	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/theme"
@@ -693,6 +694,7 @@ func cmain() int {
 	}
 
 	var ifaceTmpFile string
+	var waitingForPackets bool
 
 	if len(pcap.FileSystemSources(psrcs)) == 0 {
 		srcNames := make([]string, 0, len(psrcs))
@@ -701,7 +703,7 @@ func cmain() int {
 		}
 		ifaceTmpFile = pcap.TempPcapFile(srcNames...)
 
-		fmt.Printf("(The termshark UI will start when packets are detected...)\n")
+		waitingForPackets = true
 	} else {
 		// Start UI right away, reading from a file
 		close(ui.StartUIChan)
@@ -797,6 +799,23 @@ func cmain() int {
 				}
 			},
 		},
+	}
+
+	// Do this before the load starts, so that the PSML process has a guaranteed safe
+	// PSML column format to use when it begins. The call to RequestLoadPcapWithCheck,
+	// for example, will access the setting for preferred PSML columns.
+	//
+	// Init a global variable with the list of all valid tshark columns and
+	// their formats. This might start a tshark process if the data isn't
+	// cached. If so, print a message to console - "initializing". I'm not doing
+	// anything smarter or async - it's not worth it, this should take a fraction
+	// of a second.
+	err = shark.InitValidColumns()
+
+	// If this message is needed, we want it to appear after the init message for the packet
+	// columns - after InitValidColumns
+	if waitingForPackets {
+		fmt.Printf("(The termshark UI will start when packets are detected...)\n")
 	}
 
 	// Refresh

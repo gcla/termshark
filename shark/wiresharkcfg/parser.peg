@@ -1,0 +1,134 @@
+// Copyright 2019-2021 Graham Clark. All rights reserved.  Use of this source
+// code is governed by the MIT license that can be found in the LICENSE
+// file.
+//
+// This peg file should be compiled with something like this:
+//
+// go get github.com/mna/pigeon@f3db42a
+// cd termshark/share/wiresharkcfg/
+// pigeon parser.peg > parser.go
+//
+
+{
+package wiresharkcfg
+
+import (
+	"io"
+	"unicode"
+        "strings"
+        "os"
+        "fmt"
+        "strconv"
+        "errors"
+        "io/ioutil"
+        "bytes"
+        "unicode/utf8"
+	log "github.com/sirupsen/logrus"
+)
+
+}
+
+//
+// Parse input that looks roughly like:
+//
+// # Packet list hidden columns
+// # List all columns to hide in the packet list.
+// gui.column.hidden: 
+// 
+// # Packet list column format
+// # Each pair of strings consists of a column title and its format
+// gui.column.format: 
+// 	"No.", "%m",
+// 	"gcla3", "%Yt",
+// 	"Time", "%t",
+// 	"Source", "%s",
+// 	"Destination", "%d",
+// 	"Protocol", "%p",
+// 	"Length", "%L",
+// 	"Info", "%i",
+// 	"gcla", "%V",
+// 	"gcla2", "%B",
+// 	"utc", "%Aut"
+// 
+// ####### User Interface: Font ########
+// 
+// # Font name for packet list, protocol tree, and hex dump panes. (Qt)
+// # A string
+// gui.qt.font_name: Liberation Mono,11,-1,5,50,0,0,0,0,0
+// ...
+
+Input <- e:OneEntry es:OneEntry* {
+   res := e.(*Config)
+   for _, e2 := range es.([]interface{}) {
+     e2.(*Config).merge(res)
+     res = e2.(*Config)
+   }
+   return res, nil
+}
+
+OneEntry <- sv:(ListKeyValue / StringKeyValue) {
+   return sv.(*Config), nil
+}
+
+Comment <- _nl+ / (_nl* "#" [^\r\n]* _nl) #{
+   return nil
+}		     
+
+StringKeyValue <- Comment* k:StringKey ":" v:StringValue _nl _nl {
+   strs := make(map[string]string)
+   strs[k.(string)] = v.(string)
+   res := &Config{
+     Lists: make(map[string][]string),
+     Strings: strs,
+   }
+   return res, nil
+}
+
+StringKey <- [a-zA-z0-9._]+ {
+  return string(c.text), nil
+}
+
+StringValue <- [^\n\t\r]+ {
+   return string(c.text), nil
+}
+
+ListKeyValue <- Comment* k:ListKey ':' _ lv:ListValue {
+   lists := make(map[string][]string)
+   lists[string(k.([]uint8))] = lv.([]string)
+   res := &Config{
+     Lists: lists,
+     Strings: make(map[string]string),
+   }
+   return res, nil
+}
+
+ListKey <- "gui.column.format" / "gui.column.hidden" {
+   return c.text, nil
+}
+
+ListItem <- [^\n\t\r,]+ {
+   return string(c.text), nil
+}
+
+ListValue <- li:ListItem _ lv:( ',' _ ListValue )* {
+   res := make([]string, 0)
+   res = append(res, li.(string))
+   noneOrSome := lv.([]interface{})
+   if len(noneOrSome) > 0 {
+     some := noneOrSome[0].([]interface{})
+     // [[44] [] [[...]]]
+     if len(some) == 3 {
+       vals := some[2].([]string)
+       res = append(res, vals...)
+     }
+   }
+   return res, nil
+}
+
+_nl "newline" <- [\r]?[\n]
+
+_ "whitespace" <- [ \n\t\r]*
+
+__ "mandatory whitespace" <- [ \n\t\r]+
+
+EOF <- !.

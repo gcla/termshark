@@ -8,6 +8,8 @@
 package expander
 
 import (
+	"fmt"
+
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/boxadapter"
 )
@@ -59,6 +61,10 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 
 func (w *Widget) Selectable() bool {
 	return w.w.Selectable()
+}
+
+func (w *Widget) String() string {
+	return fmt.Sprintf("expander[%v]", w.w.IWidget)
 }
 
 //======================================================================

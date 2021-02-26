@@ -16,16 +16,19 @@ import (
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/keypress"
+	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/menu"
-	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
+	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell"
 )
 
 //======================================================================
+
+type SimpleMenuActionFunction func(app gowid.IApp, site menu.ISite)
 
 type SimpleMenuItem struct {
 	Txt string
@@ -37,25 +40,50 @@ func MakeMenuDivider() SimpleMenuItem {
 	return SimpleMenuItem{}
 }
 
-func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
+type SiteMap map[gowid.IWidget]menu.ISite
+
+func MakeMenuWithHotKeys(items []SimpleMenuItem, sites SiteMap) (gowid.IWidget, int) {
+	return makeMenuWithHotKeys(items, true, sites)
+}
+
+func MakeMenu(items []SimpleMenuItem, sites SiteMap) (gowid.IWidget, int) {
+	return makeMenuWithHotKeys(items, false, sites)
+}
+
+type widgetWithSite struct {
+	gowid.IWidget
+	menu.ISite
+}
+
+func (w *widgetWithSite) String() string {
+	return fmt.Sprintf("withsite[%v@%v]", w.ISite, w.IWidget)
+}
+
+func makeMenuWithHotKeys(items []SimpleMenuItem, showKeys bool, sites SiteMap) (gowid.IWidget, int) {
 	menu1Widgets := make([]gowid.IWidget, len(items))
 	menu1HotKeys := make([]gowid.IWidget, len(items))
+	menu1Sites := make([]*menu.SiteWidget, len(items))
 
 	// Figure out the length of the longest hotkey string representation
-	max := 0
+	maxHK := 0
 	for _, w := range items {
 		if w.Txt != "" {
 			k := fmt.Sprintf("%v", w.Key)
-			if len(k) > max {
-				max = len(k)
+			if len(k) > maxHK {
+				maxHK = len(k)
 			}
 		}
 	}
+
+	maxVal := 0
 
 	// Construct the hotkey widget and menu item widget for each menu entry
 	for i, w := range items {
 		if w.Txt != "" {
 			load1B := button.NewBare(text.New(w.Txt))
+			if len(w.Txt) > maxVal {
+				maxVal = len(w.Txt)
+			}
 			var ks string
 			if w.Key != nil {
 				ks = fmt.Sprintf("%v", w.Key)
@@ -68,11 +96,18 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 			}
 			menu1Widgets[i] = load1B
 			menu1HotKeys[i] = load1K
+			menu1Sites[i] = menu.NewSite()
+			if sites != nil {
+				sites[load1B] = menu1Sites[i]
+			}
 		}
 	}
 	for i, w := range menu1Widgets {
 		if w != nil {
-			menu1Widgets[i] = styled.NewInvertedFocus(selectable.New(w), gowid.MakePaletteRef("default"))
+			menu1Widgets[i] = &widgetWithSite{
+				IWidget: styled.NewInvertedFocus(selectable.New(w), gowid.MakePaletteRef("default")),
+				ISite:   menu1Sites[i],
+			}
 		}
 	}
 	for i, w := range menu1HotKeys {
@@ -83,14 +118,20 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 
 	fixed := gowid.RenderFixed{}
 
+	startCol := 0
+	if showKeys {
+		startCol = 2
+	}
+
 	// Build the menu "row" for each menu entry
 	menu1Widgets2 := make([]gowid.IWidget, len(menu1Widgets))
 	for i, w := range menu1Widgets {
 		if w == nil {
-			menu1Widgets2[i] = divider.NewUnicode()
+			menu1Widgets2[i] = vpadding.New(divider.NewUnicode(), gowid.VAlignTop{}, gowid.RenderFlow{})
 		} else {
-			menu1Widgets2[i] = columns.New(
-				[]gowid.IContainerWidget{
+			containerWidgets := make([]gowid.IContainerWidget, 0, 3)
+			if showKeys {
+				containerWidgets = append(containerWidgets,
 					&gowid.ContainerWidget{
 						IWidget: hpadding.New(
 							// size is translated from flowwith{20} to fixed; fixed gives size 6, flowwith aligns right to 12
@@ -102,7 +143,7 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 								fixed,
 							),
 							gowid.HAlignLeft{},
-							gowid.RenderFlowWith{C: max},
+							gowid.RenderFlowWith{C: maxHK},
 						),
 						D: fixed,
 					},
@@ -110,29 +151,25 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 						IWidget: text.New("| "),
 						D:       fixed,
 					},
-					&gowid.ContainerWidget{
-						IWidget: w,
-						D:       fixed,
-					},
+				)
+			}
+			containerWidgets = append(containerWidgets,
+				&gowid.ContainerWidget{
+					IWidget: w,
+					D:       fixed,
 				},
-				columns.Options{
-					StartColumn: 2,
+				&gowid.ContainerWidget{
+					IWidget: menu1Sites[i],
+					D:       fixed,
 				},
 			)
-		}
-	}
 
-	menu1cwidgets := make([]gowid.IContainerWidget, len(menu1Widgets2))
-	for i, w := range menu1Widgets2 {
-		var dim gowid.IWidgetDimension
-		if menu1Widgets[i] != nil {
-			dim = fixed
-		} else {
-			dim = gowid.RenderFlow{}
-		}
-		menu1cwidgets[i] = &gowid.ContainerWidget{
-			IWidget: w,
-			D:       dim,
+			menu1Widgets2[i] = columns.New(
+				containerWidgets,
+				columns.Options{
+					StartColumn: startCol,
+				},
+			)
 		}
 	}
 
@@ -148,9 +185,7 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 		cellmod.Opaque(
 			styled.New(
 				framed.NewUnicode(
-					pile.New(menu1cwidgets, pile.Options{
-						Wrap: true,
-					}),
+					list.New(list.NewSimpleListWalker(menu1Widgets2)),
 				),
 				gowid.MakePaletteRef("default"),
 			),
@@ -169,17 +204,18 @@ func MakeMenuWithHotKeys(items []SimpleMenuItem) gowid.IWidget {
 		}
 	}))
 
-	return menuListBox1
+	return menuListBox1, maxHK + maxVal + 2 + 2 // "| " + border
 }
 
 //======================================================================
 
 type NextMenu struct {
-	Cur       *menu.Widget
-	Next      *menu.Widget // nil if menu is nil
-	Site      *menu.SiteWidget
-	Container gowid.IFocus // container holding menu buttons, etc
-	Focus     int          // index of next menu in container
+	Cur        *menu.Widget
+	Next       *menu.Widget // nil if menu is nil
+	Site       *menu.SiteWidget
+	Container  gowid.IFocus // container holding menu buttons, etc
+	Focus      int          // index of next menu in container
+	MenuOpener menu.IOpener // For integrating with UI app - the menu needs to be told what's underneath when opened
 }
 
 func MakeMenuNavigatingKeyPress(left *NextMenu, right *NextMenu) appkeys.KeyInputFn {
@@ -193,15 +229,15 @@ func MenuNavigatingKeyPress(evk *tcell.EventKey, left *NextMenu, right *NextMenu
 	switch evk.Key() {
 	case tcell.KeyLeft:
 		if left != nil {
-			left.Cur.Close(app)
-			left.Next.Open(left.Site, app)
+			left.MenuOpener.CloseMenu(left.Cur, app)
+			left.MenuOpener.OpenMenu(left.Next, left.Site, app)
 			left.Container.SetFocus(app, left.Focus) // highlight next menu selector
 			res = true
 		}
 	case tcell.KeyRight:
 		if right != nil {
-			right.Cur.Close(app)
-			right.Next.Open(right.Site, app)
+			right.MenuOpener.CloseMenu(right.Cur, app)
+			right.MenuOpener.OpenMenu(right.Next, right.Site, app)
 			right.Container.SetFocus(app, right.Focus) // highlight next menu selector
 			res = true
 		}

@@ -597,6 +597,23 @@ func (w *ConvsUiWidget) makeHeaderConvsUiWidget() gowid.IWidget {
 	return headerView
 }
 
+// convsModelWithRow is able to provide an A and a B for a conversation A <-> B. It looks
+// up the model at a specific row to find the conversation.
+type convsModelWithRow struct {
+	model *ConvsModel
+	row   int
+}
+
+var _ IFilterModel = (*convsModelWithRow)(nil)
+
+func (c *convsModelWithRow) GetAFilter(dir Direction) string {
+	return c.model.GetAFilter(c.row, dir)
+}
+
+func (c *convsModelWithRow) GetBFilter(dir Direction) string {
+	return c.model.GetBFilter(c.row, dir)
+}
+
 func (w *ConvsUiWidget) doFilterMenuOp(dirOp FilterMask, app gowid.IApp) {
 	conv1 := w.convHolder.SubWidget()
 	if conv1 != nil {
@@ -607,50 +624,12 @@ func (w *ConvsUiWidget) doFilterMenuOp(dirOp FilterMask, app gowid.IApp) {
 			}
 			pos := conv1.tbl.Pos()
 
-			var filter string
-			switch dirOp {
-			case AtfB:
-				filter = fmt.Sprintf("%s && %s", conv1.model.GetAFilter(pos, Any), conv1.model.GetBFilter(pos, Any))
-			case AtB:
-				filter = fmt.Sprintf("%s && %s", conv1.model.GetAFilter(pos, From), conv1.model.GetBFilter(pos, To))
-			case BtA:
-				filter = fmt.Sprintf("%s && %s", conv1.model.GetBFilter(pos, From), conv1.model.GetAFilter(pos, To))
-			case AtfAny:
-				filter = conv1.model.GetAFilter(pos, Any)
-			case AtAny:
-				filter = conv1.model.GetAFilter(pos, From)
-			case AnytA:
-				filter = conv1.model.GetAFilter(pos, To)
-			case AnytfB:
-				filter = conv1.model.GetBFilter(pos, Any)
-			case AnytB:
-				filter = conv1.model.GetBFilter(pos, To)
-			case BtAny:
-				filter = conv1.model.GetBFilter(pos, From)
+			cmodel := &convsModelWithRow{
+				model: conv1.model,
+				row:   pos,
 			}
 
-			existingFilter := FilterWidget.Value()
-
-			switch w.filterSelectedIndex {
-			case NotSelected:
-				filter = fmt.Sprintf("!(%s)", filter)
-			case AndSelected:
-				if existingFilter != "" {
-					filter = fmt.Sprintf("%s && (%s)", existingFilter, filter)
-				}
-			case OrSelected:
-				if existingFilter != "" {
-					filter = fmt.Sprintf("%s || (%s)", existingFilter, filter)
-				}
-			case AndNotSelected:
-				if existingFilter != "" {
-					filter = fmt.Sprintf("%s && !(%s)", existingFilter, filter)
-				}
-			case OrNotSelected:
-				if existingFilter != "" {
-					filter = fmt.Sprintf("%s || !(%s)", existingFilter, filter)
-				}
-			}
+			filter := ComputeConvFilterOp(dirOp, w.filterSelectedIndex, cmodel, FilterWidget.Value())
 
 			FilterWidget.SetValue(filter, app)
 
@@ -666,6 +645,70 @@ func (w *ConvsUiWidget) doFilterMenuOp(dirOp FilterMask, app gowid.IApp) {
 			}
 		}
 	}
+}
+
+type IFilterModel interface {
+	GetAFilter(Direction) string
+	GetBFilter(Direction) string
+}
+
+func ComputeConvFilterOp(dirOp FilterMask, comb FilterCombinator, model IFilterModel, curFilter string) string {
+	var filter string
+	switch dirOp {
+	case AtfB:
+		filter = fmt.Sprintf("%s && %s", model.GetAFilter(Any), model.GetBFilter(Any))
+	case AtB:
+		filter = fmt.Sprintf("%s && %s", model.GetAFilter(From), model.GetBFilter(To))
+	case BtA:
+		filter = fmt.Sprintf("%s && %s", model.GetBFilter(From), model.GetAFilter(To))
+	case AtfAny:
+		filter = model.GetAFilter(Any)
+	case AtAny:
+		filter = model.GetAFilter(From)
+	case AnytA:
+		filter = model.GetAFilter(To)
+	case AnytfB:
+		filter = model.GetBFilter(Any)
+	case AnytB:
+		filter = model.GetBFilter(To)
+	case BtAny:
+		filter = model.GetBFilter(From)
+	}
+
+	return ComputeFilterCombOp(comb, filter, curFilter)
+}
+
+func ComputeFilterCombOp(comb FilterCombinator, newFilter string, curFilter string) string {
+	switch comb {
+	case NotSelected:
+		newFilter = fmt.Sprintf("!(%s)", newFilter)
+	case AndSelected:
+		if curFilter != "" {
+			newFilter = fmt.Sprintf("%s && (%s)", curFilter, newFilter)
+		} else {
+			newFilter = fmt.Sprintf("%s", newFilter)
+		}
+	case OrSelected:
+		if curFilter != "" {
+			newFilter = fmt.Sprintf("%s || (%s)", curFilter, newFilter)
+		} else {
+			newFilter = fmt.Sprintf("%s", newFilter)
+		}
+	case AndNotSelected:
+		if curFilter != "" {
+			newFilter = fmt.Sprintf("%s && !(%s)", curFilter, newFilter)
+		} else {
+			newFilter = fmt.Sprintf("!%s", newFilter)
+		}
+	case OrNotSelected:
+		if curFilter != "" {
+			newFilter = fmt.Sprintf("%s || !(%s)", curFilter, newFilter)
+		} else {
+			newFilter = fmt.Sprintf("!%s", newFilter)
+		}
+	}
+
+	return newFilter
 }
 
 func (w *ConvsUiWidget) OnCancel(app gowid.IApp) {

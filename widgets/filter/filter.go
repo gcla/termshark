@@ -2,7 +2,7 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-// Package filter prpvides a termshark-specific edit widget which changes
+// Package filter provides a termshark-specific edit widget which changes
 // color according to the validity of its input, and which activates a
 // drop-down menu of possible completions for the term at point.
 package filter
@@ -29,6 +29,7 @@ import (
 	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/menu"
+	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
@@ -41,6 +42,8 @@ import (
 // This is a debugging aid - I use it to ensure goroutines stop as expected. If they don't
 // the main program will hang at termination.
 var Goroutinewg *sync.WaitGroup
+
+var fixed gowid.RenderFixed
 
 type filtStruct struct {
 	txt string
@@ -82,12 +85,27 @@ type ValidCB struct{}
 type InvalidCB struct{}
 type SubmitCB struct{}
 
+type Pos int
+
+const (
+	Left  Pos = iota
+	Below Pos = iota
+)
+
 type Options struct {
 	Completer      termshark.IPrefixCompleter
+	MenuOpener     menu.IOpener
+	Position       Pos
 	MaxCompletions int
 }
 
-func New(opt Options) *Widget {
+type stringNamer string
+
+func (f stringNamer) Name() string {
+	return string(f)
+}
+
+func New(name string, opt Options) *Widget {
 	res := &Widget{}
 
 	ed := edit.New()
@@ -97,7 +115,6 @@ func New(opt Options) *Widget {
 		res.enterPending = false
 	}})
 
-	fixed := gowid.RenderFixed{}
 	filterList := list.New(list.NewSimpleListWalker([]gowid.IWidget{}))
 	filterActivator := &activatorWidget{
 		IWidget: filterList,
@@ -124,17 +141,24 @@ func New(opt Options) *Widget {
 		}
 	}
 
-	drop := menu.New("filter", menuListBox2, gowid.RenderWithUnits{U: opt.MaxCompletions + 2},
+	drop := menu.New(name, menuListBox2, fixed,
 		menu.Options{
 			IgnoreKeysProvided: true,
 			IgnoreKeys:         ign,
 			CloseKeysProvided:  true,
 			CloseKeys:          []gowid.IKey{},
+			OpenCloser:         opt.MenuOpener,
 		},
 	)
 
+	yOff := 1
+	if opt.Position == Below {
+		yOff = 0
+	}
+
 	site := menu.NewSite(menu.SiteOptions{
-		YOffset: 1,
+		Namer:   stringNamer("filtersite"),
+		YOffset: yOff,
 	})
 
 	cb := gowid.NewCallbacks()
@@ -155,10 +179,19 @@ func New(opt Options) *Widget {
 
 	placeholder := holder.New(valid)
 
-	var wrapped gowid.IWidget = columns.New([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{IWidget: site, D: fixed},
-		&gowid.ContainerWidget{IWidget: placeholder, D: gowid.RenderWithWeight{W: 1}},
-	})
+	var wrapped gowid.IWidget
+	switch opt.Position {
+	case Below:
+		wrapped = pile.New([]gowid.IContainerWidget{
+			&gowid.ContainerWidget{IWidget: placeholder, D: gowid.RenderFlow{}},
+			&gowid.ContainerWidget{IWidget: site, D: fixed},
+		})
+	default:
+		wrapped = columns.New([]gowid.IContainerWidget{
+			&gowid.ContainerWidget{IWidget: site, D: fixed},
+			&gowid.ContainerWidget{IWidget: placeholder, D: gowid.RenderWithWeight{W: 1}},
+		})
+	}
 
 	runthisfilterchan := make(chan *filtStruct)
 	quitchan := make(chan struct{})
@@ -407,7 +440,6 @@ func isValidFilterRune(r rune) bool {
 func newMenuWidgets(ed *edit.Widget, completions []string) []gowid.IWidget {
 	menu2Widgets := make([]gowid.IWidget, 0)
 
-	fixed := gowid.RenderFixed{}
 	for _, s := range completions {
 		scopy := s
 
@@ -573,6 +605,18 @@ func (w *Widget) processCompletions(completions []string, app gowid.IApp) {
 		// can be used to submit a new filter.
 		w.completionsActivator.active = false
 		w.dropDown.SetWidth(gowid.RenderWithUnits{U: max + 2}, app)
+		// This makes for a better experience. The menu is rendered as a box because an
+		// explicit height is set; this results in the overlay either rendering as the
+		// full-height box requested; or if there's not enough vertical room, a shorter
+		// box. Either way, the list will render in the space provided (and the frame),
+		// and scroll if necessary. This means the menu isn't cut off at the bottom of
+		// the screen. This assumes I'm not displaying the individual widgets in flow
+		// mode because then each might take more than one line
+		if len(w.completions) >= 0 { // account for the frame...
+			w.dropDown.SetHeight(gowid.RenderWithUnits{U: len(w.completions) + 2}, app)
+		} else {
+			w.dropDown.SetHeight(fixed, app)
+		}
 	}))
 }
 
@@ -625,9 +669,9 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	// be submitted. Then the best UX is to not display the drop down until further input
 	// or cursor movement.
 	if focus.Focus && len(w.completions) > 0 && !*w.temporarilyDisabled {
-		w.dropDown.Open(w.dropDownSite, app)
+		w.opts.MenuOpener.OpenMenu(w.dropDown, w.dropDownSite, app)
 	} else {
-		w.dropDown.Close(app)
+		w.opts.MenuOpener.CloseMenu(w.dropDown, app)
 	}
 	return w.wrapped.Render(size, focus, app)
 }

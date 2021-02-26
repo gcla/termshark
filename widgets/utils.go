@@ -6,6 +6,7 @@ package widgets
 
 import (
 	"github.com/gcla/gowid"
+	"github.com/gcla/gowid/widgets/menu"
 	"github.com/gdamore/tcell"
 )
 
@@ -34,6 +35,29 @@ func SwallowMovementKeys(ev *tcell.EventKey, app gowid.IApp) bool {
 		}
 	}
 	return res
+}
+
+//======================================================================
+
+// Return false if it was already open
+type MenuOpenerFunc func(bool, *menu.Widget, menu.ISite, gowid.IApp) bool
+
+func (m MenuOpenerFunc) OpenMenu(mu *menu.Widget, site *menu.SiteWidget, app gowid.IApp) bool {
+	return m(true, mu, site, app)
+}
+
+func (m MenuOpenerFunc) CloseMenu(mu *menu.Widget, app gowid.IApp) {
+	m(false, mu, nil, app)
+}
+
+func OpenSimpleMenu(open bool, mu *menu.Widget, site menu.ISite, app gowid.IApp) bool {
+	if open {
+		mu.Open(site, app)
+		return true
+	} else {
+		mu.Close(app)
+		return true
+	}
 }
 
 //======================================================================

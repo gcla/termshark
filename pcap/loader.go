@@ -193,10 +193,12 @@ type PsmlLoader struct {
 	PsmlCmd IPcapCommand // gcla later todo - change to pid like PdmlPid
 
 	sync.Mutex
-	packetPsmlData    [][]string
-	packetPsmlColors  []PacketColors
-	packetPsmlHeaders []string
-	PacketNumberMap   map[int]int // map from actual packet row <section>12</section> to pos in unsorted table
+	packetAverageLength []averageTracker // length of num columns
+	packetMaxLength     []maxTracker     // length of num columns
+	packetPsmlData      [][]string
+	packetPsmlColors    []PacketColors
+	packetPsmlHeaders   []string
+	PacketNumberMap     map[int]int // map from actual packet row <section>12</section> to pos in unsorted table
 	// This would be affected by a display filter e.g. packet 12 might be the 1st packet in the table.
 	// I need this so that if the user jumps to a mark stored as "packet 12", I can find the right table row.
 	PacketCache *lru.Cache // i -> [pdml(i * 1000)..pdml(i+1*1000)] - accessed from any goroutine
@@ -313,16 +315,18 @@ func NewPcapLoader(cmds ILoaderCmds, runner IMainRunner, opts ...Options) *Paren
 
 func (c *ParentLoader) RenewPsmlLoader() {
 	c.PsmlLoader = &PsmlLoader{
-		PcapPsml:          c.PsmlLoader.PcapPsml,
-		tailCmd:           c.PsmlLoader.tailCmd,
-		PsmlCmd:           c.PsmlLoader.PsmlCmd,
-		packetPsmlData:    make([][]string, 0),
-		packetPsmlColors:  make([]PacketColors, 0),
-		packetPsmlHeaders: make([]string, 0, 10),
-		PacketNumberMap:   make(map[int]int),
-		startStage2Chan:   make(chan struct{}), // do this before signalling start
-		PsmlFinishedChan:  make(chan struct{}),
-		opt:               c.opt,
+		PcapPsml:            c.PsmlLoader.PcapPsml,
+		tailCmd:             c.PsmlLoader.tailCmd,
+		PsmlCmd:             c.PsmlLoader.PsmlCmd,
+		packetAverageLength: make([]averageTracker, 64),
+		packetMaxLength:     make([]maxTracker, 64),
+		packetPsmlData:      make([][]string, 0),
+		packetPsmlColors:    make([]PacketColors, 0),
+		packetPsmlHeaders:   make([]string, 0, 10),
+		PacketNumberMap:     make(map[int]int),
+		startStage2Chan:     make(chan struct{}), // do this before signalling start
+		PsmlFinishedChan:    make(chan struct{}),
+		opt:                 c.opt,
 	}
 	packetCache, err := lru.New(c.opt.CacheSize)
 	if err != nil {
@@ -370,8 +374,6 @@ func (p *ParentLoader) TurnOffPipe() {
 		p.PsmlLoader.PcapPsml = p.PdmlLoader.PcapPdml
 	}
 }
-
-var _ iPsmlLoaderEnv = (*ParentLoader)(nil)
 
 func (p *ParentLoader) PacketSources() []IPacketSource {
 	return p.psrcs
@@ -425,35 +427,27 @@ func (c *ParentLoader) StopLoadPsmlAndIface(cb interface{}) {
 
 //======================================================================
 
-// NewFilter is essentially a completely new load - psml + pdml. But not iface, if that's running
-func (c *PacketLoader) NewFilter(newfilt string, cb interface{}, app gowid.IApp) {
+func (c *PacketLoader) Reload(filter string, cb interface{}, app gowid.IApp) {
+	c.stopTail()
+	c.stopLoadPsml()
+	c.stopLoadPdml()
 
-	log.Infof("Requested application of display filter '%v'", newfilt)
+	OpsChan <- gowid.RunFunction(func(app gowid.IApp) {
+		c.RenewPsmlLoader()
+		c.RenewPdmlLoader()
 
-	if c.DisplayFilter() == newfilt {
-		log.Infof("No operation - same filter applied ('%s').", newfilt)
-	} else {
-		c.stopTail()
-		c.stopLoadPsml()
-		c.stopLoadPdml()
+		// This is not ideal. I'm clearing the views, but I'm about to
+		// restart. It's not really a new source, so called the new source
+		// handler is an untify way of updating the current capture in the
+		// title bar again
+		handleClear(NoneCode, app, cb)
 
-		OpsChan <- gowid.RunFunction(func(app gowid.IApp) {
-			c.RenewPsmlLoader()
-			c.RenewPdmlLoader()
+		c.displayFilter = filter
 
-			// This is not ideal. I'm clearing the views, but I'm about to
-			// restart. It's not really a new source, so called the new source
-			// handler is an untify way of updating the current capture in the
-			// title bar again
-			handleClear(NoneCode, app, cb)
+		log.Infof("Applying display filter '%s'", filter)
 
-			c.displayFilter = newfilt
-
-			log.Infof("Applying new display filter '%s'", newfilt)
-
-			c.loadPsmlSync(c.InterfaceLoader, c, cb, app)
-		})
-	}
+		c.loadPsmlSync(c.InterfaceLoader, c, cb, app)
+	})
 }
 
 func (c *PacketLoader) LoadPcap(pcap string, displayFilter string, cb interface{}, app gowid.IApp) {
@@ -1717,6 +1711,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 		// </packet>
 
 		var curPsml []string
+		var curCounts []int
 		var fg string
 		var bg string
 		var pidx int
@@ -1741,9 +1736,14 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 				switch tok.Name.Local {
 				case "structure":
 					structure = false
+					p.Lock()
+					// Don't keep the first column - we add on column number to all PSML
+					// loads whether or not the user wants it to track table number -> packet
+					// number. This is then stripped from the columns shown to the user.
+					p.packetPsmlHeaders = p.packetPsmlHeaders[1:]
+					p.Unlock()
 				case "packet":
 					p.Lock()
-					p.packetPsmlData = append(p.packetPsmlData, curPsml)
 
 					// Track the mapping of packet number <section>12</section> to position
 					// in the table e.g. 5th element. This is so that I can jump to the correct
@@ -1752,7 +1752,22 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 					if err != nil {
 						log.Fatal(err)
 					}
-					p.PacketNumberMap[pidx] = len(p.packetPsmlData) - 1
+					p.PacketNumberMap[pidx] = len(p.packetPsmlData)
+
+					p.packetPsmlData = append(p.packetPsmlData, curPsml[1:])
+
+					if len(p.packetAverageLength) > len(curPsml)-1 {
+						p.packetAverageLength = p.packetAverageLength[0 : len(curPsml)-1]
+					}
+					if len(p.packetMaxLength) > len(curPsml)-1 {
+						p.packetMaxLength = p.packetMaxLength[0 : len(curPsml)-1]
+					}
+
+					for i, ct := range curCounts[1:] {
+						// skip the first one - that's not displayed in the UI. We always have element 0 as No.
+						p.packetAverageLength[i].update(ct)
+						p.packetMaxLength[i].update(ct)
+					}
 
 					p.packetPsmlColors = append(p.packetPsmlColors, PacketColors{
 						FG: psmlColorToIColor(fg),
@@ -1764,6 +1779,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 					ready = false
 					// Means we got </section> without any char data i.e. empty <section>
 					if empty {
+						curCounts = append(curCounts, 0)
 						curPsml = append(curPsml, "")
 					}
 				}
@@ -1773,6 +1789,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 					structure = true
 				case "packet":
 					curPsml = make([]string, 0, 10)
+					curCounts = make([]int, 0, 10)
 					fg = ""
 					bg = ""
 					for _, attr := range tok.Attr {
@@ -1798,6 +1815,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 						}))
 					} else {
 						curPsml = append(curPsml, string(format.TranslateHexCodes(tok)))
+						curCounts = append(curCounts, len(curPsml[len(curPsml)-1]))
 						empty = false
 					}
 				}
@@ -1833,10 +1851,6 @@ func (c *PsmlLoader) PacketCacheFn() *lru.Cache { // i -> [pdml(i * 1000)..pdml(
 	return c.PacketCache
 }
 
-func (c *PsmlLoader) packetPsmlDataFn() [][]string {
-	return c.packetPsmlData
-}
-
 // Assumes this is a clean stop, not an error
 func (p *ParentLoader) stopTail() {
 	p.tailStoppedDeliberately = true
@@ -1868,6 +1882,22 @@ func (p *PsmlLoader) PsmlHeaders() []string {
 
 func (p *PsmlLoader) PsmlColors() []PacketColors {
 	return p.packetPsmlColors
+}
+
+func (p *PsmlLoader) PsmlAverageLengths() []gwutil.IntOption {
+	res := make([]gwutil.IntOption, 0, len(p.packetAverageLength))
+	for _, avg := range p.packetAverageLength {
+		res = append(res, avg.average())
+	}
+	return res
+}
+
+func (p *PsmlLoader) PsmlMaxLengths() []int {
+	res := make([]int, 0, len(p.packetMaxLength))
+	for _, maxer := range p.packetMaxLength {
+		res = append(res, int(maxer.max()))
+	}
+	return res
 }
 
 // if done==true, then this cache entry is complete

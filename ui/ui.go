@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -48,6 +49,7 @@ import (
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/psmlmodel"
+	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/ui/menuutil"
@@ -130,6 +132,20 @@ var savedListBoxWidgetHolder *holder.Widget
 var singlePacketViewMsgHolder *holder.Widget // either empty or "loading..."
 var keyMapper *mapkeys.Widget
 
+// For deconstructing the @showname PDML attribute into a short form for the UI
+var shownameRe = regexp.MustCompile(`(.*?= )?([^:]+)`)
+
+type MenuHolder struct {
+	gowid.IMenuCompatible
+}
+
+var multiMenu *MenuHolder = &MenuHolder{}
+var multiMenuWidget *holder.Widget
+var multiMenu2 *MenuHolder = &MenuHolder{}
+var multiMenu2Widget *holder.Widget
+var multiMenu1Opener MultiMenuOpener
+var multiMenu2Opener MultiMenuOpener
+
 var tabViewsForward map[gowid.IWidget]gowid.IWidget
 var tabViewsBackward map[gowid.IWidget]gowid.IWidget
 
@@ -155,6 +171,8 @@ var curExpandedStructNodes pdmltree.ExpandedPaths // a path to each expanded nod
 var curStructPosition tree.IPos                   // e.g. [0, 2, 1] -> the indices of the expanded nodes
 var curPdmlPosition []string                      // e.g. [ , tcp, tcp.srcport ] -> the path from focus to root in the current struct
 var curStructWidgetState interface{}              // e.g. {linesFromTop: 1, ...} -> the positioning of the current struct widget
+var curColumnFilter string                        // e.g. tcp.port - updated as the user moves through the struct widget
+var curColumnFilterName string                    // e.g. "TCP port" - from the showname attribute in the PDML
 
 var CacheRequests []pcap.LoadPcapSlice
 
@@ -216,6 +234,164 @@ func (g getMappings) Get() []termshark.KeyMapping {
 func (g getMappings) None() bool {
 	return len(termshark.LoadKeyMappings()) == 0
 }
+
+//======================================================================
+
+type MultiMenuOpener struct {
+	under gowid.IWidget
+	mm    *MenuHolder
+}
+
+var _ menu.IOpener = (*MultiMenuOpener)(nil)
+
+func (o *MultiMenuOpener) OpenMenu(mnu *menu.Widget, site menu.ISite, app gowid.IApp) bool {
+	if o.mm.IMenuCompatible != mnu {
+		// Adds the menu to the render tree - when not open, under is here instead
+		o.mm.IMenuCompatible = mnu
+		// Now make under the lower layer of the menu
+		mnu.SetSubWidget(o.under, app)
+		mnu.OpenImpl(site, app)
+		app.Redraw()
+		return true
+	} else {
+		return false
+	}
+}
+
+func (o *MultiMenuOpener) CloseMenu(mnu *menu.Widget, app gowid.IApp) {
+	if o.mm.IMenuCompatible == mnu {
+		mnu.CloseImpl(app)
+		o.mm.IMenuCompatible = holder.New(o.under)
+	}
+}
+
+//======================================================================
+
+//
+// Handle examples like
+// .... ..1. .... .... .... .... = LG bit: Locally administered address (this is NOT the factory default)
+// Extract just
+// LG bit
+//
+// I'm trying to copy what Wireshark does, more or less
+//
+func columnNameFromShowname(showname string) string {
+	matches := shownameRe.FindStringSubmatch(showname)
+	if len(matches) >= 3 {
+		return matches[2]
+	}
+	return showname
+}
+
+func useAsColumn(filter string, name string, app gowid.IApp) {
+	newCols := termshark.ConfStringSlice("main.column-format", []string{})
+	colsBak := make([]string, len(newCols))
+	for i, col := range newCols {
+		colsBak[i] = col
+	}
+
+	newCols = append(newCols,
+		fmt.Sprintf("%%Cus:%s:0:R", filter),
+		columnNameFromShowname(name),
+	)
+
+	termshark.SetConf("main.column-format-bak", colsBak)
+	termshark.SetConf("main.column-format", newCols)
+
+	RequestReload(app)
+}
+
+// Build the menu dynamically when needed so I can include the filter in the widgets
+func makePdmlFilterMenu(filter string) *menu.Widget {
+	sites := make(menuutil.SiteMap)
+
+	var pdmlFilterMenu *menu.Widget
+
+	openPdmlFilterMenu2 := func(prep bool, w gowid.IWidget, app gowid.IApp) {
+		st, ok := sites[w]
+		if !ok {
+			log.Warnf("Unexpected application state: missing menu site for %v", w)
+			return
+		}
+
+		// This contains logic to close the two PDML menus opened from the struct
+		// view and then to either apply or prepare a new display filter based on
+		// the one that is currently selected by the user (i.e. the one associated
+		// with the open menu)
+		actor := &pdmlFilterActor{
+			filter:  curColumnFilter,
+			prepare: prep,
+			menu1:   pdmlFilterMenu,
+		}
+
+		menuBox := makeFilterCombineMenuWidget(actor)
+
+		m2 := menu.New("pdmlfilter2", menuBox, fixed, menu.Options{
+			Modal:             true,
+			CloseKeysProvided: true,
+			CloseKeys: []gowid.IKey{
+				gowid.MakeKey('q'),
+				gowid.MakeKeyExt(tcell.KeyLeft),
+				gowid.MakeKeyExt(tcell.KeyEscape),
+				gowid.MakeKeyExt(tcell.KeyCtrlC),
+			},
+		})
+
+		// I need to set this up after constructing m2; m2 itself needs
+		// the menu box widget to display; that needs the actor to process
+		// the clicks of buttons within that widget, and that actor needs
+		// the menu m2 so that it can close it.
+		actor.menu2 = m2
+
+		multiMenu2Opener.OpenMenu(m2, st, app)
+	}
+
+	pdmlFilterItems := []menuutil.SimpleMenuItem{
+		menuutil.SimpleMenuItem{
+			Txt: fmt.Sprintf("Apply as Column: %s", filter),
+			Key: gowid.MakeKey('c'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				multiMenu1Opener.CloseMenu(pdmlFilterMenu, app)
+				useAsColumn(curColumnFilter, curColumnFilterName, app)
+			},
+		},
+		menuutil.MakeMenuDivider(),
+		menuutil.SimpleMenuItem{
+			Txt: fmt.Sprintf("Apply Filter: %s", filter),
+			Key: gowid.MakeKey('a'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				openPdmlFilterMenu2(false, w, app)
+			},
+		},
+		menuutil.SimpleMenuItem{
+			Txt: fmt.Sprintf("Prep Filter: %s", filter),
+			Key: gowid.MakeKey('p'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				openPdmlFilterMenu2(true, w, app)
+			},
+		},
+	}
+
+	pdmlFilterListBox, pdmlFilterWidth := menuutil.MakeMenuWithHotKeys(pdmlFilterItems, sites)
+
+	// this menu is opened from the PDML struct view and has, as context, the current PDML node. I
+	// need a name for it because I use that var in the closure above.
+	pdmlFilterMenu = menu.New("pdmlfiltermenu", pdmlFilterListBox, units(pdmlFilterWidth), menu.Options{
+		Modal:             true,
+		CloseKeysProvided: true,
+		OpenCloser:        &multiMenu1Opener,
+		CloseKeys: []gowid.IKey{
+			gowid.MakeKey('q'),
+			gowid.MakeKeyExt(tcell.KeyLeft),
+			gowid.MakeKeyExt(tcell.KeyEscape),
+			gowid.MakeKeyExt(tcell.KeyCtrlC),
+		},
+	})
+
+	return pdmlFilterMenu
+}
+
+//======================================================================
 
 func RequestQuit() {
 	select {
@@ -443,7 +619,16 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 		panic(errors.WithStack(gowid.WithKVs(termshark.BadState, map[string]interface{}{"tree": tr})))
 	}
 
+	// Create an empty one here because the selectIf widget needs to have a pointer
+	// to it, and it's constructed below as a child.
+	rememberSel := &rememberSelected{}
+
 	inner := wmaker.MakeWidget(pos, tr)
+	inner = &selectIf{
+		IWidget:      inner,
+		iWasSelected: rememberSel,
+	}
+
 	if ct.HasChildren() {
 
 		var bn *button.Widget
@@ -518,21 +703,78 @@ func makeStructNodeDecoration(pos tree.IPos, tr tree.IModel, wmaker tree.IWidget
 
 	res = columns.New(cwidgets)
 
+	rememberSel.IWidget = res
+
 	res = expander.New(
 		isselected.New(
-			res,
-			styled.New(res, gowid.MakePaletteRef("packet-struct-selected")),
-			styled.New(res, gowid.MakePaletteRef("packet-struct-focus")),
+			rememberSel,
+			styled.New(rememberSel, gowid.MakePaletteRef("packet-struct-selected")),
+			styled.New(rememberSel, gowid.MakePaletteRef("packet-struct-focus")),
 		),
 	)
 
 	return res
 }
 
+// rememberSelected, when rendered, will save whether or not the selected flag was set.
+// Another widget (deeper in the hierarchy) can then consult it to see whether it should
+// render differently as the grandchild of a selected widget.
+type rememberSelected struct {
+	gowid.IWidget
+	selectedThisTime bool
+}
+
+type iWasSelected interface {
+	WasSelected() bool
+}
+
+func (w *rememberSelected) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
+	w.selectedThisTime = focus.Selected
+	return w.IWidget.Render(size, focus, app)
+}
+
+func (w *rememberSelected) WasSelected() bool {
+	return w.selectedThisTime
+}
+
+// selectIf sets the selected flag on its child if its iWasSelected type returns true
+type selectIf struct {
+	gowid.IWidget
+	iWasSelected
+}
+
+func (w *selectIf) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) gowid.ICanvas {
+	if w.iWasSelected.WasSelected() {
+		focus = focus.SelectIf(true)
+	}
+	return w.IWidget.Render(size, focus, app)
+}
+
 // The widget representing the data at this level in the tree. Simply use what we extract from
 // the PDML.
 func makeStructNodeWidget(pos tree.IPos, tr tree.IModel) gowid.IWidget {
-	return text.New(tr.Leaf())
+	pdmlMenuButton := button.NewBare(text.New("[=]"))
+	pdmlMenuButtonSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
+	pdmlMenuButton.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+		curColumnFilter = tr.(*pdmltree.Model).Name
+		curColumnFilterName = tr.(*pdmltree.Model).UiName
+		pdmlFilterMenu := makePdmlFilterMenu(curColumnFilter)
+		multiMenu1Opener.OpenMenu(pdmlFilterMenu, pdmlMenuButtonSite, app)
+	}))
+
+	styledButton1 := styled.New(pdmlMenuButton, gowid.MakePaletteRef("packet-struct-selected"))
+	styledButton2 := styled.New(
+		pdmlMenuButton,
+		gowid.MakeStyledAs(gowid.StyleBold),
+	)
+
+	structText := text.New(tr.Leaf())
+
+	structIfNotSel := columns.NewFixed(structText)
+	structIfSel := columns.NewFixed(structText, colSpace, pdmlMenuButtonSite, styledButton1)
+	structIfFocus := columns.NewFixed(structText, colSpace, pdmlMenuButtonSite, styledButton2)
+
+	return selectable.New(isselected.New(structIfNotSel, structIfSel, structIfFocus))
 }
 
 //======================================================================
@@ -1032,6 +1274,11 @@ func lastLineMode(app gowid.IApp) {
 
 	MiniBuffer.Register("capinfo", minibufferFn(func(gowid.IApp, ...string) error {
 		startCapinfo(app)
+		return nil
+	}))
+
+	MiniBuffer.Register("columns", minibufferFn(func(gowid.IApp, ...string) error {
+		openEditColumns(app)
 		return nil
 	}))
 
@@ -1674,7 +1921,7 @@ func focusOnMenuButton(app gowid.IApp) {
 
 func openGeneralMenu(app gowid.IApp) {
 	focusOnMenuButton(app)
-	generalMenu.Open(openMenuSite, app)
+	multiMenu1Opener.OpenMenu(generalMenu, openMenuSite, app)
 }
 
 // Keys for the whole app, applicable whichever view is frontmost
@@ -1863,8 +2110,34 @@ func setLowerWidgets(app gowid.IApp) {
 }
 
 func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
+	headers := psml.PsmlHeaders()
+
+	avgs := psml.PsmlAverageLengths()
+	maxs := psml.PsmlMaxLengths()
+	widths := make([]gowid.IWidgetDimension, 0, len(avgs))
+	for i := 0; i < len(avgs); i++ {
+		titleLen := 0
+		if i < len(headers) {
+			titleLen = len(headers[i]) + 1 // add 1 because the table clears the last cell
+		}
+		max := gwutil.Max(maxs[i], titleLen)
+
+		// in case there isn't any data yet
+		avg := titleLen
+		if !avgs[i].IsNone() {
+			avg = gwutil.Max(avgs[i].Val(), titleLen)
+		}
+		// This makes the UI look nicer - an extra column of space when the columns are
+		// packed tightly and each column is usually full.
+		if avg == max {
+			widths = append(widths, weightupto(avg, max+1))
+		} else {
+			widths = append(widths, weightupto(avg, max))
+		}
+	}
+
 	packetPsmlTableModel := table.NewSimpleModel(
-		psml.PsmlHeaders(),
+		headers,
 		psml.PsmlData(),
 		table.SimpleOptions{
 			Style: table.StyleOptions{
@@ -1876,15 +2149,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 				CellStyleFocus:      gowid.MakePaletteRef("packet-list-cell-focus"),
 			},
 			Layout: table.LayoutOptions{
-				Widths: []gowid.IWidgetDimension{
-					weightupto(6, 10),
-					weightupto(8, 24),
-					weightupto(14, 32),
-					weightupto(14, 32),
-					weightupto(12, 32),
-					weightupto(8, 8),
-					weight(40),
-				},
+				Widths: widths,
 			},
 		},
 	)
@@ -1893,9 +2158,21 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 		packetPsmlTableModel,
 		gowid.MakePaletteRef("packet-list-row-focus"),
 	)
+
+	// No need to refetch the information from the TOML file each time this is
+	// called. Use a globally cached version
+	cols := shark.GetPsmlColumnFormatCached()
+
 	if len(expandingModel.Comparators) > 0 {
-		expandingModel.Comparators[0] = table.IntCompare{}
-		expandingModel.Comparators[5] = table.IntCompare{}
+		for i, _ := range expandingModel.Comparators {
+			if i < len(widths) {
+				if field, ok := shark.AllowedColumnFormats[cols[i].Field.Token]; ok {
+					if field.Comparator != nil {
+						expandingModel.Comparators[i] = field.Comparator
+					}
+				}
+			}
+		}
 	}
 
 	return expandingModel
@@ -1952,6 +2229,8 @@ type psmlInfo interface {
 	PsmlData() [][]string
 	PsmlHeaders() []string
 	PsmlColors() []pcap.PacketColors
+	PsmlAverageLengths() []gwutil.IntOption
+	PsmlMaxLengths() []int
 }
 
 func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
@@ -2171,6 +2450,36 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 
 //======================================================================
 
+// pdmlFilterActor closes the menus opened via the PDML struct view, then
+// either applies or preps the appropriate display filter
+type pdmlFilterActor struct {
+	filter  string
+	prepare bool
+	menu1   *menu.Widget
+	menu2   *menu.Widget
+}
+
+var _ iFilterMenuActor = (*pdmlFilterActor)(nil)
+
+func (p *pdmlFilterActor) HandleFilterMenuSelection(comb FilterCombinator, app gowid.IApp) {
+	multiMenu2Opener.CloseMenu(p.menu2, app)
+	multiMenu1Opener.CloseMenu(p.menu1, app)
+
+	filter := ComputeFilterCombOp(comb, p.filter, FilterWidget.Value())
+
+	FilterWidget.SetValue(filter, app)
+
+	if p.prepare {
+		// Don't run the filter, just add to the displayfilter widget. Leave focus there
+		setFocusOnDisplayFilter(app)
+	} else {
+		RequestNewFilter(filter, app)
+	}
+
+}
+
+//======================================================================
+
 func getStructWidgetKey(row int) []byte {
 	return []byte(fmt.Sprintf("s%d", row))
 }
@@ -2377,7 +2686,29 @@ func RequestNewFilter(displayFilter string, app gowid.IApp) {
 		//MakeCancelledMessage(),
 	}
 
-	Loader.NewFilter(displayFilter, handlers, app)
+	if Loader.DisplayFilter() == displayFilter {
+		log.Infof("No operation - same filter applied ('%s').", displayFilter)
+	} else {
+		Loader.Reload(displayFilter, handlers, app)
+	}
+}
+
+func RequestReload(app gowid.IApp) {
+	handlers := pcap.HandlerList{
+		SimpleErrors{},
+		MakePacketViewUpdater(),
+		MakeUpdateCurrentCaptureInTitle(),
+		SetStructWidgets{Loader}, // for OnClear
+		ClearMarksHandler{},
+		// Don't use this one - we keep the cancelled flag set so that we
+		// don't restart live captures on clear if ctrl-c has been issued
+		// so we don't want this handler on a new filter because we don't
+		// want to be told again after applying the filter that the load
+		// was cancelled
+		//MakeCancelledMessage(),
+	}
+
+	Loader.Reload(Loader.DisplayFilter(), handlers, app)
 }
 
 //======================================================================
@@ -2423,7 +2754,7 @@ func progMax(x, y Prog) Prog {
 
 //======================================================================
 
-func makeRecentMenuWidget() gowid.IWidget {
+func makeRecentMenuWidget() (gowid.IWidget, int) {
 	savedItems := make([]menuutil.SimpleMenuItem, 0)
 	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
@@ -2434,7 +2765,7 @@ func makeRecentMenuWidget() gowid.IWidget {
 					Txt: s,
 					Key: gowid.MakeKey('a' + rune(i)),
 					CB: func(app gowid.IApp, w gowid.IWidget) {
-						savedMenu.Close(app)
+						multiMenu1Opener.CloseMenu(savedMenu, app)
 						// capFilter global, set up in cmain()
 						RequestLoadPcapWithCheck(scopy, FilterWidget.Value(), NoGlobalJump, app)
 					},
@@ -2442,13 +2773,11 @@ func makeRecentMenuWidget() gowid.IWidget {
 			)
 		}
 	}
-	savedListBox := menuutil.MakeMenuWithHotKeys(savedItems)
-
-	return savedListBox
+	return menuutil.MakeMenuWithHotKeys(savedItems, nil)
 }
 
 func UpdateRecentMenu(app gowid.IApp) {
-	savedListBox := makeRecentMenuWidget()
+	savedListBox, _ := makeRecentMenuWidget()
 	savedListBoxWidgetHolder.SetSubWidget(savedListBox, app)
 }
 
@@ -2664,7 +2993,7 @@ func Build() (*gowid.App, error) {
 
 	openMenuSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
 	openMenu.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
-		generalMenu.Open(openMenuSite, app)
+		multiMenu1Opener.OpenMenu(generalMenu, openMenuSite, app)
 	}))
 
 	//======================================================================
@@ -2676,7 +3005,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Refresh Screen",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlL, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				app.Sync()
 			},
 		},
@@ -2685,7 +3014,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Toggle Dark Mode",
 			Key: gowid.MakeKey('d'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				DarkMode = !DarkMode
 				termshark.SetConf("main.dark-mode", DarkMode)
 			},
@@ -2695,8 +3024,16 @@ func Build() (*gowid.App, error) {
 			Txt: "Clear Packets",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlW, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				reallyClear(app)
+			},
+		},
+		menuutil.SimpleMenuItem{
+			Txt: "Edit Columns",
+			Key: gowid.MakeKey('e'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				multiMenu1Opener.CloseMenu(generalMenu, app)
+				openEditColumns(app)
 			},
 		}}...)
 
@@ -2705,7 +3042,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Show Log",
 			Key: gowid.MakeKey('l'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				multiMenu1Opener.CloseMenu(analysisMenu, app)
 				openLogsUi(app)
 			},
 		})
@@ -2717,7 +3054,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Help",
 			Key: gowid.MakeKey('?'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				OpenTemplatedDialog(appView, "UIHelp", app)
 			},
 		},
@@ -2725,7 +3062,7 @@ func Build() (*gowid.App, error) {
 			Txt: "User Guide",
 			Key: gowid.MakeKey('u'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.UserGuideURL)
 				}
@@ -2736,7 +3073,7 @@ func Build() (*gowid.App, error) {
 			Txt: "FAQ",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.FAQURL)
 				}
@@ -2746,9 +3083,9 @@ func Build() (*gowid.App, error) {
 		menuutil.MakeMenuDivider(),
 		menuutil.SimpleMenuItem{
 			Txt: "Found a Bug?",
-			Key: gowid.MakeKey('B'),
+			Key: gowid.MakeKey('b'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.BugURL)
 				}
@@ -2757,9 +3094,9 @@ func Build() (*gowid.App, error) {
 		},
 		menuutil.SimpleMenuItem{
 			Txt: "Feature Request?",
-			Key: gowid.MakeKey('F'),
+			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				if !termshark.RunningRemotely() {
 					termshark.BrowseUrl(termshark.FeatureURL)
 				}
@@ -2771,7 +3108,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Quit",
 			Key: gowid.MakeKey('q'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				generalMenu.Close(app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				reallyQuit(app)
 			},
 		},
@@ -2786,7 +3123,7 @@ func Build() (*gowid.App, error) {
 						Txt: "Toggle Packet Colors",
 						Key: gowid.MakeKey('c'),
 						CB: func(app gowid.IApp, w gowid.IWidget) {
-							generalMenu.Close(app)
+							multiMenu1Opener.CloseMenu(generalMenu, app)
 							PacketColors = !PacketColors
 							termshark.SetConf("main.packet-colors", PacketColors)
 						},
@@ -2797,7 +3134,7 @@ func Build() (*gowid.App, error) {
 		)
 	}
 
-	generalMenuListBox := menuutil.MakeMenuWithHotKeys(generalMenuItems)
+	generalMenuListBox, generalMenuWidth := menuutil.MakeMenuWithHotKeys(generalMenuItems, nil)
 
 	var generalNext menuutil.NextMenu
 
@@ -2809,9 +3146,13 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	generalMenu = menu.New("main", generalMenuListBoxWithKeys, fixed, menu.Options{
+	// Hack. What's a more general way of doing this? The length of the <Menu> button I suppose
+	openMenuSite.Options.XOffset = -generalMenuWidth + 8
+
+	generalMenu = menu.New("main", generalMenuListBoxWithKeys, units(generalMenuWidth), menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        &multiMenu1Opener,
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyEscape),
 			gowid.MakeKeyExt(tcell.KeyCtrlC),
@@ -2829,9 +3170,9 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	openAnalysisSite = menu.NewSite(menu.SiteOptions{YOffset: 1})
+	openAnalysisSite = menu.NewSite(menu.SiteOptions{XOffset: -12, YOffset: 1})
 	openAnalysis.OnClick(gowid.MakeWidgetCallback(gowid.ClickCB{}, func(app gowid.IApp, target gowid.IWidget) {
-		analysisMenu.Open(openAnalysisSite, app)
+		multiMenu1Opener.OpenMenu(analysisMenu, openAnalysisSite, app)
 	}))
 
 	analysisMenuItems := []menuutil.SimpleMenuItem{
@@ -2839,7 +3180,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Capture file properties",
 			Key: gowid.MakeKey('p'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				multiMenu1Opener.CloseMenu(analysisMenu, app)
 				startCapinfo(app)
 			},
 		},
@@ -2847,7 +3188,7 @@ func Build() (*gowid.App, error) {
 			Txt: "Reassemble stream",
 			Key: gowid.MakeKey('f'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				multiMenu1Opener.CloseMenu(analysisMenu, app)
 				startStreamReassembly(app)
 			},
 		},
@@ -2855,13 +3196,13 @@ func Build() (*gowid.App, error) {
 			Txt: "Conversations",
 			Key: gowid.MakeKey('c'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				analysisMenu.Close(app)
+				multiMenu1Opener.CloseMenu(analysisMenu, app)
 				openConvsUi(app)
 			},
 		},
 	}
 
-	analysisMenuListBox := menuutil.MakeMenuWithHotKeys(analysisMenuItems)
+	analysisMenuListBox, analysisMenuWidth := menuutil.MakeMenuWithHotKeys(analysisMenuItems, nil)
 
 	var analysisNext menuutil.NextMenu
 
@@ -2873,9 +3214,10 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	analysisMenu = menu.New("analysis", analysisMenuListBoxWithKeys, fixed, menu.Options{
+	analysisMenu = menu.New("analysis", analysisMenuListBoxWithKeys, units(analysisMenuWidth), menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        &multiMenu1Opener,
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKey('q'),
 			gowid.MakeKeyExt(tcell.KeyLeft),
@@ -2895,12 +3237,13 @@ func Build() (*gowid.App, error) {
 		Styler: gowid.MakePaletteRef("progress-spinner"),
 	})
 
-	savedListBox := makeRecentMenuWidget()
+	savedListBox, _ := makeRecentMenuWidget()
 	savedListBoxWidgetHolder = holder.New(savedListBox)
 
 	savedMenu = menu.New("saved", savedListBoxWidgetHolder, fixed, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        &multiMenu1Opener,
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyLeft),
 			gowid.MakeKeyExt(tcell.KeyEscape),
@@ -2946,6 +3289,7 @@ func Build() (*gowid.App, error) {
 	generalNext.Next = analysisMenu
 	generalNext.Site = openAnalysisSite
 	generalNext.Container = titleCols
+	generalNext.MenuOpener = &multiMenu1Opener
 	generalNext.Focus = 4 // should really find by ID
 
 	// <<generalmenu2>>
@@ -2953,6 +3297,7 @@ func Build() (*gowid.App, error) {
 	analysisNext.Next = generalMenu
 	analysisNext.Site = openMenuSite
 	analysisNext.Container = titleCols
+	analysisNext.MenuOpener = &multiMenu1Opener
 	analysisNext.Focus = 6 // should really find by ID
 
 	packetListViewHolder = holder.New(nullw)
@@ -2972,8 +3317,9 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
-	FilterWidget = filter.New(filter.Options{
-		Completer: savedCompleter{def: termshark.NewFields()},
+	FilterWidget = filter.New("filter", filter.Options{
+		Completer:  savedCompleter{def: termshark.NewFields()},
+		MenuOpener: &multiMenu1Opener,
 	})
 
 	validFilterCb := gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
@@ -3007,7 +3353,7 @@ func Build() (*gowid.App, error) {
 	)
 	savedBtnSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
 	savedw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
-		savedMenu.Open(savedBtnSite, app)
+		multiMenu1Opener.OpenMenu(savedMenu, savedBtnSite, app)
 	}))
 
 	progWidgetIdx = 7 // adjust this if nullw moves position in filterCols
@@ -3350,6 +3696,8 @@ func Build() (*gowid.App, error) {
 
 	buildStreamUi()
 	buildFilterConvsMenu()
+	buildNamesMenu(app)
+	buildFieldsMenu(app)
 
 	mainView = appkeys.New(
 		appkeys.New(
@@ -3421,17 +3769,25 @@ func Build() (*gowid.App, error) {
 		appView = holder.New(mbView)
 	}
 
-	var lastMenu gowid.IWidget = appView
+	// A restriction on the multiMenu is that it only holds one open menu, so using
+	// this trick, only one menu can be open at a time per multiMenu variable. So
+	// I am making two because all I need at the moment is two levels of menu.
+	multiMenu.IMenuCompatible = holder.New(appView)
+	multiMenu2.IMenuCompatible = holder.New(multiMenu)
+
+	multiMenu1Opener.under = appView
+	multiMenu1Opener.mm = multiMenu
+	multiMenu2Opener.under = multiMenu
+	multiMenu2Opener.mm = multiMenu2
+
+	var lastMenu gowid.IWidget = multiMenu2
 	menus := []gowid.IMenuCompatible{
-		savedMenu,
-		analysisMenu,
-		generalMenu,
-		conversationMenu,
+		// These menus can both be open at the same time, so I have special
+		// handling here. I should use a more general method for all menus. The
+		// current method only allows one menu to be open at a time.
 		filterConvsMenu1,
 		filterConvsMenu2,
 	}
-
-	menus = append(menus, FilterWidget.Menus()...)
 
 	for _, w := range menus {
 		w.SetSubWidget(lastMenu, app)
