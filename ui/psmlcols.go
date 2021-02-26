@@ -126,7 +126,7 @@ func rebuildPsmlNamesListBox(p *psmlColumnsModel, app gowid.IApp) (int, int) {
 		)
 	}
 
-	colsMenuListBox, wid := menuutil.MakeMenu(colsMenuItems)
+	colsMenuListBox, wid := menuutil.MakeMenu(colsMenuItems, nil)
 	colNamesMenuListBoxHolder.SetSubWidget(colsMenuListBox, nil)
 
 	return wid, len(specs)
@@ -156,7 +156,7 @@ func rebuildPsmlFieldListBox(app gowid.IApp) (int, int) {
 		)
 	}
 
-	colsMenuListBox, wid := menuutil.MakeMenu(colsMenuItems)
+	colsMenuListBox, wid := menuutil.MakeMenu(colsMenuItems, nil)
 	colFieldsMenuListBoxHolder.SetSubWidget(colsMenuListBox, nil)
 
 	return wid, len(columnNames)

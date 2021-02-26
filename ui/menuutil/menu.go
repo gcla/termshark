@@ -28,6 +28,8 @@ import (
 
 //======================================================================
 
+type SimpleMenuActionFunction func(app gowid.IApp, site menu.ISite)
+
 type SimpleMenuItem struct {
 	Txt string
 	Key gowid.IKey
@@ -38,17 +40,29 @@ func MakeMenuDivider() SimpleMenuItem {
 	return SimpleMenuItem{}
 }
 
-func MakeMenuWithHotKeys(items []SimpleMenuItem) (gowid.IWidget, int) {
-	return makeMenuWithHotKeys(items, true)
+type SiteMap map[gowid.IWidget]menu.ISite
+
+func MakeMenuWithHotKeys(items []SimpleMenuItem, sites SiteMap) (gowid.IWidget, int) {
+	return makeMenuWithHotKeys(items, true, sites)
 }
 
-func MakeMenu(items []SimpleMenuItem) (gowid.IWidget, int) {
-	return makeMenuWithHotKeys(items, false)
+func MakeMenu(items []SimpleMenuItem, sites SiteMap) (gowid.IWidget, int) {
+	return makeMenuWithHotKeys(items, false, sites)
 }
 
-func makeMenuWithHotKeys(items []SimpleMenuItem, showKeys bool) (gowid.IWidget, int) {
+type widgetWithSite struct {
+	gowid.IWidget
+	menu.ISite
+}
+
+func (w *widgetWithSite) String() string {
+	return fmt.Sprintf("withsite[%v@%v]", w.ISite, w.IWidget)
+}
+
+func makeMenuWithHotKeys(items []SimpleMenuItem, showKeys bool, sites SiteMap) (gowid.IWidget, int) {
 	menu1Widgets := make([]gowid.IWidget, len(items))
 	menu1HotKeys := make([]gowid.IWidget, len(items))
+	menu1Sites := make([]*menu.SiteWidget, len(items))
 
 	// Figure out the length of the longest hotkey string representation
 	maxHK := 0
@@ -82,11 +96,18 @@ func makeMenuWithHotKeys(items []SimpleMenuItem, showKeys bool) (gowid.IWidget, 
 			}
 			menu1Widgets[i] = load1B
 			menu1HotKeys[i] = load1K
+			menu1Sites[i] = menu.NewSite()
+			if sites != nil {
+				sites[load1B] = menu1Sites[i]
+			}
 		}
 	}
 	for i, w := range menu1Widgets {
 		if w != nil {
-			menu1Widgets[i] = styled.NewInvertedFocus(selectable.New(w), gowid.MakePaletteRef("default"))
+			menu1Widgets[i] = &widgetWithSite{
+				IWidget: styled.NewInvertedFocus(selectable.New(w), gowid.MakePaletteRef("default")),
+				ISite:   menu1Sites[i],
+			}
 		}
 	}
 	for i, w := range menu1HotKeys {
@@ -136,7 +157,10 @@ func makeMenuWithHotKeys(items []SimpleMenuItem, showKeys bool) (gowid.IWidget, 
 				&gowid.ContainerWidget{
 					IWidget: w,
 					D:       fixed,
-					//D: gowid.RenderWithUnits{U: 20},
+				},
+				&gowid.ContainerWidget{
+					IWidget: menu1Sites[i],
+					D:       fixed,
 				},
 			)
 

@@ -304,7 +304,7 @@ func (w *Widget) makeConvMenuWidget() (gowid.IWidget, int) {
 		)
 	}
 
-	return menuutil.MakeMenuWithHotKeys(savedItems)
+	return menuutil.MakeMenuWithHotKeys(savedItems, nil)
 }
 
 // Turns an array of stream chunks into a pair of (a) a scrollable table

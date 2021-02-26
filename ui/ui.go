@@ -2652,7 +2652,7 @@ func makeRecentMenuWidget() (gowid.IWidget, int) {
 			)
 		}
 	}
-	return menuutil.MakeMenuWithHotKeys(savedItems)
+	return menuutil.MakeMenuWithHotKeys(savedItems, nil)
 }
 
 func UpdateRecentMenu(app gowid.IApp) {
@@ -3013,7 +3013,7 @@ func Build() (*gowid.App, error) {
 		)
 	}
 
-	generalMenuListBox, generalMenuWidth := menuutil.MakeMenuWithHotKeys(generalMenuItems)
+	generalMenuListBox, generalMenuWidth := menuutil.MakeMenuWithHotKeys(generalMenuItems, nil)
 
 	var generalNext menuutil.NextMenu
 
@@ -3081,7 +3081,7 @@ func Build() (*gowid.App, error) {
 		},
 	}
 
-	analysisMenuListBox, analysisMenuWidth := menuutil.MakeMenuWithHotKeys(analysisMenuItems)
+	analysisMenuListBox, analysisMenuWidth := menuutil.MakeMenuWithHotKeys(analysisMenuItems, nil)
 
 	var analysisNext menuutil.NextMenu
 
