@@ -301,6 +301,96 @@ func useAsColumn(filter string, name string, app gowid.IApp) {
 	RequestReload(app)
 }
 
+// Build the menu dynamically when needed so I can include the filter in the widgets
+func makePdmlFilterMenu(filter string) *menu.Widget {
+	sites := make(menuutil.SiteMap)
+
+	var pdmlFilterMenu *menu.Widget
+
+	openPdmlFilterMenu2 := func(prep bool, w gowid.IWidget, app gowid.IApp) {
+		st, ok := sites[w]
+		if !ok {
+			log.Warnf("Unexpected application state: missing menu site for %v", w)
+			return
+		}
+
+		// This contains logic to close the two PDML menus opened from the struct
+		// view and then to either apply or prepare a new display filter based on
+		// the one that is currently selected by the user (i.e. the one associated
+		// with the open menu)
+		actor := &pdmlFilterActor{
+			filter:  curColumnFilter,
+			prepare: prep,
+			menu1:   pdmlFilterMenu,
+		}
+
+		menuBox := makeFilterCombineMenuWidget(actor)
+
+		m2 := menu.New("pdmlfilter2", menuBox, fixed, menu.Options{
+			Modal:             true,
+			CloseKeysProvided: true,
+			CloseKeys: []gowid.IKey{
+				gowid.MakeKey('q'),
+				gowid.MakeKeyExt(tcell.KeyLeft),
+				gowid.MakeKeyExt(tcell.KeyEscape),
+				gowid.MakeKeyExt(tcell.KeyCtrlC),
+			},
+		})
+
+		// I need to set this up after constructing m2; m2 itself needs
+		// the menu box widget to display; that needs the actor to process
+		// the clicks of buttons within that widget, and that actor needs
+		// the menu m2 so that it can close it.
+		actor.menu2 = m2
+
+		multiMenu2Opener.OpenMenu(m2, st, app)
+	}
+
+	pdmlFilterItems := []menuutil.SimpleMenuItem{
+		menuutil.SimpleMenuItem{
+			Txt: fmt.Sprintf("Apply as Column: %s", filter),
+			Key: gowid.MakeKey('c'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				multiMenu1Opener.CloseMenu(pdmlFilterMenu, app)
+				useAsColumn(curColumnFilter, curColumnFilterName, app)
+			},
+		},
+		menuutil.MakeMenuDivider(),
+		menuutil.SimpleMenuItem{
+			Txt: fmt.Sprintf("Apply Filter: %s", filter),
+			Key: gowid.MakeKey('a'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				openPdmlFilterMenu2(false, w, app)
+			},
+		},
+		menuutil.SimpleMenuItem{
+			Txt: fmt.Sprintf("Prep Filter: %s", filter),
+			Key: gowid.MakeKey('p'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				openPdmlFilterMenu2(true, w, app)
+			},
+		},
+	}
+
+	pdmlFilterListBox, pdmlFilterWidth := menuutil.MakeMenuWithHotKeys(pdmlFilterItems, sites)
+
+	// this menu is opened from the PDML struct view and has, as context, the current PDML node. I
+	// need a name for it because I use that var in the closure above.
+	pdmlFilterMenu = menu.New("pdmlfiltermenu", pdmlFilterListBox, units(pdmlFilterWidth), menu.Options{
+		Modal:             true,
+		CloseKeysProvided: true,
+		OpenCloser:        &multiMenu1Opener,
+		CloseKeys: []gowid.IKey{
+			gowid.MakeKey('q'),
+			gowid.MakeKeyExt(tcell.KeyLeft),
+			gowid.MakeKeyExt(tcell.KeyEscape),
+			gowid.MakeKeyExt(tcell.KeyCtrlC),
+		},
+	})
+
+	return pdmlFilterMenu
+}
+
 //======================================================================
 
 func RequestQuit() {
@@ -668,7 +758,8 @@ func makeStructNodeWidget(pos tree.IPos, tr tree.IModel) gowid.IWidget {
 	pdmlMenuButton.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		curColumnFilter = tr.(*pdmltree.Model).Name
 		curColumnFilterName = tr.(*pdmltree.Model).UiName
-		openTermsharkMenu(true, useAsColumnMenu, pdmlMenuButtonSite, app)
+		pdmlFilterMenu := makePdmlFilterMenu(curColumnFilter)
+		multiMenu1Opener.OpenMenu(pdmlFilterMenu, pdmlMenuButtonSite, app)
 	}))
 
 	styledButton1 := styled.New(pdmlMenuButton, gowid.MakePaletteRef("packet-struct-selected"))
@@ -2359,6 +2450,36 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 
 //======================================================================
 
+// pdmlFilterActor closes the menus opened via the PDML struct view, then
+// either applies or preps the appropriate display filter
+type pdmlFilterActor struct {
+	filter  string
+	prepare bool
+	menu1   *menu.Widget
+	menu2   *menu.Widget
+}
+
+var _ iFilterMenuActor = (*pdmlFilterActor)(nil)
+
+func (p *pdmlFilterActor) HandleFilterMenuSelection(comb FilterCombinator, app gowid.IApp) {
+	multiMenu2Opener.CloseMenu(p.menu2, app)
+	multiMenu1Opener.CloseMenu(p.menu1, app)
+
+	filter := ComputeFilterCombOp(comb, p.filter, FilterWidget.Value())
+
+	FilterWidget.SetValue(filter, app)
+
+	if p.prepare {
+		// Don't run the filter, just add to the displayfilter widget. Leave focus there
+		setFocusOnDisplayFilter(app)
+	} else {
+		RequestNewFilter(filter, app)
+	}
+
+}
+
+//======================================================================
+
 func getStructWidgetKey(row int) []byte {
 	return []byte(fmt.Sprintf("s%d", row))
 }
@@ -3107,32 +3228,6 @@ func Build() (*gowid.App, error) {
 
 	//======================================================================
 
-	useAsColumnItems := []menuutil.SimpleMenuItem{
-		menuutil.SimpleMenuItem{
-			Txt: "Apply as Column",
-			Key: gowid.MakeKey('a'),
-			CB: func(app gowid.IApp, w gowid.IWidget) {
-				openTermsharkMenu(false, useAsColumnMenu, nil, app)
-				useAsColumn(curColumnFilter, curColumnFilterName, app)
-			},
-		},
-	}
-
-	useAsColumnListBox, useAsColumnWidth := menuutil.MakeMenuWithHotKeys(useAsColumnItems)
-
-	useAsColumnMenu = menu.New("useascolumn", useAsColumnListBox, units(useAsColumnWidth), menu.Options{
-		Modal:             true,
-		CloseKeysProvided: true,
-		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
-		CloseKeys: []gowid.IKey{
-			gowid.MakeKey('q'),
-			gowid.MakeKeyExt(tcell.KeyLeft),
-			gowid.MakeKeyExt(tcell.KeyEscape),
-			gowid.MakeKeyExt(tcell.KeyCtrlC),
-		},
-	})
-
-	//======================================================================
 	loadProgress = progress.New(progress.Options{
 		Normal:   gowid.MakePaletteRef("progress-default"),
 		Complete: gowid.MakePaletteRef("progress-complete"),
