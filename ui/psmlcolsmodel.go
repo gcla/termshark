@@ -154,7 +154,7 @@ func (sp *specToWidgets) widgets() psmlDialogWidgets {
 		}),
 		customFilter: filter.New("psmlfilter", filter.Options{
 			Completer:  savedCompleter{def: termshark.NewFields()},
-			MenuOpener: menu.OpenerFunc(openTermsharkMenu),
+			MenuOpener: &multiMenu1Opener,
 			Position:   filter.Below,
 		}),
 		visible: checkbox.New(!sp.Hidden),
@@ -261,7 +261,6 @@ func (p *psmlColumnsModel) ReadFromWireshark(app gowid.IApp) error {
 
 // Called when user chooses from a menu - so will only have PsmlField Token name
 func (p *psmlColumnsModel) UpdateFromField(field string, idx int, app gowid.IApp) {
-
 	if p.spec[idx].Field.Token == "%Cus" && field != "%Cus" {
 		err := p.widgets[idx].customFilter.Close()
 		if err != nil {
@@ -347,7 +346,7 @@ func (p *psmlColumnsModel) CellWidgets(row table.RowId) []gowid.IWidget {
 		colsCurrentModelRow = rowi
 		colFieldsMenu.SetWidth(units(wid), app)
 		colFieldsMenu.SetHeight(units(hei), app)
-		openTermsharkMenu(true, colFieldsMenu, colsMenuFieldsSite, app)
+		multiMenu1Opener.OpenMenu(colFieldsMenu, colsMenuFieldsSite, app)
 	}))
 
 	// "^"
@@ -427,7 +426,7 @@ func (p *psmlColumnsModel) CellWidgets(row table.RowId) []gowid.IWidget {
 		colsCurrentModelRow = rowi
 		colNamesMenu.SetWidth(units(wid), app)
 		colNamesMenu.SetHeight(units(hei), app)
-		openTermsharkMenu(true, colNamesMenu, colsMenuSite, app)
+		multiMenu1Opener.OpenMenu(colNamesMenu, colsMenuSite, app)
 	}))
 
 	//

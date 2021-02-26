@@ -75,7 +75,7 @@ func buildNamesMenu(app gowid.IApp) {
 	colNamesMenu = menu.New("psmlcols", colNamesMenuListBoxHolder, gowid.RenderWithUnits{U: wid}, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
-		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
+		OpenCloser:        &multiMenu1Opener,
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyEscape),
 			gowid.MakeKeyExt(tcell.KeyCtrlC),
@@ -93,7 +93,7 @@ func buildFieldsMenu(app gowid.IApp) {
 	colFieldsMenu = menu.New("psmlfieldscols", colFieldsMenuListBoxHolder, gowid.RenderWithUnits{U: wid}, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
-		OpenCloser:        menu.OpenerFunc(openTermsharkMenu),
+		OpenCloser:        &multiMenu1Opener,
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKeyExt(tcell.KeyEscape),
 			gowid.MakeKeyExt(tcell.KeyCtrlC),
@@ -119,7 +119,7 @@ func rebuildPsmlNamesListBox(p *psmlColumnsModel, app gowid.IApp) (int, int) {
 			menuutil.SimpleMenuItem{
 				Txt: spec.Long,
 				CB: func(app gowid.IApp, w gowid.IWidget) {
-					openTermsharkMenu(false, colNamesMenu, nil, app)
+					multiMenu1Opener.CloseMenu(colNamesMenu, app)
 					p.UpdateFromField(specCopy.Field, colsCurrentModelRow, app)
 				},
 			},
@@ -149,7 +149,7 @@ func rebuildPsmlFieldListBox(app gowid.IApp) (int, int) {
 			menuutil.SimpleMenuItem{
 				Txt: cname,
 				CB: func(app gowid.IApp, w gowid.IWidget) {
-					openTermsharkMenu(false, colFieldsMenu, nil, app)
+					multiMenu1Opener.CloseMenu(colFieldsMenu, app)
 					p.UpdateFromField(cnameCopy, colsCurrentModelRow, app)
 				},
 			},
