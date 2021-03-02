@@ -293,6 +293,7 @@ func useAsColumn(filter string, name string, app gowid.IApp) {
 	newCols = append(newCols,
 		fmt.Sprintf("%%Cus:%s:0:R", filter),
 		columnNameFromShowname(name),
+		"true",
 	)
 
 	termshark.SetConf("main.column-format-bak", colsBak)

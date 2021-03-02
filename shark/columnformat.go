@@ -296,7 +296,8 @@ func GetPsmlColumnFormatFrom(colKey string) []PsmlColumnSpec {
 func getPsmlColumnFormatWithoutLock(colKey string) []PsmlColumnSpec {
 	res := make([]PsmlColumnSpec, 0)
 	widths := termshark.ConfStringSlice(colKey, []string{})
-	if len(widths) == 0 || (len(colKey)/3)*3 != len(colKey) {
+	if len(widths) == 0 || (len(widths)/3)*3 != len(widths) {
+		logrus.Warnf("Unexpected %s structure - using defaults", colKey)
 		res = DefaultPsmlColumnSpec
 	} else {
 		// Cross references with those column specs that we know about from having
