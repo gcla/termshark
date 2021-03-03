@@ -173,6 +173,7 @@ var curPdmlPosition []string                      // e.g. [ , tcp, tcp.srcport ]
 var curStructWidgetState interface{}              // e.g. {linesFromTop: 1, ...} -> the positioning of the current struct widget
 var curColumnFilter string                        // e.g. tcp.port - updated as the user moves through the struct widget
 var curColumnFilterName string                    // e.g. "TCP port" - from the showname attribute in the PDML
+var curColumnFilterValue string                   // e.g. "80" - from the show attribute
 
 var CacheRequests []pcap.LoadPcapSlice
 
@@ -303,8 +304,13 @@ func useAsColumn(filter string, name string, app gowid.IApp) {
 }
 
 // Build the menu dynamically when needed so I can include the filter in the widgets
-func makePdmlFilterMenu(filter string) *menu.Widget {
+func makePdmlFilterMenu(filter string, val string) *menu.Widget {
 	sites := make(menuutil.SiteMap)
+
+	filterStr := filter
+	if val != "" {
+		filterStr = fmt.Sprintf("%s == %s", filter, val)
+	}
 
 	var pdmlFilterMenu *menu.Widget
 
@@ -320,7 +326,7 @@ func makePdmlFilterMenu(filter string) *menu.Widget {
 		// the one that is currently selected by the user (i.e. the one associated
 		// with the open menu)
 		actor := &pdmlFilterActor{
-			filter:  curColumnFilter,
+			filter:  filterStr,
 			prepare: prep,
 			menu1:   pdmlFilterMenu,
 		}
@@ -358,14 +364,14 @@ func makePdmlFilterMenu(filter string) *menu.Widget {
 		},
 		menuutil.MakeMenuDivider(),
 		menuutil.SimpleMenuItem{
-			Txt: fmt.Sprintf("Apply Filter: %s", filter),
+			Txt: fmt.Sprintf("Apply Filter: %s", filterStr),
 			Key: gowid.MakeKey('a'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				openPdmlFilterMenu2(false, w, app)
 			},
 		},
 		menuutil.SimpleMenuItem{
-			Txt: fmt.Sprintf("Prep Filter: %s", filter),
+			Txt: fmt.Sprintf("Prep Filter: %s", filterStr),
 			Key: gowid.MakeKey('p'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				openPdmlFilterMenu2(true, w, app)
@@ -758,8 +764,9 @@ func makeStructNodeWidget(pos tree.IPos, tr tree.IModel) gowid.IWidget {
 	pdmlMenuButtonSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
 	pdmlMenuButton.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		curColumnFilter = tr.(*pdmltree.Model).Name
+		curColumnFilterValue = tr.(*pdmltree.Model).Show
 		curColumnFilterName = tr.(*pdmltree.Model).UiName
-		pdmlFilterMenu := makePdmlFilterMenu(curColumnFilter)
+		pdmlFilterMenu := makePdmlFilterMenu(curColumnFilter, curColumnFilterValue)
 		multiMenu1Opener.OpenMenu(pdmlFilterMenu, pdmlMenuButtonSite, app)
 	}))
 

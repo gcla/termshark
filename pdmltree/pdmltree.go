@@ -64,6 +64,7 @@ type Model struct {
 	Expanded       bool              `xml:"-"`
 	Pos            int               `xml:"-"`
 	Size           int               `xml:"-"`
+	Show           string            `xml:"-"`
 	Hide           bool              `xml:"-"`
 	Children_      []*Model          `xml:",any"`
 	Content        []byte            `xml:",innerxml"` // needed for copying PDML to clipboard
@@ -132,6 +133,7 @@ func (n *Model) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			if n.UiName == "" {
 				n.UiName = a.Value
 			}
+			n.Show = a.Value
 		case "hide":
 			n.Hide = (a.Value == "yes")
 		case "name":
