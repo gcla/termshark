@@ -294,7 +294,7 @@ Termshark also uses tshark to generate the possible completions for prefixes of 
 tshark -G fields
 ```
 
-then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv2.gob.gz`.
+then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv3.gob.gz`.
 
 Finally, termshark runs tshark to generate the list of all valid columns and their names. These are used to populate a dropdown menu showing valid column choices when the user configures their column set. Termshark runs
 
