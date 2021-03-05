@@ -308,9 +308,30 @@ func useAsColumn(filter string, name string, app gowid.IApp) {
 func makePdmlFilterMenu(filter string, val string) *menu.Widget {
 	sites := make(menuutil.SiteMap)
 
+	needQuotes := false
+
+	ok, field := FieldCompleter.LookupField(filter)
+	// should be ok, because this filter comes from the PDML, so the filter should
+	// be valid. But if it isn't e.g. newer tshark perhaps, then assume no quotes
+	// are needed.
+	if ok {
+		switch field.Type {
+		case termshark.FT_STRING:
+			needQuotes = true
+		case termshark.FT_STRINGZ:
+			needQuotes = true
+		case termshark.FT_STRINGZPAD:
+			needQuotes = true
+		}
+	}
+
 	filterStr := filter
 	if val != "" {
-		filterStr = fmt.Sprintf("%s == %s", filter, val)
+		if needQuotes {
+			filterStr = fmt.Sprintf("%s == \"%s\"", filter, strings.ReplaceAll(val, "\\", "\\\\"))
+		} else {
+			filterStr = fmt.Sprintf("%s == %s", filter, val)
+		}
 	}
 
 	var pdmlFilterMenu *menu.Widget
