@@ -191,6 +191,7 @@ var lastJumpPos int
 var NoGlobalJump termshark.GlobalJumpPos // leave as default, like a placeholder
 
 var Loader *pcap.PacketLoader
+var FieldCompleter *termshark.TSharkFields // share this - safe once constructed
 
 var DarkMode bool              // global state in app
 var PacketColors bool          // global state in app
@@ -3325,8 +3326,12 @@ func Build() (*gowid.App, error) {
 		),
 	)
 
+	// For completing filter expressions
+	FieldCompleter = termshark.NewFields()
+	FieldCompleter.Init()
+
 	FilterWidget = filter.New("filter", filter.Options{
-		Completer:  savedCompleter{def: termshark.NewFields()},
+		Completer:  savedCompleter{def: FieldCompleter},
 		MenuOpener: &multiMenu1Opener,
 	})
 

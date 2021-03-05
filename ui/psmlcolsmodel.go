@@ -21,7 +21,6 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/shark/wiresharkcfg"
 	"github.com/gcla/termshark/v2/widgets/filter"
@@ -153,7 +152,7 @@ func (sp *specToWidgets) widgets() psmlDialogWidgets {
 			Text: sp.Name,
 		}),
 		customFilter: filter.New("psmlfilter", filter.Options{
-			Completer:  savedCompleter{def: termshark.NewFields()},
+			Completer:  savedCompleter{def: FieldCompleter},
 			MenuOpener: &multiMenu1Opener,
 			Position:   filter.Below,
 		}),
