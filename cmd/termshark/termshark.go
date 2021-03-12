@@ -896,11 +896,16 @@ func cmain() int {
 
 	var progCancelTimer *time.Timer
 
+	checkedPcapCache := false
+	checkPcapCacheDuration := 5 * time.Second
+	checkPcapCacheTimer := time.NewTimer(checkPcapCacheDuration)
+
 Loop:
 	for {
 		var finChan <-chan time.Time
 		var tickChan <-chan time.Time
 		var inactivityChan <-chan time.Time
+		var checkPcapCacheChan <-chan time.Time
 		var tcellEvents <-chan tcell.Event
 		var opsChan <-chan gowid.RunFunction
 		var afterRenderEvents <-chan gowid.IAfterRenderEvent
@@ -967,6 +972,10 @@ Loop:
 			inactivityChan = inactivityTimer.C
 		}
 
+		if !checkedPcapCache {
+			checkPcapCacheChan = checkPcapCacheTimer.C
+		}
+
 		// Only process tcell and gowid events if the UI is running.
 		if ui.Running {
 			tcellEvents = app.TCellEvents
@@ -991,6 +1000,10 @@ Loop:
 		wasLoadingAnythingLastTime = ui.Loader.LoadingAnything()
 
 		select {
+
+		case <-checkPcapCacheChan:
+			termshark.PrunePcapCache()
+			checkedPcapCache = true
 
 		case <-inactivityChan:
 			ui.Fin.Activate()
@@ -1187,6 +1200,7 @@ Loop:
 		case ev := <-tcellEvents:
 			app.HandleTCellEvent(ev, gowid.IgnoreUnhandledInput)
 			inactivityTimer.Reset(inactiveDuration)
+			checkPcapCacheTimer.Reset(checkPcapCacheDuration)
 
 		case ev, ok := <-afterRenderEvents:
 			// This means app.Quit() has been called, which closes the AfterRenderEvents
