@@ -30,6 +30,7 @@ import (
 	"github.com/gcla/termshark/v2/tty"
 	"github.com/gcla/termshark/v2/ui"
 	"github.com/gcla/termshark/v2/widgets/filter"
+	"github.com/gcla/termshark/v2/widgets/wormhole"
 	"github.com/gdamore/tcell"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mattn/go-isatty"
@@ -59,6 +60,7 @@ func main() {
 	capinfo.Goroutinewg = &ensureGoroutinesStopWG
 	convs.Goroutinewg = &ensureGoroutinesStopWG
 	ui.Goroutinewg = &ensureGoroutinesStopWG
+	wormhole.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
 	ensureGoroutinesStopWG.Wait()
@@ -1071,6 +1073,9 @@ Loop:
 				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
 				// will happen next time round because the quitRequested flag is checked.
 				stopLoaders()
+			}
+			if ui.CurrentWormholeWidget != nil {
+				ui.CurrentWormholeWidget.Close()
 			}
 
 		case sig := <-sigChan:

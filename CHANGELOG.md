@@ -10,6 +10,8 @@
 - The packet structure view now provides a contextual menu with options to
   - apply the structure filter as a custom column
   - prepare or apply the same filter as a display filter
+- A new console-command, "wormhole", allows you to send termshark's current pcap with magic wormhole. Pair
+  with the tmux plugin tmux-wormhole to open the pcap quickly in Wireshark.
 
 ### Changed
 

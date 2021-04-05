@@ -603,6 +603,23 @@ func ratio(r float64) gowid.RenderWithRatio {
 	return gowid.RenderWithRatio{R: r}
 }
 
+type RenderRatioUpTo struct {
+	gowid.RenderWithRatio
+	max int
+}
+
+func (r RenderRatioUpTo) String() string {
+	return fmt.Sprintf("upto(%v,%d)", r.RenderWithRatio, r.max)
+}
+
+func (r RenderRatioUpTo) MaxUnits() int {
+	return r.max
+}
+
+func ratioupto(f float64, max int) RenderRatioUpTo {
+	return RenderRatioUpTo{gowid.RenderWithRatio{R: f}, max}
+}
+
 //======================================================================
 
 // run in app goroutine
@@ -1311,6 +1328,11 @@ func lastLineMode(app gowid.IApp) {
 
 	MiniBuffer.Register("columns", minibufferFn(func(gowid.IApp, ...string) error {
 		openEditColumns(app)
+		return nil
+	}))
+
+	MiniBuffer.Register("wormhole", minibufferFn(func(gowid.IApp, ...string) error {
+		openWormhole(app)
 		return nil
 	}))
 
@@ -2670,6 +2692,7 @@ func RequestLoadInterfaces(psrcs []pcap.IPacketSource, captureFilter string, dis
 			ManageStreamCache{},
 			ManageCapinfoCache{},
 			SetStructWidgets{Loader}, // for OnClear
+			ClearWormholeState{},
 			ClearMarksHandler{},
 			CancelledMessage{},
 		},
@@ -2690,6 +2713,7 @@ func RequestLoadPcapWithCheck(pcapf string, displayFilter string, jump termshark
 		ManageCapinfoCache{},
 		SetStructWidgets{Loader}, // for OnClear
 		MakeCheckGlobalJumpAfterPsml(jump),
+		ClearWormholeState{},
 		ClearMarksHandler{},
 		CancelledMessage{},
 	}
@@ -3060,6 +3084,14 @@ func Build() (*gowid.App, error) {
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				multiMenu1Opener.CloseMenu(generalMenu, app)
 				reallyClear(app)
+			},
+		},
+		menuutil.SimpleMenuItem{
+			Txt: "Send Pcap",
+			Key: gowid.MakeKey('s'),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				multiMenu1Opener.CloseMenu(generalMenu, app)
+				openWormhole(app)
 			},
 		},
 		menuutil.SimpleMenuItem{
