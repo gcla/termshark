@@ -289,32 +289,34 @@ func openEditColumns(app gowid.IApp) {
 
 	okButton := dialog.Button{
 		Msg: "Ok",
-		Action: gowid.WidgetChangedFunction(func(app gowid.IApp, widget gowid.IWidget) {
-			for i := 0; i < len(pcols.spec); i++ {
-				if pcols.spec[i].Field.Token == "%Cus" && !pcols.widgets[i].customFilter.IsValid() {
-					OpenMessage(fmt.Sprintf("Custom column %d is invalid", i+1), appView, app)
-					return
+		Action: gowid.MakeWidgetCallback("cb",
+			gowid.WidgetChangedFunction(func(app gowid.IApp, widget gowid.IWidget) {
+				for i := 0; i < len(pcols.spec); i++ {
+					if pcols.spec[i].Field.Token == "%Cus" && !pcols.widgets[i].customFilter.IsValid() {
+						OpenMessage(fmt.Sprintf("Custom column %d is invalid", i+1), appView, app)
+						return
+					}
 				}
-			}
 
-			newcols := pcols.ToConfigList()
-			curcols := termshark.ConfStringSlice("main.column-format", []string{})
+				newcols := pcols.ToConfigList()
+				curcols := termshark.ConfStringSlice("main.column-format", []string{})
 
-			updated := false
-			if !reflect.DeepEqual(newcols, curcols) {
-				termshark.SetConf("main.column-format-bak", curcols)
-				termshark.SetConf("main.column-format", newcols)
-				updated = true
-			}
+				updated := false
+				if !reflect.DeepEqual(newcols, curcols) {
+					termshark.SetConf("main.column-format-bak", curcols)
+					termshark.SetConf("main.column-format", newcols)
+					updated = true
+				}
 
-			editColsDialog.Close(app)
+				editColsDialog.Close(app)
 
-			if !updated {
-				OpenMessage("No change - same columns configured", appView, app)
-			} else {
-				RequestReload(app)
-			}
-		}),
+				if !updated {
+					OpenMessage("No change - same columns configured", appView, app)
+				} else {
+					RequestReload(app)
+				}
+			}),
+		),
 	}
 
 	editColsDialog = dialog.New(

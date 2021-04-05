@@ -1249,9 +1249,11 @@ func reallyQuit(app gowid.IApp) {
 			Buttons: []dialog.Button{
 				dialog.Button{
 					Msg: "Ok",
-					Action: func(app gowid.IApp, widget gowid.IWidget) {
-						RequestQuit()
-					},
+					Action: gowid.MakeWidgetCallback("cb",
+						func(app gowid.IApp, widget gowid.IWidget) {
+							RequestQuit()
+						},
+					),
 				},
 				dialog.Cancel,
 			},
@@ -1394,21 +1396,23 @@ func reallyClear(app gowid.IApp) {
 			Buttons: []dialog.Button{
 				dialog.Button{
 					Msg: "Ok",
-					Action: func(app gowid.IApp, w gowid.IWidget) {
-						YesNo.Close(app)
-						Loader.ClearPcap(
-							pcap.HandlerList{
-								SimpleErrors{},
-								MakePacketViewUpdater(),
-								MakeUpdateCurrentCaptureInTitle(),
-								ManageStreamCache{},
-								ManageCapinfoCache{},
-								SetStructWidgets{Loader}, // for OnClear
-								ClearMarksHandler{},
-								CancelledMessage{},
-							},
-						)
-					},
+					Action: gowid.MakeWidgetCallback("cb",
+						func(app gowid.IApp, w gowid.IWidget) {
+							YesNo.Close(app)
+							Loader.ClearPcap(
+								pcap.HandlerList{
+									SimpleErrors{},
+									MakePacketViewUpdater(),
+									MakeUpdateCurrentCaptureInTitle(),
+									ManageStreamCache{},
+									ManageCapinfoCache{},
+									SetStructWidgets{Loader}, // for OnClear
+									ClearMarksHandler{},
+									CancelledMessage{},
+								},
+							)
+						},
+					),
 				},
 				dialog.Cancel,
 			},
