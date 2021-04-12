@@ -1015,8 +1015,17 @@ func (c *PdmlLoader) loadPcapSync(row int, visible bool, ps iPdmlLoaderEnv, cb i
 				// a message means the proc has started
 				// closed means it won't be started
 				// if closed, then pdmlCmd == nil
-				if (pdmlState == Terminated || (pdmlCancelledChan == nil && pdmlState == NotStarted)) &&
-					(pcapState == Terminated || (pcapCancelledChan == nil && pcapState == NotStarted)) {
+				// 04/11/21: I can't take a shortcut here and condition on Terminated || (cancelledChan == nil && NotStarted)
+				// See the pcap or pdml goroutines below. I block at the beginning, checking on the stage2 cancellation.
+				// If I get past that point, and there are no errors in the process invocation, I am guaranteed to start both
+				// the pdml and pcap processes. If there are errors, I am guaranteed to close the pcapPidChan with a defer.
+				// If I take a shortcut and end this goroutine via a stage2 cancellation before waiting for the pcap pid,
+				// then I'll block in that goroutine, trying to send to the pcapPidChan, but with nothing here to receive
+				// the value. In the pcap process goroutine, if I get past the stage2 cancellation check, then I need to
+				// have something to receive the pid - this goroutine. It needs to stay alive until it gets the pid, or a
+				// zero.
+				if (pdmlState == Terminated || (pdmlPidChan == nil && c.PdmlPid == 0)) &&
+					(pcapState == Terminated || (pcapPidChan == nil && c.PcapPid == 0)) {
 					// nothing to select on so break
 					break loop
 				}
@@ -1464,7 +1473,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 					}
 				}
 
-				if state == Terminated || (intCancelledChan == nil && state == NotStarted) {
+				if state == Terminated || (pidChan == nil && state == NotStarted) {
 					break loop
 				}
 			}
@@ -1590,7 +1599,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 
 					// successfully started then died/kill, OR
 					// was never started, won't be started, and cancelled
-					if state == Terminated || (cancelledChan == nil && state == NotStarted) {
+					if state == Terminated || (pidChan == nil && state == NotStarted) {
 						break loop
 					}
 				}
@@ -2082,7 +2091,7 @@ func (i *InterfaceLoader) loadIfacesSync(e iIfaceLoaderEnv, cb interface{}, app 
 			// a message means the proc has started
 			// closed means it won't be started
 			// if closed, then pdmlCmd == nil
-			if state == Terminated || (cancelledChan == nil && state == NotStarted) {
+			if state == Terminated || (pidChan == nil && state == NotStarted) {
 				// nothing to select on so break
 				break loop
 			}
