@@ -7,7 +7,6 @@
 package system
 
 import (
-	"io/fs"
 	"os"
 	"syscall"
 )
@@ -24,7 +23,7 @@ func FileRegularOrLink(filename string) bool {
 		return false
 	}
 
-	return fi.Mode().IsRegular() || (fi.Mode()&fs.ModeSymlink != 0)
+	return fi.Mode().IsRegular() || (fi.Mode()&os.ModeSymlink != 0)
 }
 
 //======================================================================
