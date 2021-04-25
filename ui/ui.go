@@ -193,6 +193,8 @@ var NoGlobalJump termshark.GlobalJumpPos // leave as default, like a placeholder
 var Loader *pcap.PacketLoader
 var FieldCompleter *termshark.TSharkFields // share this - safe once constructed
 
+var WriteToSelected bool       // true if the user provided the -w flag
+var WriteToDeleted bool        // true if the user deleted the temporary pcap before quitting
 var DarkMode bool              // global state in app
 var PacketColors bool          // global state in app
 var PacketColorsSupported bool // global state in app - true if it's even possible
@@ -1257,6 +1259,50 @@ func processCopyChoices(copyLen int, app gowid.IApp) {
 	dialog.OpenExt(cc, appView, ratio(0.5), ratio(0.8), app)
 }
 
+type callWithAppFn func(gowid.IApp)
+
+func askToSave(app gowid.IApp, next callWithAppFn) {
+	msgt := fmt.Sprintf("Current capture saved to %s", Loader.InterfaceFile())
+	msg := text.New(msgt)
+	var keepPackets *dialog.Widget
+	keepPackets = dialog.New(
+		framed.NewSpace(hpadding.New(msg, hmiddle, fixed)),
+		dialog.Options{
+			Buttons: []dialog.Button{
+				dialog.Button{
+					Msg: "Keep",
+					Action: gowid.MakeWidgetCallback("cb",
+						func(app gowid.IApp, widget gowid.IWidget) {
+							keepPackets.Close(app)
+							next(app)
+						},
+					),
+				},
+				dialog.Button{
+					Msg: "Delete",
+					Action: gowid.MakeWidgetCallback("cb",
+						func(app gowid.IApp, widget gowid.IWidget) {
+							WriteToDeleted = true
+							err := os.Remove(Loader.InterfaceFile())
+							if err != nil {
+								log.Errorf("Could not delete file %s: %v", Loader.InterfaceFile(), err)
+							}
+							keepPackets.Close(app)
+							next(app)
+						},
+					),
+				},
+				dialog.Cancel,
+			},
+			NoShadow:        true,
+			BackgroundStyle: gowid.MakePaletteRef("dialog"),
+			BorderStyle:     gowid.MakePaletteRef("dialog"),
+			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
+		},
+	)
+	keepPackets.Open(appView, units(len(msgt)+20), app)
+}
+
 func reallyQuit(app gowid.IApp) {
 	msgt := "Do you want to quit?"
 	msg := text.New(msgt)
@@ -1268,7 +1314,17 @@ func reallyQuit(app gowid.IApp) {
 					Msg: "Ok",
 					Action: gowid.MakeWidgetCallback("cb",
 						func(app gowid.IApp, widget gowid.IWidget) {
-							RequestQuit()
+							YesNo.Close(app)
+							// (a) Loader is in interface mode (b) User did not set -w flag
+							// (c) always-keep-pcap setting is unset (def false) or false
+							if Loader.InterfaceFile() != "" && !WriteToSelected &&
+								!termshark.ConfBool("main.always-keep-pcap", false) {
+								askToSave(app, func(app gowid.IApp) {
+									RequestQuit()
+								})
+							} else {
+								RequestQuit()
+							}
 						},
 					),
 				},
@@ -1745,7 +1801,7 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 			OpenError("Mark not found.", app)
 		} else {
 			if Loader.Pcap() != markedPacket.Filename {
-				RequestLoadPcapWithCheck(markedPacket.Filename, FilterWidget.Value(), markedPacket, app)
+				MaybeKeepThenRequestLoadPcap(markedPacket.Filename, FilterWidget.Value(), markedPacket, app)
 			} else {
 
 				if packetListView != nil {
@@ -2702,8 +2758,20 @@ func RequestLoadInterfaces(psrcs []pcap.IPacketSource, captureFilter string, dis
 
 //======================================================================
 
+// MaybeKeepThenRequestLoadPcap loads a pcap after first checking to see whether
+// the current load is a live load and the packets need to be kept.
+func MaybeKeepThenRequestLoadPcap(pcapf string, displayFilter string, jump termshark.GlobalJumpPos, app gowid.IApp) {
+	if Loader.InterfaceFile() != "" && !WriteToSelected && !termshark.ConfBool("main.always-keep-pcap", false) {
+		askToSave(app, func(app gowid.IApp) {
+			RequestLoadPcap(pcapf, displayFilter, jump, app)
+		})
+	} else {
+		RequestLoadPcap(pcapf, displayFilter, jump, app)
+	}
+}
+
 // Call from app goroutine context
-func RequestLoadPcapWithCheck(pcapf string, displayFilter string, jump termshark.GlobalJumpPos, app gowid.IApp) {
+func RequestLoadPcap(pcapf string, displayFilter string, jump termshark.GlobalJumpPos, app gowid.IApp) {
 	handlers := pcap.HandlerList{
 		SimpleErrors{},
 		MakeSaveRecents(pcapf, displayFilter),
@@ -2825,7 +2893,7 @@ func makeRecentMenuWidget() (gowid.IWidget, int) {
 					CB: func(app gowid.IApp, w gowid.IWidget) {
 						multiMenu1Opener.CloseMenu(savedMenu, app)
 						// capFilter global, set up in cmain()
-						RequestLoadPcapWithCheck(scopy, FilterWidget.Value(), NoGlobalJump, app)
+						MaybeKeepThenRequestLoadPcap(scopy, FilterWidget.Value(), NoGlobalJump, app)
 					},
 				},
 			)

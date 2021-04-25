@@ -326,6 +326,27 @@ func CacheDir() string {
 // circumstances for a non-existent file, meaning I need to track a directory,
 // and I don't want to be constantly triggered by log file updates.
 func PcapDir() string {
+	var res string
+	// If use-tshark-temp-for-cache is set, use that
+	if ConfBool("main.use-tshark-temp-for-pcap-cache", false) {
+		tmp, err := TsharkSetting("Temp")
+		if err == nil {
+			res = tmp
+		}
+	}
+	// Otherwise try the user's preference
+	if res == "" {
+		res = ConfString("main.pcap-cache-dir", "")
+	}
+	if res == "" {
+		res = DefaultPcapDir()
+	}
+	return res
+}
+
+// DefaultPcapDir returns ~/.cache/pcaps by default. Termshark will check a
+// couple of user settings first before using this.
+func DefaultPcapDir() string {
 	return path.Join(CacheDir(), "pcaps")
 }
 
@@ -949,6 +970,33 @@ func interfacesFrom(reader io.Reader) (map[int][]string, error) {
 	}
 
 	return res, nil
+}
+
+//======================================================================
+
+var foldersRE = regexp.MustCompile(`:\s*`)
+
+// $ env TMPDIR=/foo tshark -G folders Temp
+// Temp:                   /foo
+// Personal configuration: /home/gcla/.config/wireshark
+// Global configuration:   /usr/share/wireshark
+//
+func TsharkSetting(field string) (string, error) {
+	out, err := exec.Command(TSharkBin(), []string{"-G", "folders"}...).Output()
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		pieces := foldersRE.Split(line, 2)
+		if len(pieces) == 2 && pieces[0] == field {
+			return pieces[1], nil
+		}
+	}
+
+	return "", fmt.Errorf("Field %s not found in output of tshark -G folders", field)
 }
 
 //======================================================================

@@ -7,6 +7,8 @@
 package system
 
 import (
+	"io/fs"
+	"os"
 	"syscall"
 )
 
@@ -14,6 +16,15 @@ import (
 
 func CloseDescriptor(fd int) {
 	syscall.Close(fd)
+}
+
+func FileRegularOrLink(filename string) bool {
+	fi, err := os.Stat(filename)
+	if err != nil {
+		return false
+	}
+
+	return fi.Mode().IsRegular() || (fi.Mode()&fs.ModeSymlink != 0)
 }
 
 //======================================================================
