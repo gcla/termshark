@@ -38,7 +38,7 @@ Termshark is inspired by Wireshark, and depends on tshark for all its intelligen
 
 ```console
 $ termshark -h
-termshark v2.2.0
+termshark v2.3.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
@@ -48,7 +48,8 @@ Usage:
 
 Application Options:
   -i=<interfaces>                                            Interface(s) to read.
-  -r=<file/fifo>                                             Pcap file/fifo to read. Use - for stdin.
+  -r=<infile/fifo>                                           Pcap file/fifo to read. Use - for stdin.
+  -w=<outfile>                                               Write raw packet data to outfile.
   -d=<layer type>==<selector>,<decode-as protocol>           Specify dissection of layer type.
   -D                                                         Print a list of the interfaces on which termshark can capture.
   -Y=<displaY filter>                                        Apply display filter.
@@ -89,6 +90,12 @@ Launch termshark like this to read from an interface:
 termshark -i eth0
 ```
 
+By default, termshark will save the packets - e.g. to `~/.cache/termshark/pcaps/` on Linux. If you use the `-w` flag, you can save them to your own file:
+
+```bash
+termshark -i eth0 -w save.pcap
+```
+
 You can also apply a capture filter directly from the command-line:
 
 ```bash
@@ -113,7 +120,7 @@ When you exit termshark, it will print a message with the location of the pcap f
 
 ```console
 $ termshark -i eth0
-Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/eth0-657695279.pcap
+Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/pcaps/eth0-657695279.pcap
 ```
 
 ### Read a pcap file
@@ -545,6 +552,7 @@ widgets that will have focus when control returns to the container. Unselected m
 
 Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
 
+- `always-keep-pcap` (bool) - if true, and if termshark is run on a live packet source (`-i`), when termshark is asked to exit, it will not prompt the user to choose whether to keep or delete the capture.
 - `auto-scroll` (bool) - if true, termshark will automatically scroll down when packets are read in a live-capture mode (e.g. `-i eth0`)
 - `browse-command` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals `$1` will be replaced by the URL prior to the command being run e.g.
 
@@ -583,6 +591,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `packet-colors` (bool) - if true (or missing), termshark will colorize packets according to Wireshark's rules.
 - `pager` (string) - the pager program to use when displaying termshark's log file - run like this: `sh -c "<pager> termshark.log"`
 - `pcap-bundle-size` - (int) - load tshark PDML this many packets at a time. Termshark will lazily load PDML because it's a slow process and uses a lot of RAM. For example, if `pcap-bundle-size`=1000, then on first loading a pcap, termshark will load PDML for packets 1-1000. If you scroll past packet 500, termshark will optimistically load PDML for packets 1001-2000. A higher value will make termshark load more packets at a time; a value of 0 means load the entire pcap's worth of PDML. Termshark stores the data compressed in RAM, but expect approximately 10MB per 1000 packets loaded. If you have the memory, can wait a minute or two for the entire pcap to load, and e.g. plan to use the packet list header to sort the packets in various ways, setting `pcap-bundle-size` to 0 will provide the best experience.
+- `pcap-cache-dir` - (string) - if `use-tshark-temp-for-pcap-cache` is false, when termshark is run on a live packet source (`-i`), the captured packets will be saved here.
 - `pcap-cache-size` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of `pcap-bundle-size`. This setting determines how many such bundles termshark will keep cached. The default is 32.
 - `pdml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PDML.
 - `psml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PSML.
@@ -611,6 +620,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 ```
 
 - `ui-cache-size` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
+- `use-tshark-temp-for-pcap-cache` - (bool) - if true, when termshark is run on a live packet source (`-i`), the captured packets will be saved in tshark's `Temp` folder (`tshark -G folders`).
 - `validated-tsharks` - (string list) - termshark saves the path of each `tshark` binary it invokes (in case the user upgrades the system `tshark`). If the selected (e.g. `PATH`) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
 
 ## Troubleshooting
