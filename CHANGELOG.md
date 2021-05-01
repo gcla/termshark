@@ -12,6 +12,7 @@
   - prepare or apply the same filter as a display filter
 - A new console-command, "wormhole", allows you to send termshark's current pcap with magic wormhole. Pair
   with the tmux plugin tmux-wormhole to open the pcap quickly in Wireshark.
+- Added a -w flag - if supplied for a live capture, termshark will write the packets to this capture file.
 
 ### Changed
 
