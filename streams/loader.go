@@ -179,7 +179,7 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 				}
 			}
 
-			if state == pcap.Terminated || (cancelled == nil && state == pcap.NotStarted) {
+			if state == pcap.Terminated || (procChan == nil && state == pcap.NotStarted) {
 				break loop
 			}
 		}
@@ -300,7 +300,7 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 
 			}
 
-			if state == pcap.Terminated || (cancelledChan == nil && state == pcap.NotStarted) {
+			if state == pcap.Terminated || (procChan == nil && state == pcap.NotStarted) {
 				break loop
 			}
 
