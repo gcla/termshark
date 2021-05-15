@@ -158,7 +158,7 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 				}
 			}
 
-			if state == pcap.Terminated || (cancelledChan == nil && state == pcap.NotStarted) {
+			if state == pcap.Terminated || (procChan == nil && state == pcap.NotStarted) {
 				break loop
 			}
 		}

@@ -8,6 +8,7 @@
   ],
   "imageSize": 72,
   "commit": false,
+  "contributorsPerLine": 8,
   "commitConvention": "none",
   "contributors": [
     {
@@ -428,7 +429,24 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "thordy",
+      "name": "Thord Setsaas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1622278?v=4",
+      "profile": "https://github.com/thordy",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "deliciouslytyped",
+      "name": "deliciouslytyped",
+      "avatar_url": "https://avatars.githubusercontent.com/u/47436522?v=4",
+      "profile": "https://github.com/deliciouslytyped",
+      "contributions": [
+        "bug"
+      ]
     }
-  ],
-  "contributorsPerLine": 7
+  ]
 }

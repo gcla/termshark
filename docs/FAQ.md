@@ -16,7 +16,7 @@
 * [Can I pass extra arguments to tshark?](#can-i-pass-extra-arguments-to-tshark)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
 * [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
-* [Why do is termshark generating traffic on port 5037?](#why-is-termshark-generating-traffic-on-port-5037)
+* [Why is termshark generating traffic on port 5037?](#why-is-termshark-generating-traffic-on-port-5037)
 * [How can termshark capture from extcap interfaces with dumpcap?](#how-can-termshark-capture-from-extcap-interfaces-with-dumpcap)
 * [Termshark is laggy or using a lot of RAM](#termshark-is-laggy-or-using-a-lot-of-ram)
 * [How much memory does termshark use?](#how-much-memory-does-termshark-use)
@@ -321,7 +321,7 @@ sudo setcap cap_net_raw,cap_net_admin+eip /usr/sbin/dumpcap
 
 You can find more detail at https://wiki.wireshark.org/CaptureSetup/CapturePrivileges.
 
-## Why do is termshark generating traffic on port 5037?
+## Why is termshark generating traffic on port 5037?
 
 See [this issue](https://github.com/gcla/termshark/issues/98).
 
