@@ -1353,6 +1353,15 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 
 		//======================================================================
 
+		closedPipe := false
+		closePipe := func() {
+			if !closedPipe {
+				fifoPipeWriter.Close()
+				fifoPipeReader.Close()
+				closedPipe = true
+			}
+		}
+
 		if p.ReadingFromFifo() {
 			// PcapPsml will be nil if here
 
@@ -1372,8 +1381,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 			// is used as stdin for the psml command, which also runs in this
 			// goroutine.
 			defer func() {
-				fifoPipeWriter.Close()
-				fifoPipeReader.Close()
+				closePipe()
 			}()
 
 			// wrap the read end of the pipe with a Read() function that counts
@@ -1418,6 +1426,10 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 				err := termshark.KillIfPossible(psmlCmd)
 				if err != nil {
 					log.Infof("Did not kill tshark psml process: %v", err)
+				}
+
+				if p.ReadingFromFifo() {
+					closePipe()
 				}
 			}
 
