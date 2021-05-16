@@ -6,6 +6,7 @@ package termshark
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/blang/semver"
@@ -161,6 +162,19 @@ func TestIPComp1(t *testing.T) {
 	assert.True(t, ip.Less("::ffff:192.168.0.253", "192.168.1.4"))
 	assert.True(t, ip.Less("192.168.0.253", "2001:db8::68"))
 	assert.False(t, ip.Less("2001:db8::68", "192.168.0.253"))
+}
+
+func TestFolders(t *testing.T) {
+	tmp := os.Getenv("TMPDIR")
+	os.Setenv("TMPDIR", "/foo")
+	defer os.Setenv("TMPDIR", tmp)
+
+	val, err := TsharkSetting("Temp")
+	assert.NoError(t, err)
+	assert.Equal(t, "/foo", val)
+
+	val, err = TsharkSetting("Deliberately missing")
+	assert.Error(t, err)
 }
 
 //======================================================================

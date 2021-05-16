@@ -9,6 +9,10 @@ package system
 func CloseDescriptor(fd int) {
 }
 
+func FileRegularOrLink(filename string) bool {
+	return true
+}
+
 //======================================================================
 // Local Variables:
 // mode: Go

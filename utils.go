@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -326,6 +327,27 @@ func CacheDir() string {
 // circumstances for a non-existent file, meaning I need to track a directory,
 // and I don't want to be constantly triggered by log file updates.
 func PcapDir() string {
+	var res string
+	// If use-tshark-temp-for-cache is set, use that
+	if ConfBool("main.use-tshark-temp-for-pcap-cache", false) {
+		tmp, err := TsharkSetting("Temp")
+		if err == nil {
+			res = tmp
+		}
+	}
+	// Otherwise try the user's preference
+	if res == "" {
+		res = ConfString("main.pcap-cache-dir", "")
+	}
+	if res == "" {
+		res = DefaultPcapDir()
+	}
+	return res
+}
+
+// DefaultPcapDir returns ~/.cache/pcaps by default. Termshark will check a
+// couple of user settings first before using this.
+func DefaultPcapDir() string {
 	return path.Join(CacheDir(), "pcaps")
 }
 
@@ -806,6 +828,69 @@ var _ table.ICompare = IPCompare{}
 
 //======================================================================
 
+func PrunePcapCache() error {
+	// This is a new option. Best to err on the side of caution and, if not, present
+	// assume the cache can grow indefinitely - in case users are now relying on this
+	// to keep old pcaps around. I don't want to delete any files without the user's
+	// explicit permission.
+	var diskCacheSize int64 = int64(ConfInt("main.disk-cache-size-mb", -1))
+
+	if diskCacheSize == -1 {
+		log.Infof("No pcap disk cache size set. Skipping cache pruning.")
+		return nil
+	}
+
+	// Let user use MB as the most sensible unit of disk size. Convert to
+	// bytes for comparing to file sizes.
+	diskCacheSize = diskCacheSize * 1024 * 1024
+
+	log.Infof("Pruning termshark's pcap disk cache at %s...", PcapDir())
+
+	var totalSize int64
+	var fileInfos []os.FileInfo
+	err := filepath.Walk(PcapDir(),
+		func(path string, info os.FileInfo, err error) error {
+			if err == nil {
+				totalSize += info.Size()
+				fileInfos = append(fileInfos, info)
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	sort.Slice(fileInfos, func(i, j int) bool {
+		return fileInfos[i].ModTime().Before(fileInfos[j].ModTime())
+	})
+
+	filesRemoved := 0
+	curCacheSize := totalSize
+	for len(fileInfos) > 0 && curCacheSize > diskCacheSize {
+		err = os.Remove(filepath.Join(PcapDir(), fileInfos[0].Name()))
+		if err != nil {
+			log.Warnf("Could not remove pcap cache file %s while pruning - %v", fileInfos[0].Name(), err)
+		} else {
+			curCacheSize = curCacheSize - fileInfos[0].Size()
+			filesRemoved++
+		}
+		fileInfos = fileInfos[1:]
+	}
+
+	if filesRemoved > 0 {
+		log.Infof("Pruning complete. Removed %d old pcaps. Cache size is now %d MB",
+			filesRemoved, curCacheSize/(1024*1024))
+	} else {
+		log.Infof("Pruning complete. No old pcaps removed. Cache size is %d MB",
+			curCacheSize/(1024*1024))
+	}
+
+	return nil
+}
+
+//======================================================================
+
 var cpuProfileRunning *abool.AtomicBool
 
 func init() {
@@ -949,6 +1034,33 @@ func interfacesFrom(reader io.Reader) (map[int][]string, error) {
 	}
 
 	return res, nil
+}
+
+//======================================================================
+
+var foldersRE = regexp.MustCompile(`:\s*`)
+
+// $ env TMPDIR=/foo tshark -G folders Temp
+// Temp:                   /foo
+// Personal configuration: /home/gcla/.config/wireshark
+// Global configuration:   /usr/share/wireshark
+//
+func TsharkSetting(field string) (string, error) {
+	out, err := exec.Command(TSharkBin(), []string{"-G", "folders"}...).Output()
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		pieces := foldersRE.Split(line, 2)
+		if len(pieces) == 2 && pieces[0] == field {
+			return pieces[1], nil
+		}
+	}
+
+	return "", fmt.Errorf("Field %s not found in output of tshark -G folders", field)
 }
 
 //======================================================================
