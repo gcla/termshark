@@ -78,7 +78,7 @@ type PsmlColumnSpec struct {
 	Hidden bool
 }
 
-var DefaultPsmlColumnSpec = []PsmlColumnSpec{
+var defaultPsmlColumnSpec = []PsmlColumnSpec{
 	PsmlColumnSpec{Field: PsmlField{Token: "%m"}, Name: "No."},
 	PsmlColumnSpec{Field: PsmlField{Token: "%t"}, Name: "Time"},
 	PsmlColumnSpec{Field: PsmlField{Token: "%s"}, Name: "Source"},
@@ -86,6 +86,14 @@ var DefaultPsmlColumnSpec = []PsmlColumnSpec{
 	PsmlColumnSpec{Field: PsmlField{Token: "%p"}, Name: "Proto"},
 	PsmlColumnSpec{Field: PsmlField{Token: "%L"}, Name: "Length"},
 	PsmlColumnSpec{Field: PsmlField{Token: "%i"}, Name: "Info"},
+}
+
+func GetDefaultPsmlColumnSpec() []PsmlColumnSpec {
+	specCopy := make([]PsmlColumnSpec, len(defaultPsmlColumnSpec))
+	for i := 0; i < len(specCopy); i++ {
+		specCopy[i] = defaultPsmlColumnSpec[i]
+	}
+	return specCopy
 }
 
 type PsmlColumnInfo struct {
@@ -298,7 +306,7 @@ func getPsmlColumnFormatWithoutLock(colKey string) []PsmlColumnSpec {
 	widths := termshark.ConfStringSlice(colKey, []string{})
 	if len(widths) == 0 || (len(widths)/3)*3 != len(widths) {
 		logrus.Warnf("Unexpected %s structure - using defaults", colKey)
-		res = DefaultPsmlColumnSpec
+		res = GetDefaultPsmlColumnSpec()
 	} else {
 		// Cross references with those column specs that we know about from having
 		// queried tshark with tshark -G column-formats. Any that are not known
@@ -341,7 +349,7 @@ func getPsmlColumnFormatWithoutLock(colKey string) []PsmlColumnSpec {
 		}
 		if len(res) == 0 {
 			logrus.Warnf("No configured PSML column formats were understood. Using safe default")
-			res = DefaultPsmlColumnSpec
+			res = GetDefaultPsmlColumnSpec()
 		}
 
 	}

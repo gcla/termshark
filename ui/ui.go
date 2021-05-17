@@ -289,6 +289,15 @@ func columnNameFromShowname(showname string) string {
 
 func useAsColumn(filter string, name string, app gowid.IApp) {
 	newCols := termshark.ConfStringSlice("main.column-format", []string{})
+	if len(newCols) == 0 {
+		spec := shark.GetDefaultPsmlColumnSpec()
+		newCols = make([]string, len(spec)*3)
+		for i, sp := range spec {
+			newCols[i*3] = sp.Field.Token
+			newCols[i*3+1] = sp.Name
+			newCols[i*3+2] = strconv.FormatBool(!sp.Hidden)
+		}
+	}
 	colsBak := make([]string, len(newCols))
 	for i, col := range newCols {
 		colsBak[i] = col

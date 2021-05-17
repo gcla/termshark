@@ -70,14 +70,8 @@ func init() {
 }
 
 func NewDefaultPsmlColumnsModel(app gowid.IApp) *psmlColumnsModel {
-	spec := shark.DefaultPsmlColumnSpec
-	// copy it to protect from alterations
-	specCopy := make([]shark.PsmlColumnSpec, len(spec))
-	for i := 0; i < len(spec); i++ {
-		specCopy[i] = spec[i]
-	}
 	res := &psmlColumnsModel{
-		spec: specCopy,
+		spec: shark.GetDefaultPsmlColumnSpec(),
 	}
 	res.fixup(app)
 	return res
