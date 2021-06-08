@@ -38,6 +38,13 @@ brew update
 brew install termshark
 ```
 
+## MacPorts
+
+```bash
+sudo port selfupdate
+sudo port install termshark
+```
+
 ## Kali Linux
 
 ```bash
