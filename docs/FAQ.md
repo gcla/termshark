@@ -404,7 +404,8 @@ these captures, you can safely delete the directory. Termshark v2.3 and above pr
 If this setting is active and not -1, shortly after startup, termshark will check the directory and if it is too large, delete files, oldest first, to
 bring its size within the configured limit.
 
-Termshark v2.3 and above will also let you choose, prior to exiting, whether or not you want to keep the pcap of the current live capture.
+Termshark v2.3 and above will also let you choose, prior to exiting, whether or not you want to keep the pcap of the current live capture. You can
+also invoke termshark with the `-w` flag to choose where the live capture pcap is written.
 
 ## How much memory does termshark use?
 
