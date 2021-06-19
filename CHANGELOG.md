@@ -13,6 +13,9 @@
 - A new console-command, "wormhole", allows you to send termshark's current pcap with magic wormhole. Pair
   with the tmux plugin tmux-wormhole to open the pcap quickly in Wireshark.
 - Added a -w flag - if supplied for a live capture, termshark will write the packets to this capture file.
+- Added a config option, main.disk-cache-size-mb, that can be set to have termshark limit the size
+  of its pcap cache directory.  When the directory size exceeds its limit, termshark deletes oldest
+  pcap files first.
 
 ### Changed
 
