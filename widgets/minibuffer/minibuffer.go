@@ -294,10 +294,14 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 						extraPrefix += string(c)
 					}
 					longestPrefixPartial := partials[selectedIdx]
-					// e.g. "cl" + "ear-" from ["clear-packets", "clear-filter"]
-					longestPrefixPartial.qword = words[len(words)-1] + extraPrefix
-					w.ed.SetText(longestPrefixPartial.Line(), app)
-					w.ed.SetCursorPos(longestPrefixPartial.CursorPos(), app)
+					// if the user types e.g. "help " then hits tab, extraPrefix will be "" (no characters typed
+					// to start selection of next argument) so don't complete.
+					if extraPrefix != "" {
+						// e.g. "cl" + "ear-" from ["clear-packets", "clear-filter"]
+						longestPrefixPartial.qword = words[len(words)-1] + extraPrefix
+						w.ed.SetText(longestPrefixPartial.Line(), app)
+						w.ed.SetCursorPos(longestPrefixPartial.CursorPos(), app)
+					}
 				}
 			}
 		}

@@ -1353,11 +1353,6 @@ func lastLineMode(app gowid.IApp) {
 		return nil
 	}))
 
-	MiniBuffer.Register("help", minibufferFn(func(gowid.IApp, ...string) error {
-		OpenTemplatedDialog(appView, "UIHelp", app)
-		return nil
-	}))
-
 	MiniBuffer.Register("no-theme", minibufferFn(func(app gowid.IApp, s ...string) error {
 		mode := theme.Mode(app.GetColorMode()).String() // more concise
 		termshark.DeleteConf(fmt.Sprintf("main.theme-%s", mode))
