@@ -19,6 +19,7 @@
 * [Why is termshark generating traffic on port 5037?](#why-is-termshark-generating-traffic-on-port-5037)
 * [How can termshark capture from extcap interfaces with dumpcap?](#how-can-termshark-capture-from-extcap-interfaces-with-dumpcap)
 * [Termshark is laggy or using a lot of RAM](#termshark-is-laggy-or-using-a-lot-of-ram)
+* [Termshark is using lots of disk space](#termshark-is-using-lots-of-disk-space)
 * [How much memory does termshark use?](#how-much-memory-does-termshark-use)
 * [What is the oldest supported version of tshark?](#what-is-the-oldest-supported-version-of-tshark)
 * [What's next?](#whats-next)
@@ -389,6 +390,21 @@ go tool pprof -http=:6061 $(which termshark) ~/.cache/termshark/mem-201909291222
 and then navigate to http://127.0.0.1:6061/ui/ (or remote IP) - or open a termshark issue and upload the profile for us to check :-)
 
 There will also be a debug web server running at http://127.0.0.1:6060/debug/pprof (or rmote IP) from where you can see running goroutines and other information.
+
+## Termshark is using lots of disk space
+
+By default, termshark saves live captures in `${XDG_CACHE_HOME}/termshark/pcaps`. Over time, this directory can grow very large. If you do not need
+these captures, you can safely delete the directory. Termshark v2.3 and above provides a config option to control the growth of this directory e.g.
+
+```toml
+[main]
+  disk-cache-size-mb = 100
+```
+
+If this setting is active and not -1, shortly after startup, termshark will check the directory and if it is too large, delete files, oldest first, to
+bring its size within the configured limit.
+
+Termshark v2.3 and above will also let you choose, prior to exiting, whether or not you want to keep the pcap of the current live capture.
 
 ## How much memory does termshark use?
 
