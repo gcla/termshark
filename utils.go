@@ -126,6 +126,14 @@ func DirOfPathCommand(bin string) (string, error) {
 
 //======================================================================
 
+func ReverseStringSlice(s []string) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
+//======================================================================
+
 // The config is accessed by the main goroutine and pcap loading goroutines. So this
 // is an attempt to prevent warnings with the -race flag (though they are very likely
 // harmless)

@@ -423,6 +423,7 @@ func cmain() int {
 
 	// go-flags returns [""] when no extra args are provided, so I can't just
 	// test the length of this slice
+	termshark.ReverseStringSlice(filterArgs)
 	argsFilter := strings.Join(filterArgs, " ")
 
 	// Work out capture filter afterwards because we need to determine first

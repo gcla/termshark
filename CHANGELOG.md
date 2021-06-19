@@ -16,8 +16,9 @@
 
 ### Changed
 
-  Fixed a bug that caused "And" and "Or" conversation filters to be incorrect if the current display filter is
+- Fixed a bug that caused "And" and "Or" conversation filters to be incorrect if the current display filter is
   empty.
+- Fixed a bug that caused multi-token capture filters to fail.
 
 ## [2.2.0] - 2021-01-03
 ### Added 
