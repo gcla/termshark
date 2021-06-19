@@ -433,7 +433,7 @@ func (d readCommand) Run(app gowid.IApp, args ...string) error {
 	if len(args) != 2 {
 		err = invalidReadCommandErr
 	} else {
-		RequestLoadPcapWithCheck(args[1], FilterWidget.Value(), NoGlobalJump, app)
+		MaybeKeepThenRequestLoadPcap(args[1], FilterWidget.Value(), NoGlobalJump, app)
 	}
 
 	if err != nil {
@@ -469,7 +469,7 @@ func (d recentsCommand) Run(app gowid.IApp, args ...string) error {
 	if len(args) != 2 {
 		err = invalidRecentsCommandErr
 	} else {
-		RequestLoadPcapWithCheck(args[1], FilterWidget.Value(), NoGlobalJump, app)
+		MaybeKeepThenRequestLoadPcap(args[1], FilterWidget.Value(), NoGlobalJump, app)
 	}
 
 	if err != nil {

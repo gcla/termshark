@@ -218,6 +218,19 @@ func (t StartUIWhenThereArePackets) OnPsmlHeader(code pcap.HandlerCode, app gowi
 
 //======================================================================
 
+type ClearWormholeState struct{}
+
+var _ pcap.INewSource = ClearWormholeState{}
+
+func (t ClearWormholeState) OnNewSource(code pcap.HandlerCode, app gowid.IApp) {
+	if CurrentWormholeWidget != nil {
+		CurrentWormholeWidget.Close()
+	}
+	CurrentWormholeWidget = nil
+}
+
+//======================================================================
+
 type ClearMarksHandler struct{}
 
 var _ pcap.IClear = checkGlobalJumpAfterPsml{}

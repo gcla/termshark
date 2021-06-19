@@ -146,7 +146,7 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 				}
 			}
 
-			if state == pcap.Terminated || (cancelledChan == nil && state == pcap.NotStarted) {
+			if state == pcap.Terminated || (procChan == nil && state == pcap.NotStarted) {
 				break loop
 			}
 		}

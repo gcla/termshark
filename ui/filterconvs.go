@@ -24,6 +24,19 @@ type indirect struct {
 	*holder.Widget
 }
 
+type iFilterMenuActor interface {
+	HandleFilterMenuSelection(FilterCombinator, gowid.IApp)
+}
+
+type convsFilterMenuActor struct{}
+
+var _ iFilterMenuActor = convsFilterMenuActor{}
+
+func (c convsFilterMenuActor) HandleFilterMenuSelection(conv FilterCombinator, app gowid.IApp) {
+	convsUi.filterSelectedIndex = conv
+	filterConvsMenu2.Open(filterConvsMenu1Site, app)
+}
+
 func buildFilterConvsMenu() {
 	filterConvsMenu1Holder := &indirect{}
 	filterConvsMenu2Holder := &indirect{}
@@ -50,7 +63,7 @@ func buildFilterConvsMenu() {
 		},
 	})
 
-	w := makeFilterConvsMenuWidget()
+	w := makeFilterCombineMenuWidget(convsFilterMenuActor{})
 	filterConvsMenu1Site = menu.NewSite(menu.SiteOptions{
 		XOffset: -3,
 		YOffset: -3,
@@ -65,7 +78,7 @@ func buildFilterConvsMenu() {
 	filterConvsMenu2Holder.Widget = holder.New(w2)
 }
 
-func makeFilterConvsMenuWidget() gowid.IWidget {
+func makeFilterCombineMenuWidget(handler iFilterMenuActor) gowid.IWidget {
 	menuItems := make([]menuutil.SimpleMenuItem, 0)
 
 	for i, s := range []string{
@@ -82,16 +95,14 @@ func makeFilterConvsMenuWidget() gowid.IWidget {
 				Txt: s,
 				Key: gowid.MakeKey('1' + rune(i)),
 				CB: func(app gowid.IApp, w2 gowid.IWidget) {
-					convsUi.filterSelectedIndex = FilterCombinator(i2)
-					filterConvsMenu2.Open(filterConvsMenu1Site, app)
+					handler.HandleFilterMenuSelection(FilterCombinator(i2), app)
 				},
 			},
 		)
 	}
 
-	convListBox := menuutil.MakeMenuWithHotKeys(menuItems)
-
-	return convListBox
+	lb, _ := menuutil.MakeMenuWithHotKeys(menuItems, nil)
+	return lb
 }
 
 func makeFilterConvs2MenuWidget() gowid.IWidget {
@@ -122,7 +133,7 @@ func makeFilterConvs2MenuWidget() gowid.IWidget {
 		)
 	}
 
-	convListBox := menuutil.MakeMenuWithHotKeys(menuItems)
+	convListBox, _ := menuutil.MakeMenuWithHotKeys(menuItems, nil)
 
 	return convListBox
 }

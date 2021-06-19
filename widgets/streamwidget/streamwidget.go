@@ -98,6 +98,7 @@ type Options struct {
 	ChunkClicker   IChunkClicked                // UI changes to make when stream chunk in table is clicked
 	ErrorHandler   IOnError                     // UI action to take on error
 	CopyModeWidget gowid.IWidget                // What to display when copy-mode is started.
+	MenuOpener     menu.IOpener                 // For integrating with UI app - the menu needs to be told what's underneath when opened
 }
 
 //======================================================================
@@ -123,7 +124,9 @@ type Widget struct {
 	convMenu       *menu.Widget            // the menu that opens when you hit the conversation button (entire, client, server)
 	clickActive    bool                    // if true, clicking in stream list will display packet selected
 	keyState       *termshark.KeyState     // for vim key chords that are intended for table navigation
-	searchState                            // track the current highlighted search term
+	doMenuUpdate   bool                    // Set to true if new data has arrived and the menu needs to be regenerated. Do this
+	// because if I regenerate each click, I lose the list state which shows the item I last clicked on.
+	searchState // track the current highlighted search term
 }
 
 func New(displayFilter string, captureDevice string, proto streams.Protocol,
@@ -137,6 +140,10 @@ func New(displayFilter string, captureDevice string, proto streams.Protocol,
 	var mode DisplayFormat
 	if opt.DefaultDisplay != nil {
 		mode = opt.DefaultDisplay()
+	}
+
+	if opt.MenuOpener == nil {
+		opt.MenuOpener = menu.OpenerFunc(widgets.OpenSimpleMenu)
 	}
 
 	res := &Widget{
@@ -226,12 +233,13 @@ func (w *Widget) makeHeaderWidget() gowid.IWidget {
 	return headerView
 }
 
-func MakeConvMenu() (*holder.Widget, *menu.Widget) {
+func MakeConvMenu(opener menu.IOpener) (*holder.Widget, *menu.Widget) {
 	convListBoxWidgetHolder := holder.New(null.New())
 
 	convMenu := menu.New("conv", convListBoxWidgetHolder, fixed, menu.Options{
 		Modal:             true,
 		CloseKeysProvided: true,
+		OpenCloser:        opener,
 		CloseKeys: []gowid.IKey{
 			gowid.MakeKey('q'),
 			gowid.MakeKeyExt(tcell.KeyLeft),
@@ -244,13 +252,14 @@ func MakeConvMenu() (*holder.Widget, *menu.Widget) {
 }
 
 func (w *Widget) updateConvMenuWidget(app gowid.IApp) {
-	convListBox := w.makeConvMenuWidget()
+	convListBox, _ := w.makeConvMenuWidget()
 	w.convMenuHolder.SetSubWidget(convListBox, app)
 	w.setConvButtonText(app)
 	w.setTurnText(app)
+	w.doMenuUpdate = false
 }
 
-func (w *Widget) makeConvMenuWidget() gowid.IWidget {
+func (w *Widget) makeConvMenuWidget() (gowid.IWidget, int) {
 	savedItems := make([]menuutil.SimpleMenuItem, 0)
 
 	savedItems = append(savedItems,
@@ -258,7 +267,7 @@ func (w *Widget) makeConvMenuWidget() gowid.IWidget {
 			Txt: w.getConvButtonText(Entire),
 			Key: gowid.MakeKey('e'),
 			CB: func(app gowid.IApp, w2 gowid.IWidget) {
-				w.convMenu.Close(app)
+				w.opt.MenuOpener.CloseMenu(w.convMenu, app)
 				w.selectedConv = Entire
 				w.tableHolder.SetSubWidget(w.viewWidgets[w.selectedConv], app)
 				w.setConvButtonText(app)
@@ -273,7 +282,7 @@ func (w *Widget) makeConvMenuWidget() gowid.IWidget {
 				Txt: w.getConvButtonText(ClientOnly),
 				Key: gowid.MakeKey('c'),
 				CB: func(app gowid.IApp, w2 gowid.IWidget) {
-					w.convMenu.Close(app)
+					w.opt.MenuOpener.CloseMenu(w.convMenu, app)
 					w.selectedConv = ClientOnly
 					w.tableHolder.SetSubWidget(w.viewWidgets[w.selectedConv], app)
 					w.setConvButtonText(app)
@@ -286,7 +295,7 @@ func (w *Widget) makeConvMenuWidget() gowid.IWidget {
 				Txt: w.getConvButtonText(ServerOnly),
 				Key: gowid.MakeKey('s'),
 				CB: func(app gowid.IApp, w2 gowid.IWidget) {
-					w.convMenu.Close(app)
+					w.opt.MenuOpener.CloseMenu(w.convMenu, app)
 					w.selectedConv = ServerOnly
 					w.tableHolder.SetSubWidget(w.viewWidgets[w.selectedConv], app)
 					w.setConvButtonText(app)
@@ -295,9 +304,7 @@ func (w *Widget) makeConvMenuWidget() gowid.IWidget {
 		)
 	}
 
-	convListBox := menuutil.MakeMenuWithHotKeys(savedItems)
-
-	return convListBox
+	return menuutil.MakeMenuWithHotKeys(savedItems, nil)
 }
 
 // Turns an array of stream chunks into a pair of (a) a scrollable table
@@ -442,7 +449,10 @@ func (w *Widget) construct() {
 	convBtnSite := menu.NewSite(menu.SiteOptions{YOffset: -5})
 	w.convBtn = button.New(text.New(w.getConvButtonText(Entire)))
 	w.convBtn.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w2 gowid.IWidget) {
-		w.convMenu.Open(convBtnSite, app)
+		if w.doMenuUpdate {
+			w.updateConvMenuWidget(app)
+		}
+		w.opt.MenuOpener.OpenMenu(w.convMenu, convBtnSite, app)
 	}))
 	//styledConvBtn := styled.NewInvertedFocus(w.convBtn, gowid.MakePaletteRef("default"))
 	styledConvBtn := styled.NewExt(
@@ -452,7 +462,7 @@ func (w *Widget) construct() {
 	)
 
 	// After making button
-	w.updateConvMenuWidget(nil)
+	w.doMenuUpdate = true
 
 	convCols := columns.NewFixed(convBtnSite, styledConvBtn)
 
@@ -832,8 +842,9 @@ func (w *Widget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.S
 	return w.IWidget.UserInput(ev, size, focus, app)
 }
 
-func (w *Widget) AddHeader(hdr streams.FollowHeader) {
+func (w *Widget) AddHeader(hdr streams.FollowHeader, app gowid.IApp) {
 	w.streamHeader = hdr
+	w.doMenuUpdate = true
 }
 
 func (w *Widget) MapChunkToTableRow(chunk int) (int, error) {
@@ -890,7 +901,7 @@ func (w *Widget) AddChunkEntire(ch streams.IChunk, app gowid.IApp) {
 		w.updateChunkModel(i, w.displayAs, app)
 	}
 
-	w.updateConvMenuWidget(app)
+	w.doMenuUpdate = true
 
 	w.data.currentChunk++
 }

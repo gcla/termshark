@@ -4,17 +4,21 @@
 
 ### Added
 
-  Termshark's columns can now be changed. Use the minibuffer `columns` command to show the current column
-  set. Columns can be added, removed or hidden from view. If your Wireshark config is available, termshark can
+- Termshark's columns can now be changed via the minibuffer `columns` command. Columns can be added, removed
+  or hidden from view. If your Wireshark config is available, termshark can
   import your Wireshark column configuration. Custom columns can be chosen via a display filter expression.
 - The packet structure view now provides a contextual menu with options to
-  - apply the filter representing the current level of structure as a custom column
-  - prepare or directly apply the same filter as a display filter
+  - apply the structure filter as a custom column
+  - prepare or apply the same filter as a display filter
+- A new console-command, "wormhole", allows you to send termshark's current pcap with magic wormhole. Pair
+  with the tmux plugin tmux-wormhole to open the pcap quickly in Wireshark.
+- Added a -w flag - if supplied for a live capture, termshark will write the packets to this capture file.
 
 ### Changed
 
-  Fixed a bug that caused "And" and "Or" conversation filters to be incorrect if the current display filter is
+- Fixed a bug that caused "And" and "Or" conversation filters to be incorrect if the current display filter is
   empty.
+- Fixed a bug that caused multi-token capture filters to fail.
 
 ## [2.2.0] - 2021-01-03
 ### Added 

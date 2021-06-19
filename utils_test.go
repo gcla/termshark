@@ -6,6 +6,7 @@ package termshark
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/blang/semver"
@@ -148,6 +149,32 @@ func TestConv1(t *testing.T) {
 		outs := format.TranslateHexCodes([]byte(test.arg))
 		assert.Equal(t, string(outs), test.res)
 	}
+}
+
+func TestIPComp1(t *testing.T) {
+	var ip IPCompare
+	assert.True(t, ip.Less("x", "y"))
+	assert.True(t, ip.Less("192.168.0.4", "y"))
+	assert.False(t, ip.Less("y", "192.168.0.4"))
+	assert.True(t, ip.Less("192.168.0.253", "192.168.1.4"))
+	assert.False(t, ip.Less("192.168.1.4", "192.168.0.253"))
+	assert.True(t, ip.Less("192.168.0.253", "::ffff:192.168.1.4"))
+	assert.True(t, ip.Less("::ffff:192.168.0.253", "192.168.1.4"))
+	assert.True(t, ip.Less("192.168.0.253", "2001:db8::68"))
+	assert.False(t, ip.Less("2001:db8::68", "192.168.0.253"))
+}
+
+func TestFolders(t *testing.T) {
+	tmp := os.Getenv("TMPDIR")
+	os.Setenv("TMPDIR", "/foo")
+	defer os.Setenv("TMPDIR", tmp)
+
+	val, err := TsharkSetting("Temp")
+	assert.NoError(t, err)
+	assert.Equal(t, "/foo", val)
+
+	val, err = TsharkSetting("Deliberately missing")
+	assert.Error(t, err)
 }
 
 //======================================================================

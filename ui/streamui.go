@@ -319,7 +319,7 @@ func (t *streamParseHandler) TrackPayloadPacket(packet int) {
 
 func (t *streamParseHandler) OnStreamHeader(hdr streams.FollowHeader) {
 	t.app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		t.wid.AddHeader(hdr)
+		t.wid.AddHeader(hdr, app)
 	}))
 }
 
@@ -439,6 +439,7 @@ func makeStreamWidget(previousFilter string, filter string, cap string, proto st
 	return streamwidget.New(filter, cap, proto,
 		conversationMenu, conversationMenuHolder, &keyState,
 		streamwidget.Options{
+			MenuOpener: &multiMenu1Opener,
 			DefaultDisplay: func() streamwidget.DisplayFormat {
 				view := streamwidget.Hex
 				choice := termshark.ConfString("main.stream-view", "hex")
@@ -462,7 +463,6 @@ func makeStreamWidget(previousFilter string, filter string, cap string, proto st
 				}
 
 				FilterWidget.SetValue(newFilter, app)
-				//Loader.NewFilter(newFilter, MakePacketViewUpdater(), app)
 				RequestNewFilter(newFilter, app)
 
 			},
@@ -496,7 +496,7 @@ func closeStreamUi(app gowid.IApp, refocus bool) {
 //======================================================================
 
 func buildStreamUi() {
-	conversationMenuHolder, conversationMenu = streamwidget.MakeConvMenu()
+	conversationMenuHolder, conversationMenu = streamwidget.MakeConvMenu(&multiMenu1Opener)
 
 	streamViewNoKeysHolder = holder.New(null.New())
 

@@ -17,15 +17,14 @@ func TestFields1(t *testing.T) {
 	err := fields.InitNoCache()
 	assert.NoError(t, err)
 
-	m1, ok := fields.fields.M["tcp"]
+	m1, ok := fields.ser.Fields.(map[string]interface{})["tcp"]
 	assert.Equal(t, true, ok)
 
-	m2, ok := m1.M["port"]
+	m2, ok := m1.(map[string]interface{})["port"]
 	assert.Equal(t, true, ok)
 
-	_, ok = m2.M["foo"]
-	assert.Equal(t, false, ok)
-
+	assert.IsType(t, Field{}, m2)
+	assert.Equal(t, m2.(Field).Type, FT_UINT16)
 }
 
 //======================================================================

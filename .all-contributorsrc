@@ -8,6 +8,7 @@
   ],
   "imageSize": 72,
   "commit": false,
+  "contributorsPerLine": 8,
   "commitConvention": "none",
   "contributors": [
     {
@@ -428,7 +429,42 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "thordy",
+      "name": "Thord Setsaas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1622278?v=4",
+      "profile": "https://github.com/thordy",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "deliciouslytyped",
+      "name": "deliciouslytyped",
+      "avatar_url": "https://avatars.githubusercontent.com/u/47436522?v=4",
+      "profile": "https://github.com/deliciouslytyped",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "factorion",
+      "name": "factorion",
+      "avatar_url": "https://avatars.githubusercontent.com/u/40322086?v=4",
+      "profile": "https://github.com/factorion",
+      "contributions": [
+        "platform"
+      ]
+    },
+    {
+      "login": "herbygillot",
+      "name": "Herby Gillot",
+      "avatar_url": "https://avatars.githubusercontent.com/u/618376?v=4",
+      "profile": "https://github.com/herbygillot",
+      "contributions": [
+        "platform"
+      ]
     }
-  ],
-  "contributorsPerLine": 7
+  ]
 }
