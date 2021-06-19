@@ -450,9 +450,12 @@ func cmain() int {
 			fmt.Fprintf(os.Stderr, "Cannot set -w to stdout. Target file must be regular or a symlink.\n")
 			return 1
 		}
-		if !system.FileRegularOrLink(string(opts.WriteTo)) {
-			fmt.Fprintf(os.Stderr, "Cannot set -w to %s. Target file must be regular or a symlink.\n", opts.WriteTo)
-			return 1
+		// If the file does not exist, then proceed. If it does exist, check it is something "normal".
+		if _, err = os.Stat(string(opts.WriteTo)); err == nil || !os.IsNotExist(err) {
+			if !system.FileRegularOrLink(string(opts.WriteTo)) {
+				fmt.Fprintf(os.Stderr, "Cannot set -w to %s. Target file must be regular or a symlink.\n", opts.WriteTo)
+				return 1
+			}
 		}
 	}
 
