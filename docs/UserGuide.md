@@ -8,7 +8,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
 - [Basic Usage](#basic-usage)
 - [Choose a Source](#choose-a-source)
   - [Reading from an Interface](#reading-from-an-interface)
-  - [Read a pcap file](#read-a-pcap-file)
+  - [Read a pcap File](#read-a-pcap-file)
     - [Changing Files](#changing-files)
   - [Reading from a fifo or stdin](#reading-from-a-fifo-or-stdin)
 - [Using the TUI](#using-the-tui)
@@ -25,6 +25,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Columns](#columns)
   - [Command-Line](#command-line)
   - [Macros](#macros)
+  - [Transfer a pcap File](#transfer-a-pcap-file)
 - [Configuration](#configuration)
   - [Dark Mode](#dark-mode)
   - [Packet Colors](#packet-colors)
@@ -123,7 +124,7 @@ $ termshark -i eth0
 Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/pcaps/eth0-657695279.pcap
 ```
 
-### Read a pcap file
+### Read a pcap File
 
 Launch termshark like this to inspect a file:
 
@@ -428,6 +429,31 @@ Macros are saved in the termshark config file. To display the current list of ma
 
 ![macros](/../gh-pages/images/macros.png?raw=true)
 
+### Transfer a pcap File
+
+Termshark can be convenient, but sometimes you need to get your current capture into Wireshark! Termshark integrates
+[wormhole-william](https://github.com/psanford/wormhole-william) to help you quickly transfer your current capture to your Wireshark machine using
+[magic wormhole](https://github.com/magic-wormhole/magic-wormhole). To start this process, choose "Send Pcap" from the "Misc" menu, or run "wormhole"
+from the termshark command-line:
+
+![wormhole1](/../gh-pages/images/wormhole1.png?raw=true)
+
+Termshark will display the magic-wormhole code. On your Wireshark machine, use any magic-wormhole client to download using the code. For example:
+
+```
+$ wormhole receive 9-mosquito-athens
+Receiving file (2.8 MB) into: vrrp.pcap
+ok? (y/N): y
+Receiving (->tcp:10.6.14.67:45483)..
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 2.83M/2.83M [00:00<00:00, 161MB/s]
+Received file written to vrrp.pcap
+```
+
+If you use tmux on your Wireshark machine and run termshark - locally or over ssh - from that tmux session, then you can download and open the pcap
+with a single keypress using [tmux-wormhole](https://github.com/gcla/tmux-wormhole), a tmux tpm plugin. Here's a demo:
+
+{% include googleDrivePlayer.html id=16qCXyjWS8smzjOeJLGZiplib3frgK4F5 %}
+
 ## Configuration
 
 ### Dark Mode
@@ -622,6 +648,9 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `ui-cache-size` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
 - `use-tshark-temp-for-pcap-cache` - (bool) - if true, when termshark is run on a live packet source (`-i`), the captured packets will be saved in tshark's `Temp` folder (`tshark -G folders`).
 - `validated-tsharks` - (string list) - termshark saves the path of each `tshark` binary it invokes (in case the user upgrades the system `tshark`). If the selected (e.g. `PATH`) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
+- `wormhole-length` - (int) - the number of words in the magic-wormhole code.
+- `wormhole-rendezvous-url` - (string) - the magic-wormhole rendezvous server to use. "The server performs store-and-forward delivery for small key-exchange and control messages." (https://github.com/magic-wormhole/magic-wormhole-mailbox-server). Omit to use the default.
+- `wormhole-transit-relay` - (string) - the magic-wormhole transit relay to use. "helps clients establish bulk-data transit connections even when both are behind NAT boxes" (https://github.com/magic-wormhole/magic-wormhole-transit-relay). Omit to use the default.
 
 ## Troubleshooting
 
