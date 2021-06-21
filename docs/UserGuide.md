@@ -362,7 +362,8 @@ For fast navigation around the UI, termshark offers a vim-style command-line. To
 Many of termshark's operations can be initiated from the command-line. After opening the command-line, hit tab to show all the commands available:
 
 - **capinfo** - Show the current capture file properties (using the `capinfos` command)
-- **clear** - Clear the current pcap
+- **clear-filter** - Clear the current display filter
+- **clear-packets** - Clear the current pcap
 - **columns** - Configure termshark's columns
 - **convs** - Open the conversations view
 - **filter** - Choose a display filter from those recently-used
@@ -371,6 +372,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **logs** - Show termshark's log file (Unix-only)
 - **map** - Map a keypress to a key sequence (see `help map`)
 - **marks** - Show file-local and global packet marks
+- **menu** - Open the UI menubar
 - **no-theme** - Clear theme for the current terminal color mode
 - **quit** - Quit termshark
 - **recents** - Load a pcap from those recently-used
@@ -378,7 +380,8 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **streams** - Open the stream reassemably view
 - **theme** - Set a new termshark theme
 - **unmap** - Remove a keypress mapping made with the `map` command
-
+- **wormhole** - Transfer the current pcap using magic wormhole
+ 
 Some commands require a parameter or more. Candidate completions will be shown when possible; you can then scroll up or down through them and hit tab
 or enter to complete the candidate. Candidates are filtered as you type. Hit enter to run a valid command or hit `ctrl-c` to close the command-line.
 
