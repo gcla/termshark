@@ -347,6 +347,12 @@ Use the drop-down menus to choose the column type. If you select a custom column
 expression. Like Wireshark, the syntax of valid column expressions is a subset of those for display filters - essentially the disjunction (or) of
 filter fields. Note that termshark follows Wireshark and currently allows you to enter *any* valid display filter expression.
 
+Like Wireshark, the packet structure view allows you to quickly create custom columns. Navigate to the end of your chosen line of packet structure 
+and select the `[=]` hamburger button. Based on the display filter expression that maps to this structure, you can create a custom column, 
+or either prepare or directly set termshark's display filter.
+
+![colfromstruct](/../gh-pages/images/vrrpcol1.png?raw=true)
+
 ### Command-Line
 
 For fast navigation around the UI, termshark offers a vim-style command-line. To activate the command-line, hit the ':' key:
