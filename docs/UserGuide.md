@@ -452,7 +452,7 @@ Received file written to vrrp.pcap
 If you use tmux on your Wireshark machine and run termshark - locally or over ssh - from that tmux session, then you can download and open the pcap
 with a single keypress using [tmux-wormhole](https://github.com/gcla/tmux-wormhole), a tmux tpm plugin. Here's a demo:
 
-{% include googleDrivePlayer.html id=16qCXyjWS8smzjOeJLGZiplib3frgK4F5 %}
+https://user-images.githubusercontent.com/45680/122692277-0de7e180-d202-11eb-964c-fbc4a2534255.mp4
 
 ## Configuration
 
