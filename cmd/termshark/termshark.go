@@ -844,7 +844,8 @@ func cmain() int {
 	// If this message is needed, we want it to appear after the init message for the packet
 	// columns - after InitValidColumns
 	if waitingForPackets {
-		fmt.Fprintf(os.Stderr, "(The termshark UI will start when packets are detected...)\n")
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("(The termshark UI will start when packets are detected on %s...)\n",
+			strings.Join(pcap.SourcesNames(psrcs), " or ")))
 	}
 
 	// Refresh
