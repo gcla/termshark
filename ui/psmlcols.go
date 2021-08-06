@@ -325,7 +325,9 @@ func openEditColumns(app gowid.IApp) {
 		),
 		dialog.Options{
 			Buttons:         []dialog.Button{okButton, dialog.Cancel},
+			Modal:           true,
 			NoShadow:        true,
+			TabToButtons:    true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),

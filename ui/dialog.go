@@ -138,6 +138,7 @@ func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, ap
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
+			Modal:           true,
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
