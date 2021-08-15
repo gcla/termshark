@@ -1161,6 +1161,9 @@ Loop:
 			if ui.CurrentWormholeWidget != nil {
 				ui.CurrentWormholeWidget.Close()
 			}
+			if ui.CurrentColsWidget != nil {
+				ui.CurrentColsWidget.Close()
+			}
 
 		case sig := <-sigChan:
 			if system.IsSigTSTP(sig) {

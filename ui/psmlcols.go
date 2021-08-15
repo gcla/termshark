@@ -43,7 +43,7 @@ var colFieldsMenu *menu.Widget
 // when a menu button is clicked within this PSML columns widget, which column
 // it should apply to. I could generate unique menus for each row of the table, as
 // an alternative...
-var colsCurrentModel *psmlColumnsModel
+var CurrentColsWidget *psmlColumnsModel
 var colsCurrentModelRow int
 
 var colNamesMenuListBoxHolder *holder.Widget
@@ -70,7 +70,7 @@ func (a psmlColumnInfoArraySortLong) Less(i, j int) bool {
 func buildNamesMenu(app gowid.IApp) {
 	colNamesMenuListBoxHolder = holder.New(null.New())
 
-	wid, hei := rebuildPsmlNamesListBox(colsCurrentModel, app)
+	wid, hei := rebuildPsmlNamesListBox(CurrentColsWidget, app)
 
 	colNamesMenu = menu.New("psmlcols", colNamesMenuListBoxHolder, gowid.RenderWithUnits{U: wid}, menu.Options{
 		Modal:             true,
@@ -133,7 +133,7 @@ func rebuildPsmlNamesListBox(p *psmlColumnsModel, app gowid.IApp) (int, int) {
 }
 
 func rebuildPsmlFieldListBox(app gowid.IApp) (int, int) {
-	p := colsCurrentModel
+	p := CurrentColsWidget
 
 	colsMenuItems := make([]menuutil.SimpleMenuItem, 0)
 
@@ -166,7 +166,7 @@ func rebuildPsmlFieldListBox(app gowid.IApp) (int, int) {
 
 func openEditColumns(app gowid.IApp) {
 	pcols := NewPsmlColumnsModel(app)
-	colsCurrentModel = pcols
+	CurrentColsWidget = pcols
 
 	var mainw gowid.IWidget
 
@@ -338,6 +338,7 @@ func openEditColumns(app gowid.IApp) {
 	editColsDialog.OnOpenClose(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
 		dialogOpen = !dialogOpen
 		if !dialogOpen {
+			CurrentColsWidget = nil
 			err := pcols.Close()
 			if err != nil {
 				log.Warnf("Unexpected result closing PSML columns dialog: %v", err)
