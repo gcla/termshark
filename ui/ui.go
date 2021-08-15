@@ -459,20 +459,27 @@ func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid
 
 	// This shows where we are in the packet list. We want progress to be active only
 	// as long as our view has missing widgets. So this can help predict when our little
-	// view into the list of packets will be populated.
-	currentRow := -1
-	var currentRowMod int64 = -1
-	var currentRowDiv int = -1
+	// view into the list of packets will be populated. Note that if a new pcap is loading,
+	// the packet list view should always be further away than the last packet, so we won't
+	// need the progress bar to tell the user how long until packets appear in the packet
+	// list view; but the packet struct and hex views are populated using a different
+	// mechanism (separate tshark processes) and may leave their views blank while the
+	// packet list view shows data - so the progress bar is useful to indicate when info
+	// will show up in the struct and hex views.
+	currentDisplayedRow := -1
+	var currentDisplayedRowMod int64 = -1
+	var currentDisplayedRowDiv int = -1
 	if packetListView != nil {
 		if fxy, err := packetListView.FocusXY(); err == nil {
-			foo, ok := packetListView.Model().RowIdentifier(fxy.Row)
+			currentRowId, ok := packetListView.Model().RowIdentifier(fxy.Row)
 			if ok {
 				pktsPerLoad := c.PacketsPerLoad()
-				currentRow = int(foo)
-				currentRowMod = int64(currentRow % pktsPerLoad)
-				currentRowDiv = (currentRow / pktsPerLoad) * pktsPerLoad
+				currentDisplayedRow = int(currentRowId)
+				currentDisplayedRowMod = int64(currentDisplayedRow % pktsPerLoad)
+				// Rounded to 1000 by default
+				currentDisplayedRowDiv = (currentDisplayedRow / pktsPerLoad) * pktsPerLoad
 				c.PsmlLoader.Lock()
-				curRowProg.cur, curRowProg.max = int64(currentRow), int64(len(c.PsmlData()))
+				curRowProg.cur, curRowProg.max = int64(currentDisplayedRow), int64(len(c.PsmlData()))
 				c.PsmlLoader.Unlock()
 			}
 		}
@@ -481,12 +488,16 @@ func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid
 	// Progress determined by how many of the (up to) pktsPerLoad pdml packets are read
 	// If it's not the same chunk of rows, assume it won't affect our view, so no progress needed
 	if c.PdmlLoader.IsLoading() {
-		if c.LoadingRow() == currentRowDiv {
+		if c.LoadingRow() == currentDisplayedRowDiv {
+			// Data being loaded from pdml + pcap may overlap the current view
 			if x, err = c.LengthOfPdmlCacheEntry(c.LoadingRow()); err == nil {
 				pdmlPacketProg.cur = int64(x)
 				pdmlPacketProg.max = int64(c.KillAfterReadingThisMany)
-				if currentRow != -1 && currentRowMod < pdmlPacketProg.max {
-					pdmlPacketProg.max = currentRowMod + 1 // zero-based
+				if currentDisplayedRow != -1 && currentDisplayedRowMod < pdmlPacketProg.max {
+					pdmlPacketProg.max = currentDisplayedRowMod + 1 // zero-based
+					if pdmlPacketProg.cur > pdmlPacketProg.max {
+						pdmlPacketProg.cur = pdmlPacketProg.max
+					}
 				}
 			}
 
@@ -496,7 +507,7 @@ func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid
 			c.PdmlLoader.Unlock()
 			if err == nil {
 				pdmlIdxProg.cur, pdmlIdxProg.max = c2, m
-				if currentRow != -1 {
+				if currentDisplayedRow != -1 {
 					// Only need to look this far into the psml file before my view is populated
 					m = m * (curRowProg.cur / curRowProg.max)
 				}
@@ -506,8 +517,11 @@ func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid
 			if x, err = c.LengthOfPcapCacheEntry(c.LoadingRow()); err == nil {
 				pcapPacketProg.cur = int64(x)
 				pcapPacketProg.max = int64(c.KillAfterReadingThisMany)
-				if currentRow != -1 && currentRowMod < pcapPacketProg.max {
-					pcapPacketProg.max = currentRowMod + 1 // zero-based
+				if currentDisplayedRow != -1 && currentDisplayedRowMod < pcapPacketProg.max {
+					pcapPacketProg.max = currentDisplayedRowMod + 1 // zero-based
+					if pcapPacketProg.cur > pcapPacketProg.max {
+						pcapPacketProg.cur = pcapPacketProg.max
+					}
 				}
 			}
 
@@ -517,7 +531,7 @@ func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid
 			c.PdmlLoader.Unlock()
 			if err == nil {
 				pcapIdxProg.cur, pcapIdxProg.max = c2, m
-				if currentRow != -1 {
+				if currentDisplayedRow != -1 {
 					// Only need to look this far into the psml file before my view is populated
 					m = m * (curRowProg.cur / curRowProg.max)
 				}
@@ -559,12 +573,11 @@ func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid
 
 	curRatio := float64(prog.cur) / float64(prog.max)
 
-	if !prog.Complete() {
-		if prevRatio < curRatio {
-			loadProgress.SetTarget(app, int(prog.max))
-			loadProgress.SetProgress(app, int(prog.cur))
-		}
+	if prevRatio < curRatio {
+		loadProgress.SetTarget(app, int(prog.max))
+		loadProgress.SetProgress(app, int(prog.cur))
 	}
+
 	return math.Max(prevRatio, curRatio)
 }
 

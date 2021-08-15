@@ -991,11 +991,48 @@ Loop:
 		// Only display the progress bar if PSML is loading or if PDML is loading that is needed
 		// by the UI. If the PDML is an optimistic load out of the display, then no need for
 		// progress.
+		doprog := false
 		if ui.Loader.PsmlLoader.IsLoading() || (ui.Loader.PdmlLoader.IsLoading() && ui.Loader.PdmlLoader.LoadIsVisible()) {
+			if prevProgPercentage >= 1.0 {
+				if progCancelTimer != nil {
+					progCancelTimer.Reset(time.Duration(500) * time.Millisecond)
+					progCancelTimer = nil
+				}
+			} else {
+				ui.SetProgressWidget(app)
+				if progCancelTimer == nil {
+					progCancelTimer = time.AfterFunc(time.Duration(100000)*time.Hour, func() {
+						app.Run(gowid.RunFunction(func(app gowid.IApp) {
+							ui.ClearProgressWidget(app)
+							progCancelTimer = nil
+						}))
+					})
+				}
+			}
+
 			tickChan = progTicker.C // progress is only enabled when a pcap may be loading
-		} else {
-			// Reset for the next load
-			prevProgPercentage = 0.0
+
+			// Rule:
+			// - prefer progress if we can apply it to psml only (not pdml)
+			// - otherwise use a spinner if interface load or fifo load in operation
+			// - otherwise use progress for pdml
+			if system.HaveFdinfo {
+				// Prefer progress, if the OS supports it.
+				doprog = true
+				if ui.Loader.ReadingFromFifo() {
+					// But if we are have an interface load (or a pipe load), then we can't
+					// predict when the data will run out, so use a spinner. That's because we
+					// feed the data to tshark -T psml with a tail command which reads from
+					// the tmp file being created by the pipe/interface source.
+					doprog = false
+					if !ui.Loader.InterfaceLoader.IsLoading() && !ui.Loader.PsmlLoader.IsLoading() {
+						// Unless those loads are finished, and the only loading activity is now
+						// PDML/pcap, which is loaded on demand in blocks of 1000. Then we can
+						// use the progress bar.
+						doprog = true
+					}
+				}
+			}
 		}
 
 		if ui.Loader.InterfaceLoader.IsLoading() {
@@ -1192,40 +1229,6 @@ Loop:
 
 		case <-tickChan:
 			// We already know that we are LoadingPdml|LoadingPsml
-			ui.SetProgressWidget(app)
-			if progCancelTimer != nil {
-				progCancelTimer.Reset(time.Duration(500) * time.Millisecond)
-			} else {
-				progCancelTimer = time.AfterFunc(time.Duration(500)*time.Millisecond, func() {
-					app.Run(gowid.RunFunction(func(app gowid.IApp) {
-						ui.ClearProgressWidget(app)
-					}))
-				})
-			}
-
-			// Rule:
-			// - prefer progress if we can apply it to psml only (not pdml)
-			// - otherwise use a spinner if interface load or fifo load in operation
-			// - otherwise use progress for pdml
-			doprog := false
-			if system.HaveFdinfo {
-				// Prefer progress, if the OS supports it.
-				doprog = true
-				if ui.Loader.ReadingFromFifo() {
-					// But if we are have an interface load (or a pipe load), then we can't
-					// predict when the data will run out, so use a spinner. That's because we
-					// feed the data to tshark -T psml with a tail command which reads from
-					// the tmp file being created by the pipe/interface source.
-					doprog = false
-					if !ui.Loader.InterfaceLoader.IsLoading() && !ui.Loader.PsmlLoader.IsLoading() {
-						// Unless those loads are finished, and the only loading activity is now
-						// PDML/pcap, which is loaded on demand in blocks of 1000. Then we can
-						// use the progress bar.
-						doprog = true
-					}
-				}
-			}
-
 			if doprog {
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
 					prevProgPercentage = ui.UpdateProgressBarForFile(ui.Loader, prevProgPercentage, app)
