@@ -1441,7 +1441,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
 	MiniBuffer.Register("help", helpCommand{})
 
-	minibuffer.Open(MiniBuffer, mbView, ratio(1.0), fixed, app)
+	minibuffer.Open(MiniBuffer, mbView, ratio(1.0), app)
 }
 
 //======================================================================
