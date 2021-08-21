@@ -44,8 +44,8 @@ github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3Ee
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
-github.com/creack/pty v1.1.14 h1:55VbUWoBxE1iTAh3B6JztD6xyQ06CvW/31oD6rYwrtY=
-github.com/creack/pty v1.1.14/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
+github.com/creack/pty v1.1.15 h1:cKRCLMj3Ddm54bKSpemfQ8AtYFBhAI2MPmdys22fBdc=
+github.com/creack/pty v1.1.15/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -57,8 +57,8 @@ github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/gcla/deep v1.0.2 h1:qBOx6eepcOSRYnHJ+f2ih4hP4Vca1YnLtXxp73n5KWI=
 github.com/gcla/deep v1.0.2/go.mod h1:evE9pbpSGhItmFoBIk8hPOIC/keKTGYhFl6Le1Av+GE=
-github.com/gcla/gowid v1.2.1-0.20210820032031-cfd3f37ca741 h1:eeOU9lh9s7imJI/DMUxEwJS6vma8dC+d9ZKcxn8Nos4=
-github.com/gcla/gowid v1.2.1-0.20210820032031-cfd3f37ca741/go.mod h1:jQwZ6fAAnaylA+MkfgXLzjG0mTMStYixffw2jY0qG4k=
+github.com/gcla/gowid v1.2.1-0.20210821221812-8682c44dd77f h1:Yoj7Qn6+Ms9i+8t5/m+P6aywYaw7HsFqFaaoj71oOrc=
+github.com/gcla/gowid v1.2.1-0.20210821221812-8682c44dd77f/go.mod h1:GL9KUFwKHjWS80G7N4hkA++mpOleVQpNvKIHyW9n0i4=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359 h1:3xEhacR7pIJV8daurdBygptxhzTJeYFqJp1V6SDl+pE=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
 github.com/gcla/tcell v1.1.2-0.20200927150251-decc2045f510 h1:TlEZ0DHOvn0P79nHtkfemw7XFn2h8Lacd6AZpXrPU/o=
