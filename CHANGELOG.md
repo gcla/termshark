@@ -16,6 +16,8 @@
 - Added a config option, main.disk-cache-size-mb, that can be set to have termshark limit the size
   of its pcap cache directory.  When the directory size exceeds its limit, termshark deletes oldest
   pcap files first.
+- Added a workflow that helps a user to upgrade from a low-color TERM setting if termshark detects that
+  there is a 256-color version available in the terminfo database.
 
 ### Changed
 
