@@ -617,6 +617,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `dark-mode` (bool) - if true, termshark will run in dark-mode.
 - `debug` (bool) - if true, run a debug web-server on http://localhost:6060. Shows termshark/golang internals - in case of a problem.
 - `disable-shark-fin` (bool) - if true then turn off the shark-fin screen-saver permanently.
+- `disable-term-helper` (bool) - if true then don't try to nudge the user towards a 256-color TERM; run as-is.
 - `disk-cache-size-mb` (int) - how large termshark will allow `$XDG_CACHE_HOME/termshark/pcaps/` to grow; if the limit is exceeded, termshark will delete pcaps, oldest first. Set to -1 to disable (grow indefinitely).
 - `dumpcap` (string) - make termshark use this specific `dumpcap` (used when reading from an interface).
 - `ignore-base16-colors` (bool) - if true, when running in a terminal with 256-colors, ignore colors 0-21 in the 256-color-space when choosing the best match for a theme's RGB (24-bit) color. This avoids choosing colors that are
@@ -643,6 +644,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
   term = "screen-256color"
 ```
 
+- `theme-8` (string) - the theme applied when termshark runs in a 8-color terminal. If absent, no theme is used.
 - `theme-16` (string) - the theme applied when termshark runs in a 16-color terminal. If absent, no theme is used.
 - `theme-256` (string) - the theme applied when termshark runs in a 256-color terminal. If absent, no theme is used.
 - `theme-truecolor` (string) - the theme applied when termshark runs in a terminal that supports 24-bit color. If absent, no theme is used.
