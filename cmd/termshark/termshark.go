@@ -960,7 +960,7 @@ func cmain() int {
 		ui.Loader.CloseMain()
 	}
 
-	inactiveDuration := 30 * time.Second
+	inactiveDuration := 60 * time.Second
 	inactivityTimer := time.NewTimer(inactiveDuration)
 
 	var progCancelTimer *time.Timer
