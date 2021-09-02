@@ -57,10 +57,8 @@ github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/gcla/deep v1.0.2 h1:qBOx6eepcOSRYnHJ+f2ih4hP4Vca1YnLtXxp73n5KWI=
 github.com/gcla/deep v1.0.2/go.mod h1:evE9pbpSGhItmFoBIk8hPOIC/keKTGYhFl6Le1Av+GE=
-github.com/gcla/gowid v1.2.1-0.20210821221812-8682c44dd77f h1:Yoj7Qn6+Ms9i+8t5/m+P6aywYaw7HsFqFaaoj71oOrc=
-github.com/gcla/gowid v1.2.1-0.20210821221812-8682c44dd77f/go.mod h1:GL9KUFwKHjWS80G7N4hkA++mpOleVQpNvKIHyW9n0i4=
-github.com/gcla/gowid v1.2.1-0.20210902022514-507cfa6ef3ed h1:BQp9rokK2GVxViqKTdJhZVDwytBwbT2KtsYdnq5rWmo=
-github.com/gcla/gowid v1.2.1-0.20210902022514-507cfa6ef3ed/go.mod h1:GL9KUFwKHjWS80G7N4hkA++mpOleVQpNvKIHyW9n0i4=
+github.com/gcla/gowid v1.2.1-0.20210902230020-c4910818c6b3 h1:qX1KC1l+mSNQztbs95vvM28RVdOHn7nVicAbjejcj7E=
+github.com/gcla/gowid v1.2.1-0.20210902230020-c4910818c6b3/go.mod h1:GL9KUFwKHjWS80G7N4hkA++mpOleVQpNvKIHyW9n0i4=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359 h1:3xEhacR7pIJV8daurdBygptxhzTJeYFqJp1V6SDl+pE=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
 github.com/gcla/tcell v1.1.2-0.20200927150251-decc2045f510 h1:TlEZ0DHOvn0P79nHtkfemw7XFn2h8Lacd6AZpXrPU/o=

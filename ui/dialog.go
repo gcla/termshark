@@ -12,6 +12,8 @@ import (
 	"github.com/gcla/gowid/widgets/dialog"
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/hpadding"
+	"github.com/gcla/gowid/widgets/paragraph"
+	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
@@ -131,10 +133,25 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 }
 
 func OpenTemplatedDialog(container gowid.ISettableComposite, tmplName string, app gowid.IApp) *dialog.Widget {
+	msg := termshark.TemplateToString(Templates, tmplName, TemplateData)
+	lines := strings.Split(msg, "\n")
+
+	ws := make([]interface{}, 0, len(lines))
+	for _, line := range lines {
+		if line == "" {
+			ws = append(ws, text.New(line))
+		} else {
+			words := strings.Fields(line)
+			for i := 0; i < len(words); i++ {
+				words[i] = strings.ReplaceAll(words[i], "_", " ")
+			}
+			ws = append(ws, paragraph.NewWithWords(words...))
+		}
+	}
+	body := pile.NewFlow(ws...)
+
 	YesNo = dialog.New(
-		framed.NewSpace(
-			text.New(termshark.TemplateToString(Templates, tmplName, TemplateData)),
-		),
+		framed.NewSpace(body),
 		dialog.Options{
 			Buttons:         dialog.CloseOnly,
 			NoShadow:        true,
