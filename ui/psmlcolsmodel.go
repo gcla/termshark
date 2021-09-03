@@ -21,6 +21,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/gowid/widgets/text"
+	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/shark/wiresharkcfg"
 	"github.com/gcla/termshark/v2/widgets/filter"
@@ -508,7 +509,11 @@ func (p *psmlColumnsModel) HeaderWidgets() []gowid.IWidget {
 
 	pr := gowid.MakePaletteRef("dialog")
 	st := func(w gowid.IWidget) gowid.IWidget {
-		return styled.NewExt(w, gowid.ColorInverter{pr}, gowid.ColorInverter{pr})
+		return vpadding.New(
+			styled.NewExt(w, gowid.ColorInverter{pr}, gowid.ColorInverter{pr}),
+			gowid.VAlignTop{},
+			gowid.RenderWithUnits{U: 1},
+		)
 	}
 
 	if !p.haveCustom {
