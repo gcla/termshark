@@ -1086,6 +1086,8 @@ func (c *PdmlLoader) loadPcapSync(row int, visible bool, ps iPdmlLoaderEnv, cb i
 				if err != nil {
 					if !issuedKill && unexpectedPdmlError(err) {
 						err = fmt.Errorf("Could not read PDML data: %v", err)
+						issuedKill = true
+						pdmlCancelFn()
 						HandleError(PdmlCode, app, err, cb)
 					}
 					if err == io.EOF {
@@ -1101,6 +1103,8 @@ func (c *PdmlLoader) loadPcapSync(row int, visible bool, ps iPdmlLoaderEnv, cb i
 						if err != nil {
 							if !issuedKill && unexpectedPdmlError(err) {
 								err = fmt.Errorf("Could not decode PDML data: %v", err)
+								issuedKill = true
+								pdmlCancelFn()
 								HandleError(PdmlCode, app, err, cb)
 							}
 							break Loop
