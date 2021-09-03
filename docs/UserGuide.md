@@ -121,7 +121,7 @@ When you exit termshark, it will print a message with the location of the pcap f
 
 ```console
 $ termshark -i eth0
-Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/pcaps/eth0-657695279.pcap
+Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/pcaps/eth0--2021-09-03--11-20-58.pcap
 ```
 
 ### Read a pcap File
