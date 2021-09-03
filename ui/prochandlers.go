@@ -117,20 +117,21 @@ func (t updatePacketViews) OnError(code pcap.HandlerCode, app gowid.IApp, err er
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		RequestQuit()
 	} else {
-
-		var errstr string
-		if kverr, ok := err.(gowid.KeyValueError); ok {
-			errstr = fmt.Sprintf("%v\n\n", kverr.Cause())
-			kvs := make([]string, 0, len(kverr.KeyVals))
-			for k, v := range kverr.KeyVals {
-				kvs = append(kvs, fmt.Sprintf("%v: %v", k, v))
+		if !termshark.ConfBool("main.suppress-tshark-errors", false) {
+			var errstr string
+			if kverr, ok := err.(gowid.KeyValueError); ok {
+				errstr = fmt.Sprintf("%v\n\n", kverr.Cause())
+				kvs := make([]string, 0, len(kverr.KeyVals))
+				for k, v := range kverr.KeyVals {
+					kvs = append(kvs, fmt.Sprintf("%v: %v", k, v))
+				}
+				errstr = errstr + strings.Join(kvs, "\n")
+			} else {
+				errstr = fmt.Sprintf("%v", err)
 			}
-			errstr = errstr + strings.Join(kvs, "\n")
-		} else {
-			errstr = fmt.Sprintf("%v", err)
-		}
 
-		OpenLongError(errstr, app)
+			OpenLongError(errstr, app)
+		}
 		StopEmptyStructViewTimer()
 		StopEmptyHexViewTimer()
 	}
@@ -149,9 +150,11 @@ func (t SimpleErrors) OnError(code pcap.HandlerCode, app gowid.IApp, err error) 
 	log.Error(err)
 	// Hack to avoid picking up errors at other parts of the load
 	// cycle. There should be specific handlers for specific errors.
-	app.Run(gowid.RunFunction(func(app gowid.IApp) {
-		OpenError(fmt.Sprintf("%v", err), app)
-	}))
+	if !termshark.ConfBool("main.suppress-tshark-errors", false) {
+		app.Run(gowid.RunFunction(func(app gowid.IApp) {
+			OpenError(fmt.Sprintf("%v", err), app)
+		}))
+	}
 }
 
 //======================================================================
@@ -344,9 +347,11 @@ func (s SetStructWidgets) OnError(code pcap.HandlerCode, app gowid.IApp, err err
 	// Hack to avoid picking up errors at other parts of the load
 	// cycle. There should be specific handlers for specific errors.
 	if s.Ld.PdmlLoader.IsLoading() {
-		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			OpenLongError(fmt.Sprintf("%v", err), app)
-		}))
+		if !termshark.ConfBool("main.suppress-tshark-errors", false) {
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				OpenLongError(fmt.Sprintf("%v", err), app)
+			}))
+		}
 	}
 }
 

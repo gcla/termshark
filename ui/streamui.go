@@ -339,8 +339,7 @@ func (t *streamParseHandler) OnError(code pcap.HandlerCode, app gowid.IApp, err 
 	if !Running {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		RequestQuit()
-	} else {
-
+	} else if !termshark.ConfBool("main.suppress-tshark-errors", false) {
 		var errstr string
 		if kverr, ok := err.(gowid.KeyValueError); ok {
 			errstr = fmt.Sprintf("%v\n\n", kverr.Cause())

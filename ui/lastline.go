@@ -114,6 +114,7 @@ func newSetArg(sub string) substrArg {
 			"packet-colors",
 			"pager",
 			"nopager",
+			"suppress-tshark-errors",
 			"term",
 			"noterm",
 		},
@@ -347,6 +348,15 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 				termshark.SetConf("main.packet-colors", PacketColors)
 				OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
+		case "suppress-tshark-errors":
+			if b, err = parseOnOff(args[2]); err == nil {
+				termshark.SetConf("main.suppress-tshark-errors", b)
+				if b {
+					OpenMessage("tshark errors will be suppressed.", appView, app)
+				} else {
+					OpenMessage("tshark errors will be displayed.", appView, app)
+				}
+			}
 		case "term":
 			if err = termshark.ValidateTerm(args[2]); err == nil {
 				termshark.SetConf("main.term", args[2])
@@ -387,7 +397,7 @@ func (d setCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res = append(res, newSetArg(toks[0]))
 
 	if len(toks) > 0 {
-		onOffCmds := []string{"auto-scroll", "dark-mode", "packet-colors"}
+		onOffCmds := []string{"auto-scroll", "dark-mode", "packet-colors", "suppress-tshark-errors"}
 		boolCmds := []string{"disable-shark-fin"}
 		intCmds := []string{"disk-cache-size-mb", "copy-command-timeout"}
 

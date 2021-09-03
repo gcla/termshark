@@ -134,15 +134,16 @@ Use the cmdline set command to change configuration.
 
 Type :set and hit tab for options.
 
-auto-scroll________ - scroll during live captures
-copy-timeout_______ - wait this long before failing a copy
-dark-mode__________ - enable or disable dark-mode
-disable-shark-fin__ - switch off the secret shark fin
-packet-colors______ - use colors in the packet list view
-pager______________ - pager (used for termshark's log file)
-nopager____________ - disable the pager (use PAGER instead)
-term_______________ - make termshark assume this terminal type
-noterm_____________ - disable the terminal type (use TERM){{end}}
+auto-scroll___________ - scroll during live captures
+copy-timeout__________ - wait this long before failing a copy
+dark-mode_____________ - enable or disable dark-mode
+disable-shark-fin_____ - switch off the secret shark fin
+packet-colors_________ - use colors in the packet list view
+pager_________________ - pager (used for termshark's log file)
+nopager_______________ - disable the pager (use PAGER instead)
+suppress-tshark-errors - don't show tshark errors in the UI
+term__________________ - make termshark assume this terminal type
+noterm________________ - disable the terminal type (use TERM){{end}}
 
 {{define "MapHelp"}}{{template "NameVer" .}}
 
