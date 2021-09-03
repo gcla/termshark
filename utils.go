@@ -40,6 +40,7 @@ import (
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/terminfo"
 	"github.com/gdamore/tcell/terminfo/dynamic"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
@@ -1327,8 +1328,16 @@ func FileSizeDifferentTo(filename string, cur int64) (int64, bool) {
 }
 
 func Does256ColorTermExist() error {
-	_, _, e := dynamic.LoadTerminfo(fmt.Sprintf("%s-256color", os.Getenv("TERM")))
-	return e
+	return ValidateTerm(fmt.Sprintf("%s-256color", os.Getenv("TERM")))
+}
+
+func ValidateTerm(term string) error {
+	var err error
+	_, err = terminfo.LookupTerminfo(term)
+	if err != nil {
+		_, _, err = dynamic.LoadTerminfo(term)
+	}
+	return err
 }
 
 //======================================================================

@@ -48,7 +48,7 @@ func SuggestSwitchingTerm(app gowid.IApp) {
 	term256 := term + "-256color"
 
 	switchTerm = dialog.New(
-		framed.NewSpace(paragraph.New(fmt.Sprintf("Termshark is running with TERM=%s. Your terminal database contains %s. Would you like to switch for a more colorful experience? Termshark will need to restart.", term, term256))),
+		framed.NewSpace(paragraph.New(fmt.Sprintf("Termshark is running with TERM=%s. The terminal database contains %s. Would you like to switch for a more colorful experience? Termshark will need to restart.", term, term256))),
 		dialog.Options{
 			Buttons:         []dialog.Button{Yes, No, NoAsk},
 			NoShadow:        true,
