@@ -19,8 +19,6 @@ import (
 	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/widgets/mapkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
-	"github.com/gdamore/tcell/terminfo"
-	"github.com/gdamore/tcell/terminfo/dynamic"
 	"github.com/rakyll/statik/fs"
 	"github.com/shibukawa/configdir"
 
@@ -311,15 +309,6 @@ func parseOnOff(str string) (bool, error) {
 	return false, strconv.ErrSyntax
 }
 
-func validateTerm(term string) error {
-	var err error
-	_, err = terminfo.LookupTerminfo(term)
-	if err != nil {
-		_, _, err = dynamic.LoadTerminfo(term)
-	}
-	return err
-}
-
 type setCommand struct{}
 
 var _ minibuffer.IAction = setCommand{}
@@ -359,7 +348,7 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 				OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
 		case "term":
-			if err = validateTerm(args[2]); err == nil {
+			if err = termshark.ValidateTerm(args[2]); err == nil {
 				termshark.SetConf("main.term", args[2])
 				OpenMessage(fmt.Sprintf("Terminal type is now %s\n(Requires restart)", args[2]), appView, app)
 			}

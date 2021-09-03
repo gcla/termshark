@@ -13,12 +13,19 @@
 - A new console-command, "wormhole", allows you to send termshark's current pcap with magic wormhole. Pair
   with the tmux plugin tmux-wormhole to open the pcap quickly in Wireshark.
 - Added a -w flag - if supplied for a live capture, termshark will write the packets to this capture file.
+- Added a config option, main.disk-cache-size-mb, that can be set to have termshark limit the size
+  of its pcap cache directory.  When the directory size exceeds its limit, termshark deletes oldest
+  pcap files first.
+- Added a workflow that helps a user to upgrade from a low-color TERM setting if termshark detects that
+  there is a 256-color version available in the terminfo database.
+- Added 8-color light and dark themes for TERMs such as xterm and screen.
 
 ### Changed
 
 - Fixed a bug that caused "And" and "Or" conversation filters to be incorrect if the current display filter is
   empty.
 - Fixed a bug that caused multi-token capture filters to fail.
+- Fixed a bug that slowed down the user's interaction with the display filter widget.
 
 ## [2.2.0] - 2021-01-03
 ### Added 

@@ -40,6 +40,8 @@ import (
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/terminfo"
+	"github.com/gdamore/tcell/terminfo/dynamic"
 	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
@@ -99,10 +101,13 @@ var InternalErr = InternalError{}
 //======================================================================
 
 var (
-	UserGuideURL string = "https://termshark.io/userguide"
-	FAQURL       string = "https://termshark.io/faq"
-	BugURL       string = "https://github.com/gcla/termshark/issues/new?assignees=&labels=&template=bug_report.md&title="
-	FeatureURL   string = "https://github.com/gcla/termshark/issues/new?assignees=&labels=&template=feature_request.md&title="
+	UserGuideURL         string = "https://termshark.io/userguide"
+	FAQURL               string = "https://termshark.io/faq"
+	BugURL               string = "https://github.com/gcla/termshark/issues/new?assignees=&labels=&template=bug_report.md&title="
+	FeatureURL           string = "https://github.com/gcla/termshark/issues/new?assignees=&labels=&template=feature_request.md&title="
+	OriginalEnv          []string
+	ShouldSwitchTerminal bool
+	ShouldSwitchBack     bool
 )
 
 //======================================================================
@@ -1320,6 +1325,19 @@ func FileSizeDifferentTo(filename string, cur int64) (int64, bool) {
 		}
 	}
 	return newSize, diff
+}
+
+func Does256ColorTermExist() error {
+	return ValidateTerm(fmt.Sprintf("%s-256color", os.Getenv("TERM")))
+}
+
+func ValidateTerm(term string) error {
+	var err error
+	_, err = terminfo.LookupTerminfo(term)
+	if err != nil {
+		_, _, err = dynamic.LoadTerminfo(term)
+	}
+	return err
 }
 
 //======================================================================

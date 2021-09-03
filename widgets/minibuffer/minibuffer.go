@@ -38,6 +38,7 @@ type Widget struct {
 	selections *list.Widget
 	ed         *edit.Widget
 	pl         *pile.Widget
+	ov         *overlay.Widget
 	showAll    bool // true if the user hits tab with nothing in the minibuffer. I don't
 	// want to display all completions if the buffer is empty because it fills the screen
 	// and looks ugly. So this is a hack to allow the completions to be displayed
@@ -146,11 +147,11 @@ func New() *Widget {
 		[]gowid.IContainerWidget{
 			&gowid.ContainerWidget{
 				IWidget: top,
-				D:       gowid.RenderFlow{},
+				D:       gowid.RenderWithWeight{W: 1},
 			},
 			&gowid.ContainerWidget{
 				IWidget: bottom,
-				D:       gowid.RenderFlow{},
+				D:       gowid.RenderWithUnits{U: 1},
 			},
 		},
 		pile.Options{
@@ -175,6 +176,7 @@ func New() *Widget {
 				BackgroundStyle: gowid.MakePaletteRef("cmdline"),
 				ButtonStyle:     gowid.MakePaletteRef("cmdline-button"),
 				BorderStyle:     gowid.MakePaletteRef("cmdline-border"),
+				Modal:           true,
 			},
 		),
 		compl:   top,
@@ -294,10 +296,14 @@ func (w *Widget) handleSelection(keyIsEnter bool, app gowid.IApp) {
 						extraPrefix += string(c)
 					}
 					longestPrefixPartial := partials[selectedIdx]
-					// e.g. "cl" + "ear-" from ["clear-packets", "clear-filter"]
-					longestPrefixPartial.qword = words[len(words)-1] + extraPrefix
-					w.ed.SetText(longestPrefixPartial.Line(), app)
-					w.ed.SetCursorPos(longestPrefixPartial.CursorPos(), app)
+					// if the user types e.g. "help " then hits tab, extraPrefix will be "" (no characters typed
+					// to start selection of next argument) so don't complete.
+					if extraPrefix != "" {
+						// e.g. "cl" + "ear-" from ["clear-packets", "clear-filter"]
+						longestPrefixPartial.qword = words[len(words)-1] + extraPrefix
+						w.ed.SetText(longestPrefixPartial.Line(), app)
+						w.ed.SetCursorPos(longestPrefixPartial.CursorPos(), app)
+					}
 				}
 			}
 		}
@@ -429,10 +435,13 @@ func (w *Widget) updateCompletions(app gowid.IApp) {
 
 	}
 
+	w.ov.SetHeight(gowid.RenderWithUnits{U: 3 + len(complWidgets)}, app)
+
 	walker := list.NewSimpleListWalker(complWidgets)
 	if len(complWidgets) > 0 {
 		walker.SetFocus(walker.Last(), app)
 		selections := list.New(walker)
+		selections.GoToBottom(app)
 		sl2 := keepselected.New(selections)
 		w.compl.SetSubWidget(sl2, app)
 		w.selections = selections
@@ -443,9 +452,11 @@ func (w *Widget) updateCompletions(app gowid.IApp) {
 	}
 }
 
-func Open(w dialog.IOpenExt, container gowid.ISettableComposite, width gowid.IWidgetDimension, height gowid.IWidgetDimension, app gowid.IApp) {
-	ov := overlay.New(w, container.SubWidget(),
-		gowid.VAlignBottom{}, height, // Intended to mean use as much vertical space as you need
+// w is minibuffer
+// container is main view
+func Open(w *Widget, container gowid.ISettableComposite, width gowid.IWidgetDimension, app gowid.IApp) {
+	w.ov = overlay.New(w, container.SubWidget(),
+		gowid.VAlignBottom{}, gowid.RenderWithUnits{U: 3}, // Intended to mean use as much vertical space as you need
 		gowid.HAlignLeft{Margin: 5, MarginRight: 5}, width)
 
 	if _, ok := width.(gowid.IRenderFixed); ok {
@@ -455,7 +466,7 @@ func Open(w dialog.IOpenExt, container gowid.ISettableComposite, width gowid.IWi
 	}
 	w.SetSavedSubWidget(container.SubWidget(), app)
 	w.SetSavedContainer(container, app)
-	container.SetSubWidget(ov, app)
+	container.SetSubWidget(w.ov, app)
 	w.SetOpen(true, app)
 }
 

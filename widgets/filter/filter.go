@@ -316,10 +316,6 @@ func New(name string, opt Options) *Widget {
 		}
 	}, Goroutinewg)
 
-	ed.OnCursorPosSet(gowid.MakeWidgetCallback("cb", gowid.WidgetChangedFunction(func(app gowid.IApp, ew gowid.IWidget) {
-		res.UpdateCompletions(app)
-	})))
-
 	ed.OnTextSet(gowid.MakeWidgetCallback("cb", gowid.WidgetChangedFunction(func(app gowid.IApp, ew gowid.IWidget) {
 		res.UpdateCompletions(app)
 	})))

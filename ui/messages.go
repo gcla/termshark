@@ -67,18 +67,18 @@ $ termshark -r file.pcap -T psml -n | less{{end}}
 
 A wireshark-inspired tui for tshark. Analyze network traffic interactively from your terminal.
 
-/   - Go to display filter/stream search
-q   - Quit
+/__ - Go to display filter/stream search
+q__ - Quit
 tab - Switch panes
-c   - Switch to copy-mode
-|   - Cycle through pane layouts
-\   - Toggle pane zoom
+c__ - Switch to copy-mode
+|__ - Cycle through pane layouts
+\__ - Toggle pane zoom
 esc - Activate menu
 +/- - Adjust horizontal split
 </> - Adjust vertical split
-:   - Activate cmdline mode (see help cmdline)
-z   - Maximize/restore any modal dialog
-?   - Display help
+:__ - Activate cmdline mode (see help cmdline)
+z__ - Maximize/restore any modal dialog
+?__ - Display help
 
 In the filter, type a wireshark display filter expression.
 
@@ -90,18 +90,18 @@ Use shift-left-mouse to copy and shift-right-mouse to paste.{{end}}
 
 Navigate the UI using vim-style keys.
 
-hjkl    - Move left/down/up/right in various views
-gg      - Go to the top of the current table
-G       - Go to the bottom of the current table
-5gg     - Go to the 5th row of the table
+hjkl___ - Move left/down/up/right in various views
+gg_____ - Go to the top of the current table
+G______ - Go to the bottom of the current table
+5gg____ - Go to the 5th row of the table
 C-w C-w - Switch panes (same as tab)
-C-w =   - Equalize pane spacing
-ma      - Mark current packet (use a through z)
-'a      - Jump to packet marked 'a'
-mA      - Mark current packet + pcap (use A through Z)
-'A      - Jump to packet + pcap marked 'A'
-''      - After a jump; jump back to prior packet
-ZZ      - Quit without confirmation
+C-w_=__ - Equalize pane spacing
+ma_____ - Mark current packet (use a through z)
+'a_____ - Jump to packet marked 'a'
+mA_____ - Mark current packet + pcap (use A through Z)
+'A_____ - Jump to packet + pcap marked 'A'
+''_____ - After a jump; jump back to prior packet
+ZZ_____ - Quit without confirmation
 
 See also help cmdline.{{end}}
 
@@ -111,22 +111,22 @@ Activate cmdline mode with the : key.
 
 Hit tab to see and choose possible completions.
 
-capinfo    - Capture file properties
-clear      - Clear current pcap
-convs      - Open conversations view
-filter     - Choose a display filter from recently-used
-help       - Various help dialogs
-load       - Load a pcap from the filesystem
-logs       - Show termshark's log file (Unix-only)
-map        - Map a keypress to a key sequence (see help map)
-marks      - Show file-local and global packet marks
-no-theme   - Clear theme for the current terminal color mode
-quit       - Quit termshark
-recents    - Load a pcap from those recently-used
-set        - Set various config properties (see help set)
-streams    - Open stream reassembly view
-theme      - Choose a theme for the current terminal color mode
-unmap      - Remove a keypress mapping{{end}}
+capinfo_ - Capture file properties
+clear___ - Clear current pcap
+convs___ - Open conversations view
+filter__ - Choose a display filter from recently-used
+help____ - Various help dialogs
+load____ - Load a pcap from the filesystem
+logs____ - Show termshark's log file (Unix-only)
+map_____ - Map a keypress to a key sequence (see help map)
+marks___ - Show file-local and global packet marks
+no-theme - Clear theme for the current terminal color mode
+quit____ - Quit termshark
+recents_ - Load a pcap from those recently-used
+set_____ - Set various config properties (see help set)
+streams_ - Open stream reassembly view
+theme___ - Choose a theme for the current terminal color mode
+unmap___ - Remove a keypress mapping{{end}}
 
 {{define "SetHelp"}}{{template "NameVer" .}}
 
@@ -134,15 +134,15 @@ Use the cmdline set command to change configuration.
 
 Type :set and hit tab for options.
 
-auto-scroll         - scroll during live captures
-copy-timeout        - wait this long before failing a copy
-dark-mode           - enable or disable dark-mode
-disable-shark-fin   - switch off the secret shark fin
-packet-colors       - use colors in the packet list view
-pager               - pager (used for termshark's log file)
-nopager             - disable the pager (use PAGER instead)
-term                - make termshark assume this terminal type
-noterm              - disable the terminal type (use TERM){{end}}
+auto-scroll________ - scroll during live captures
+copy-timeout_______ - wait this long before failing a copy
+dark-mode__________ - enable or disable dark-mode
+disable-shark-fin__ - switch off the secret shark fin
+packet-colors______ - use colors in the packet list view
+pager______________ - pager (used for termshark's log file)
+nopager____________ - disable the pager (use PAGER instead)
+term_______________ - make termshark assume this terminal type
+noterm_____________ - disable the terminal type (use TERM){{end}}
 
 {{define "MapHelp"}}{{template "NameVer" .}}
 
@@ -169,10 +169,10 @@ Use the unmap command to remove a mapping.{{end}}
 termshark is in copy-mode. You can press:
 
 'q', 'c' - Exit copy-mode
-ctrl-c   - Copy from selected widget
-left     - Widen selection
-right    - Narrow selection
-'?'      - Display copy-mode help
+ctrl-c__ - Copy from selected widget
+left____ - Widen selection
+right___ - Narrow selection
+'?'_____ - Display copy-mode help
 {{end}}
 
 {{define "Marks"}}{{if not .Marks}}No local marks are set{{else}}Mark Packet Summary{{range $key, $value := .Marks }}

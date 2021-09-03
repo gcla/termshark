@@ -465,6 +465,24 @@
       "contributions": [
         "platform"
       ]
+    },
+    {
+      "login": "nmeum",
+      "name": "nmeum",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2326560?v=4",
+      "profile": "https://github.com/nmeum",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "qbit",
+      "name": "Aaron Bieber",
+      "avatar_url": "https://avatars.githubusercontent.com/u/68368?v=4",
+      "profile": "https://deftly.net",
+      "contributions": [
+        "ideas"
+      ]
     }
   ]
 }

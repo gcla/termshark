@@ -3,7 +3,7 @@
 // file.
 
 // +build !windows
-// +build !arm64
+// +build !darwin
 
 package system
 
@@ -47,7 +47,7 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 				if err != nil {
 					log.Warnf("Unexpected error parsing %s: %v", args[1], err)
 				} else {
-					err = syscall.Dup2(fd, 0)
+					err = Dup2(fd, 0)
 					if err != nil {
 						log.Warnf("Problem duplicating fd %d to 0: %v", fd, err)
 						log.Warnf("Will not try to replace argument %s to tshark", args[1])

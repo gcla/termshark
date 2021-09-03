@@ -64,12 +64,51 @@ func main() {
 
 	res := cmain()
 	ensureGoroutinesStopWG.Wait()
+
+	if !termshark.ShouldSwitchTerminal && !termshark.ShouldSwitchBack {
+		os.Exit(res)
+	}
+
+	os.Clearenv()
+	for _, e := range termshark.OriginalEnv {
+		ks := strings.SplitN(e, "=", 2)
+		if len(ks) == 2 {
+			os.Setenv(ks[0], ks[1])
+		}
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		log.Warnf("Unexpected error determining termshark executable: %v", err)
+		os.Exit(1)
+	}
+
+	switch {
+	case termshark.ShouldSwitchTerminal:
+		os.Setenv("TERMSHARK_ORIGINAL_TERM", os.Getenv("TERM"))
+		os.Setenv("TERM", fmt.Sprintf("%s-256color", os.Getenv("TERM")))
+	case termshark.ShouldSwitchBack:
+		os.Setenv("TERM", os.Getenv("TERMSHARK_ORIGINAL_TERM"))
+		os.Setenv("TERMSHARK_ORIGINAL_TERM", "")
+	}
+
+	// Need exec because we really need to re-initialize everything, including have
+	// all init() functions be called again
+	err = syscall.Exec(exe, os.Args, os.Environ())
+	if err != nil {
+		log.Warnf("Unexpected error exec-ing termshark %s: %v", exe, err)
+		res = 1
+	}
+
 	os.Exit(res)
 }
 
 func cmain() int {
 	startedSuccessfully := false // true if we reached the point where packets were received and the UI started.
 	uiSuspended := false         // true if the UI was suspended due to SIGTSTP
+
+	// Preserve in case we need to re-exec e.g. if the user switches TERM
+	termshark.OriginalEnv = os.Environ()
 
 	sigChan := make(chan os.Signal, 100)
 	// SIGINT and SIGQUIT will arrive only via an external kill command,
@@ -275,7 +314,7 @@ func cmain() int {
 	// terminal emumlator supports 256 colors.
 	termVar := termshark.ConfString("main.term", "")
 	if termVar != "" {
-		log.Infof("Configuration file overrides TERM setting, using TERM=%s", termVar)
+		fmt.Fprintf(os.Stderr, "Configuration file overrides TERM setting, using TERM=%s\n", termVar)
 		os.Setenv("TERM", termVar)
 	}
 
@@ -450,9 +489,12 @@ func cmain() int {
 			fmt.Fprintf(os.Stderr, "Cannot set -w to stdout. Target file must be regular or a symlink.\n")
 			return 1
 		}
-		if !system.FileRegularOrLink(string(opts.WriteTo)) {
-			fmt.Fprintf(os.Stderr, "Cannot set -w to %s. Target file must be regular or a symlink.\n", opts.WriteTo)
-			return 1
+		// If the file does not exist, then proceed. If it does exist, check it is something "normal".
+		if _, err = os.Stat(string(opts.WriteTo)); err == nil || !os.IsNotExist(err) {
+			if !system.FileRegularOrLink(string(opts.WriteTo)) {
+				fmt.Fprintf(os.Stderr, "Cannot set -w to %s. Target file must be regular or a symlink.\n", opts.WriteTo)
+				return 1
+			}
 		}
 	}
 
@@ -841,7 +883,8 @@ func cmain() int {
 	// If this message is needed, we want it to appear after the init message for the packet
 	// columns - after InitValidColumns
 	if waitingForPackets {
-		fmt.Fprintf(os.Stderr, "(The termshark UI will start when packets are detected...)\n")
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("(The termshark UI will start when packets are detected on %s...)\n",
+			strings.Join(pcap.SourcesNames(psrcs), " or ")))
 	}
 
 	// Refresh
@@ -917,7 +960,7 @@ func cmain() int {
 		ui.Loader.CloseMain()
 	}
 
-	inactiveDuration := 30 * time.Second
+	inactiveDuration := 60 * time.Second
 	inactivityTimer := time.NewTimer(inactiveDuration)
 
 	var progCancelTimer *time.Timer
@@ -987,11 +1030,48 @@ Loop:
 		// Only display the progress bar if PSML is loading or if PDML is loading that is needed
 		// by the UI. If the PDML is an optimistic load out of the display, then no need for
 		// progress.
+		doprog := false
 		if ui.Loader.PsmlLoader.IsLoading() || (ui.Loader.PdmlLoader.IsLoading() && ui.Loader.PdmlLoader.LoadIsVisible()) {
+			if prevProgPercentage >= 1.0 {
+				if progCancelTimer != nil {
+					progCancelTimer.Reset(time.Duration(500) * time.Millisecond)
+					progCancelTimer = nil
+				}
+			} else {
+				ui.SetProgressWidget(app)
+				if progCancelTimer == nil {
+					progCancelTimer = time.AfterFunc(time.Duration(100000)*time.Hour, func() {
+						app.Run(gowid.RunFunction(func(app gowid.IApp) {
+							ui.ClearProgressWidget(app)
+							progCancelTimer = nil
+						}))
+					})
+				}
+			}
+
 			tickChan = progTicker.C // progress is only enabled when a pcap may be loading
-		} else {
-			// Reset for the next load
-			prevProgPercentage = 0.0
+
+			// Rule:
+			// - prefer progress if we can apply it to psml only (not pdml)
+			// - otherwise use a spinner if interface load or fifo load in operation
+			// - otherwise use progress for pdml
+			if system.HaveFdinfo {
+				// Prefer progress, if the OS supports it.
+				doprog = true
+				if ui.Loader.ReadingFromFifo() {
+					// But if we are have an interface load (or a pipe load), then we can't
+					// predict when the data will run out, so use a spinner. That's because we
+					// feed the data to tshark -T psml with a tail command which reads from
+					// the tmp file being created by the pipe/interface source.
+					doprog = false
+					if !ui.Loader.InterfaceLoader.IsLoading() && !ui.Loader.PsmlLoader.IsLoading() {
+						// Unless those loads are finished, and the only loading activity is now
+						// PDML/pcap, which is loaded on demand in blocks of 1000. Then we can
+						// use the progress bar.
+						doprog = true
+					}
+				}
+			}
 		}
 
 		if ui.Loader.InterfaceLoader.IsLoading() {
@@ -1057,8 +1137,9 @@ Loop:
 			// Need to do that here because the app won't know how many colors the screen
 			// has (and therefore which variant of the theme to load) until the screen is
 			// activated.
-			mode := theme.Mode(app.GetColorMode()).String() // more concise
-			themeName := termshark.ConfString(fmt.Sprintf("main.theme-%s", mode), "default")
+			mode := app.GetColorMode()
+			modeStr := theme.Mode(mode) // more concise
+			themeName := termshark.ConfString(fmt.Sprintf("main.theme-%s", modeStr), "default")
 			loaded := false
 			if themeName != "" {
 				err = theme.Load(themeName, app)
@@ -1091,6 +1172,33 @@ Loop:
 
 			ui.StartUIChan = nil // make sure it's not triggered again
 
+			if runtime.GOOS != "windows" {
+				if mode == gowid.Mode8Colors {
+					// If exists is true, it means we already tried and then reverted back, so
+					// just load up termshark normally with no further interruption.
+					if _, exists := os.LookupEnv("TERMSHARK_ORIGINAL_TERM"); !exists {
+						if !termshark.ConfBool("main.disable-term-helper", false) {
+							err = termshark.Does256ColorTermExist()
+							if err != nil {
+								log.Infof("Must use 8-color mode because 256-color version of TERM=%s unavailable - %v.", os.Getenv("TERM"), err)
+							} else {
+								time.AfterFunc(time.Duration(3)*time.Second, func() {
+									app.Run(gowid.RunFunction(func(app gowid.IApp) {
+										ui.SuggestSwitchingTerm(app)
+									}))
+								})
+							}
+						}
+					}
+				} else if os.Getenv("TERMSHARK_ORIGINAL_TERM") != "" {
+					time.AfterFunc(time.Duration(3)*time.Second, func() {
+						app.Run(gowid.RunFunction(func(app gowid.IApp) {
+							ui.IsTerminalLegible(app)
+						}))
+					})
+				}
+			}
+
 			defer func() {
 				// Do this to make sure the program quits quickly if quit is invoked
 				// mid-load. It's safe to call this if a pcap isn't being loaded.
@@ -1119,6 +1227,9 @@ Loop:
 			}
 			if ui.CurrentWormholeWidget != nil {
 				ui.CurrentWormholeWidget.Close()
+			}
+			if ui.CurrentColsWidget != nil {
+				ui.CurrentColsWidget.Close()
 			}
 
 		case sig := <-sigChan:
@@ -1188,40 +1299,6 @@ Loop:
 
 		case <-tickChan:
 			// We already know that we are LoadingPdml|LoadingPsml
-			ui.SetProgressWidget(app)
-			if progCancelTimer != nil {
-				progCancelTimer.Reset(time.Duration(500) * time.Millisecond)
-			} else {
-				progCancelTimer = time.AfterFunc(time.Duration(500)*time.Millisecond, func() {
-					app.Run(gowid.RunFunction(func(app gowid.IApp) {
-						ui.ClearProgressWidget(app)
-					}))
-				})
-			}
-
-			// Rule:
-			// - prefer progress if we can apply it to psml only (not pdml)
-			// - otherwise use a spinner if interface load or fifo load in operation
-			// - otherwise use progress for pdml
-			doprog := false
-			if system.HaveFdinfo {
-				// Prefer progress, if the OS supports it.
-				doprog = true
-				if ui.Loader.ReadingFromFifo() {
-					// But if we are have an interface load (or a pipe load), then we can't
-					// predict when the data will run out, so use a spinner. That's because we
-					// feed the data to tshark -T psml with a tail command which reads from
-					// the tmp file being created by the pipe/interface source.
-					doprog = false
-					if !ui.Loader.InterfaceLoader.IsLoading() && !ui.Loader.PsmlLoader.IsLoading() {
-						// Unless those loads are finished, and the only loading activity is now
-						// PDML/pcap, which is loaded on demand in blocks of 1000. Then we can
-						// use the progress bar.
-						doprog = true
-					}
-				}
-			}
-
 			if doprog {
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
 					prevProgPercentage = ui.UpdateProgressBarForFile(ui.Loader, prevProgPercentage, app)
