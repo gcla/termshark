@@ -19,6 +19,7 @@
 - Added a workflow that helps a user to upgrade from a low-color TERM setting if termshark detects that
   there is a 256-color version available in the terminfo database.
 - Added 8-color light and dark themes for TERMs such as xterm and screen.
+- Termshark is now available for M1 on Mac.
 
 ### Changed
 
