@@ -212,7 +212,8 @@ Termshark uses tshark to provide all the data it displays, and to validate displ
 tshark -T psml -r my.pcap -Y '<expression from ui>' -o gui.column.format:\"...\"```
 ````
 
-to generate the packet list data. Note that the columns are currently unconfigurable (future work...) Let's say the user is focused on packet number 1234. Then termshark will load packet structure and hex/byte data using commands like:
+The data provided to the `gui.column.format` tshark argument is stored in termshark's config file under the key `main.column-format`. Let's say the
+user is focused on packet number 1234. Then termshark will load packet structure and hex/byte data using commands like:
 
 ```bash
 tshark -T pdml -r my.pcap -Y '<expression from ui> and frame.number >= 1000 and frame.number < 2000'
