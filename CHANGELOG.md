@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.3.0] - 2021-09-06
+## [2.3.0] - 2021-09-04
 ### Added
 
 - Termshark's columns can now be changed via the minibuffer `columns` command. Columns can be added, removed
