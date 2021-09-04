@@ -30,7 +30,9 @@ Termshark is pre-packaged for the following platforms: [Arch Linux](docs/Package
 Termshark uses Go modules; compile with Go 1.13 or higher. Set `GO111MODULE=on` then run:
 
 ```bash
-go get github.com/gcla/termshark/v2/cmd/termshark
+git clone https://github.com/gcla/termshark
+cd termshark
+go install ./...
 ```
 Then add ```~/go/bin/``` to your ```PATH```.
 
