@@ -8,7 +8,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
 - [Basic Usage](#basic-usage)
 - [Choose a Source](#choose-a-source)
   - [Reading from an Interface](#reading-from-an-interface)
-  - [Read a pcap file](#read-a-pcap-file)
+  - [Read a pcap File](#read-a-pcap-file)
     - [Changing Files](#changing-files)
   - [Reading from a fifo or stdin](#reading-from-a-fifo-or-stdin)
 - [Using the TUI](#using-the-tui)
@@ -22,8 +22,10 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Packet Capture Information](#packet-capture-information)
   - [Stream Reassembly](#stream-reassembly)
   - [Conversations](#conversations)
+  - [Columns](#columns)
   - [Command-Line](#command-line)
   - [Macros](#macros)
+  - [Transfer a pcap File](#transfer-a-pcap-file)
 - [Configuration](#configuration)
   - [Dark Mode](#dark-mode)
   - [Packet Colors](#packet-colors)
@@ -37,7 +39,7 @@ Termshark is inspired by Wireshark, and depends on tshark for all its intelligen
 
 ```console
 $ termshark -h
-termshark v2.2.0
+termshark v2.3.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
@@ -47,7 +49,8 @@ Usage:
 
 Application Options:
   -i=<interfaces>                                            Interface(s) to read.
-  -r=<file/fifo>                                             Pcap file/fifo to read. Use - for stdin.
+  -r=<infile/fifo>                                           Pcap file/fifo to read. Use - for stdin.
+  -w=<outfile>                                               Write raw packet data to outfile.
   -d=<layer type>==<selector>,<decode-as protocol>           Specify dissection of layer type.
   -D                                                         Print a list of the interfaces on which termshark can capture.
   -Y=<displaY filter>                                        Apply display filter.
@@ -88,6 +91,12 @@ Launch termshark like this to read from an interface:
 termshark -i eth0
 ```
 
+By default, termshark will save the packets - e.g. to `~/.cache/termshark/pcaps/` on Linux. If you use the `-w` flag, you can save them to your own file:
+
+```bash
+termshark -i eth0 -w save.pcap
+```
+
 You can also apply a capture filter directly from the command-line:
 
 ```bash
@@ -112,10 +121,10 @@ When you exit termshark, it will print a message with the location of the pcap f
 
 ```console
 $ termshark -i eth0
-Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/eth0-657695279.pcap
+Packets read from interface eth0 have been saved in /home/gcla/.cache/termshark/pcaps/eth0--2021-09-03--11-20-58.pcap
 ```
 
-### Read a pcap file
+### Read a pcap File
 
 Launch termshark like this to inspect a file:
 
@@ -225,7 +234,9 @@ Termshark's middle view shows the structure of the packet selected in the list v
 
 ![structure](/../gh-pages/images/structure.png?raw=true)
 
-As you navigate the packet structure, different sections of the bottom view - a hex representation of the packet - will be highlighted.
+As you navigate the packet structure, different sections of the bottom view - a hex representation of the packet - will be highlighted. The currently selected line in this view will display a small button at the right hand-side. This button opens a contextual menu from which you can add a custom column or apply a filter based on the current level of the packet structure.
+
+![pdmlmenu](/../gh-pages/images/termshark-pdml-menu.png?raw=true)
 
 ### Packet Hex View
 
@@ -317,6 +328,31 @@ In the first pop-up menu, you can choose how to extend the current display filte
 
 ![convs3](/../gh-pages/images/convs3.png?raw=true)
 
+### Columns
+
+Like Wireshark, you can configure the columns that termshark displays. To do this, choose "Edit Columns" from the main menu, or type `columns` from the command-line.
+
+![configcolumns](/../gh-pages/images/custom-columns.png?raw=true)
+
+From this dialog, you can:
+
+- Rearrange your current column set
+- Hide columns or make them visible
+- Delete and add columns
+- Give each of your columns a custom name
+
+If termshark can find your Wireshark config, it also offers the option of importing your Wireshark column set.
+
+Use the drop-down menus to choose the column type. If you select a custom column, termshark will require you to provide a valid display filter
+expression. Like Wireshark, the syntax of valid column expressions is a subset of those for display filters - essentially the disjunction (or) of
+filter fields. Note that termshark follows Wireshark and currently allows you to enter *any* valid display filter expression.
+
+Like Wireshark, the packet structure view allows you to quickly create custom columns. Navigate to the end of your chosen line of packet structure 
+and select the `[=]` hamburger button. Based on the display filter expression that maps to this structure, you can create a custom column, 
+or either prepare or directly set termshark's display filter.
+
+![colfromstruct](/../gh-pages/images/vrrpcol1.png?raw=true)
+
 ### Command-Line
 
 For fast navigation around the UI, termshark offers a vim-style command-line. To activate the command-line, hit the ':' key:
@@ -326,7 +362,9 @@ For fast navigation around the UI, termshark offers a vim-style command-line. To
 Many of termshark's operations can be initiated from the command-line. After opening the command-line, hit tab to show all the commands available:
 
 - **capinfo** - Show the current capture file properties (using the `capinfos` command)
-- **clear** - Clear the current pcap
+- **clear-filter** - Clear the current display filter
+- **clear-packets** - Clear the current pcap
+- **columns** - Configure termshark's columns
 - **convs** - Open the conversations view
 - **filter** - Choose a display filter from those recently-used
 - **help** - Show one of several help dialogs
@@ -334,6 +372,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **logs** - Show termshark's log file (Unix-only)
 - **map** - Map a keypress to a key sequence (see `help map`)
 - **marks** - Show file-local and global packet marks
+- **menu** - Open the UI menubar
 - **no-theme** - Clear theme for the current terminal color mode
 - **quit** - Quit termshark
 - **recents** - Load a pcap from those recently-used
@@ -341,7 +380,8 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **streams** - Open the stream reassemably view
 - **theme** - Set a new termshark theme
 - **unmap** - Remove a keypress mapping made with the `map` command
-
+- **wormhole** - Transfer the current pcap using magic wormhole
+ 
 Some commands require a parameter or more. Candidate completions will be shown when possible; you can then scroll up or down through them and hit tab
 or enter to complete the candidate. Candidates are filtered as you type. Hit enter to run a valid command or hit `ctrl-c` to close the command-line.
 
@@ -397,6 +437,31 @@ Then with focus on the packet structure view, hit `f5` to go down a packet and `
 Macros are saved in the termshark config file. To display the current list of macros, simply type `map` from the command-line with no arguments.
 
 ![macros](/../gh-pages/images/macros.png?raw=true)
+
+### Transfer a pcap File
+
+Termshark can be convenient, but sometimes you need to get your current capture into Wireshark! Termshark integrates
+[wormhole-william](https://github.com/psanford/wormhole-william) to help you quickly transfer your current capture to your Wireshark machine using
+[magic wormhole](https://github.com/magic-wormhole/magic-wormhole). To start this process, choose "Send Pcap" from the "Misc" menu, or run "wormhole"
+from the termshark command-line:
+
+![wormhole1](/../gh-pages/images/wormhole1.png?raw=true)
+
+Termshark will display the magic-wormhole code. On your Wireshark machine, use any magic-wormhole client to download using the code. For example:
+
+```
+$ wormhole receive 9-mosquito-athens
+Receiving file (2.8 MB) into: vrrp.pcap
+ok? (y/N): y
+Receiving (->tcp:10.6.14.67:45483)..
+100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 2.83M/2.83M [00:00<00:00, 161MB/s]
+Received file written to vrrp.pcap
+```
+
+If you use tmux on your Wireshark machine and run termshark - locally or over ssh - from that tmux session, then you can download and open the pcap
+with a single keypress using [tmux-wormhole](https://github.com/gcla/tmux-wormhole), a tmux tpm plugin. Here's a demo:
+
+https://user-images.githubusercontent.com/45680/122692277-0de7e180-d202-11eb-964c-fbc4a2534255.mp4
 
 ## Configuration
 
@@ -522,6 +587,7 @@ widgets that will have focus when control returns to the container. Unselected m
 
 Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
 
+- `always-keep-pcap` (bool) - if true, and if termshark is run on a live packet source (`-i`), when termshark is asked to exit, it will not prompt the user to choose whether to keep or delete the capture.
 - `auto-scroll` (bool) - if true, termshark will automatically scroll down when packets are read in a live-capture mode (e.g. `-i eth0`)
 - `browse-command` (string list) - termshark will run this command with a URL e.g. when the user selects "FAQ" from the main menu. Any argument in the list that equals `$1` will be replaced by the URL prior to the command being run e.g.
 
@@ -534,6 +600,8 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `capture-command` (string) - use this binary to capture packets, passing `-i`, `-w` and `-f` flags. 
 - `color-tsharks` (string list) - a list of the paths of tshark binaries that termshark has confirmed support the `--color` flag. If you run termshark and the selected tshark binary is not in this list, termshark will check to see if it supports the `--color` flag.
 - `colors` (bool) - if true, and tshark supports the feature, termshark will colorize packets in its list view.
+- `column-format` (string list) - a list of columns, each a group of three strings: field name, display name, and visibility.
+- `column-format-bak` (string list) - the value of `column-format` prior to its last change; for restoring previous settings.
 - `conv-absolute-time` (bool) - if true, have tshark provide conversation data with a relative start time field.
 - `conv-resolve-names` (bool) - if true, have tshark provide conversation data with ethernet names resolved.
 - `conv-use-filter` (bool) - if true, have tshark provide conversation data limited to match the active display filter.
@@ -549,6 +617,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `dark-mode` (bool) - if true, termshark will run in dark-mode.
 - `debug` (bool) - if true, run a debug web-server on http://localhost:6060. Shows termshark/golang internals - in case of a problem.
 - `disable-shark-fin` (bool) - if true then turn off the shark-fin screen-saver permanently.
+- `disable-term-helper` (bool) - if true then don't try to nudge the user towards a 256-color TERM; run as-is.
 - `disk-cache-size-mb` (int) - how large termshark will allow `$XDG_CACHE_HOME/termshark/pcaps/` to grow; if the limit is exceeded, termshark will delete pcaps, oldest first. Set to -1 to disable (grow indefinitely).
 - `dumpcap` (string) - make termshark use this specific `dumpcap` (used when reading from an interface).
 - `ignore-base16-colors` (bool) - if true, when running in a terminal with 256-colors, ignore colors 0-21 in the 256-color-space when choosing the best match for a theme's RGB (24-bit) color. This avoids choosing colors that are
@@ -558,6 +627,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `packet-colors` (bool) - if true (or missing), termshark will colorize packets according to Wireshark's rules.
 - `pager` (string) - the pager program to use when displaying termshark's log file - run like this: `sh -c "<pager> termshark.log"`
 - `pcap-bundle-size` - (int) - load tshark PDML this many packets at a time. Termshark will lazily load PDML because it's a slow process and uses a lot of RAM. For example, if `pcap-bundle-size`=1000, then on first loading a pcap, termshark will load PDML for packets 1-1000. If you scroll past packet 500, termshark will optimistically load PDML for packets 1001-2000. A higher value will make termshark load more packets at a time; a value of 0 means load the entire pcap's worth of PDML. Termshark stores the data compressed in RAM, but expect approximately 10MB per 1000 packets loaded. If you have the memory, can wait a minute or two for the entire pcap to load, and e.g. plan to use the packet list header to sort the packets in various ways, setting `pcap-bundle-size` to 0 will provide the best experience.
+- `pcap-cache-dir` - (string) - if `use-tshark-temp-for-pcap-cache` is false, when termshark is run on a live packet source (`-i`), the captured packets will be saved here.
 - `pcap-cache-size` - (int) - termshark loads packet PDML (structure) and pcap (bytes) data in bundles of `pcap-bundle-size`. This setting determines how many such bundles termshark will keep cached. The default is 32.
 - `pdml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PDML.
 - `psml-args` (string list) - any extra parameters to pass to `tshark` when it is invoked to generate PSML.
@@ -566,6 +636,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `respect-colorterm` (bool) - if termshark detects you are using base16-shell, it won't map any theme RGB color names (like #90FF32) to 0-21 in the 256-color space to avoid clashes with the active base16 theme. This shouldn't affect color reproduction if the terminal is 24-bit capable, but some terminal emulators (e.g. gnome-terminal) seem to use the 256-color space anyway. Termshark works around this by falling back to 256-color mode, interpolating RGB colors into the 256-color space and avoiding 0-21. If you really want termshark to run in 24-bit color mode anyway, set this to true.
 - `stream-cache-size` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
 - `stream-view` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
+- `suppress-tshark-errors` (bool) - if `true`, hide from the UI any errors generated during parsing of tshark-generated XML.
 - `tail-command` (string) - make termshark use this specific `tail` command. This is used when reading from an interface in order to feed `dumpcap`-saved data to `tshark`. The default is `tail -f -c +0 <file>`. If you are running on Windows, the default is to use `termshark` itself with a special hidden `--tail` flag. But probably better to use Wireshark on Windows :-)
 - `term` (string) - termshark will use this as a replacement for the TERM environment variable.
 
@@ -574,6 +645,7 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
   term = "screen-256color"
 ```
 
+- `theme-8` (string) - the theme applied when termshark runs in a 8-color terminal. If absent, no theme is used.
 - `theme-16` (string) - the theme applied when termshark runs in a 16-color terminal. If absent, no theme is used.
 - `theme-256` (string) - the theme applied when termshark runs in a 256-color terminal. If absent, no theme is used.
 - `theme-truecolor` (string) - the theme applied when termshark runs in a terminal that supports 24-bit color. If absent, no theme is used.
@@ -586,7 +658,11 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 ```
 
 - `ui-cache-size` - (int) - termshark will remember the state of widgets representing packets e.g. which parts are expanded in the structure view, and which byte is in focus in the hex view. This setting allows the user to override the number of widgets that are cached. The default is 1000.
+- `use-tshark-temp-for-pcap-cache` - (bool) - if true, when termshark is run on a live packet source (`-i`), the captured packets will be saved in tshark's `Temp` folder (`tshark -G folders`).
 - `validated-tsharks` - (string list) - termshark saves the path of each `tshark` binary it invokes (in case the user upgrades the system `tshark`). If the selected (e.g. `PATH`) tshark binary has not been validated, termshark will check to ensure its version is compatible. tshark must be newer than v1.10.2 (from approximately 2013).
+- `wormhole-length` - (int) - the number of words in the magic-wormhole code.
+- `wormhole-rendezvous-url` - (string) - the magic-wormhole rendezvous server to use. "The server performs store-and-forward delivery for small key-exchange and control messages." (https://github.com/magic-wormhole/magic-wormhole-mailbox-server). Omit to use the default.
+- `wormhole-transit-relay` - (string) - the magic-wormhole transit relay to use. "helps clients establish bulk-data transit connections even when both are behind NAT boxes" (https://github.com/magic-wormhole/magic-wormhole-transit-relay). Omit to use the default.
 
 ## Troubleshooting
 

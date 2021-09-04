@@ -19,6 +19,7 @@
 * [Why is termshark generating traffic on port 5037?](#why-is-termshark-generating-traffic-on-port-5037)
 * [How can termshark capture from extcap interfaces with dumpcap?](#how-can-termshark-capture-from-extcap-interfaces-with-dumpcap)
 * [Termshark is laggy or using a lot of RAM](#termshark-is-laggy-or-using-a-lot-of-ram)
+* [Termshark is using lots of disk space](#termshark-is-using-lots-of-disk-space)
 * [How much memory does termshark use?](#how-much-memory-does-termshark-use)
 * [What is the oldest supported version of tshark?](#what-is-the-oldest-supported-version-of-tshark)
 * [What's next?](#whats-next)
@@ -211,7 +212,8 @@ Termshark uses tshark to provide all the data it displays, and to validate displ
 tshark -T psml -r my.pcap -Y '<expression from ui>' -o gui.column.format:\"...\"```
 ````
 
-to generate the packet list data. Note that the columns are currently unconfigurable (future work...) Let's say the user is focused on packet number 1234. Then termshark will load packet structure and hex/byte data using commands like:
+The data provided to the `gui.column.format` tshark argument is stored in termshark's config file under the key `main.column-format`. Let's say the
+user is focused on packet number 1234. Then termshark will load packet structure and hex/byte data using commands like:
 
 ```bash
 tshark -T pdml -r my.pcap -Y '<expression from ui> and frame.number >= 1000 and frame.number < 2000'
@@ -288,13 +290,21 @@ The information is displayed in a table by conversation type. If the user has a 
 tshark -r my.pcap -q -z conv,eth,http -z conv,ip,http -z conv,tcp,http
 ```
 
-Finally, termshark uses tshark in one more way - to generate the possible completions for prefixes of display filter terms. If you type `tcp.` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
+Termshark also uses tshark to generate the possible completions for prefixes of display filter terms. If you type `tcp.` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
 
 ```bash
 tshark -G fields
 ```
 
-then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv2.gob.gz`.
+then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv3.gob.gz`.
+
+Finally, termshark runs tshark to generate the list of all valid columns and their names. These are used to populate a dropdown menu showing valid column choices when the user configures their column set. Termshark runs
+
+```bash
+tshark -G column-formats
+```
+
+and serializes this list to `$XDG_CACHE_HOME/termshark/tsharkcolumnsv2.gob.gz`.
 
 Termshark also uses the `capinfos` binary to compute the information displayed via the menu "Analysis -> Capture file properties". `capinfos` is typically distributed with tshark. 
 
@@ -382,6 +392,22 @@ and then navigate to http://127.0.0.1:6061/ui/ (or remote IP) - or open a termsh
 
 There will also be a debug web server running at http://127.0.0.1:6060/debug/pprof (or rmote IP) from where you can see running goroutines and other information.
 
+## Termshark is using lots of disk space
+
+By default, termshark saves live captures in `${XDG_CACHE_HOME}/termshark/pcaps`. Over time, this directory can grow very large. If you do not need
+these captures, you can safely delete the directory. Termshark v2.3 and above provides a config option to control the growth of this directory e.g.
+
+```toml
+[main]
+  disk-cache-size-mb = 100
+```
+
+If this setting is active and not -1, shortly after startup, termshark will check the directory and if it is too large, delete files, oldest first, to
+bring its size within the configured limit.
+
+Termshark v2.3 and above will also let you choose, prior to exiting, whether or not you want to keep the pcap of the current live capture. You can
+also invoke termshark with the `-w` flag to choose where the live capture pcap is written.
+
 ## How much memory does termshark use?
 
 It's hard to be precise, but I can provide some rough numbers. Termshark uses memory for two things:
@@ -402,6 +428,6 @@ As much as possible, I want termshark to work "right out of the box", and to me 
 Termshark v2 implemented stream reassembly, a "What's next" feature from v1. For Termshark v3, some possibilities are:
 
 - Expose many more of tshark's `-z` options
-- Allow the pcap columns to be configured
+- HTTP statistics and Wireshark's I/O graph
 - Allow the user to start reading from available interfaces once the UI has started
 - And since tshark can be customized via the TOML config file, don't be so trusting of its output - there are surely bugs lurking here
