@@ -4,13 +4,12 @@
 
 // +build !windows
 
-// Package logviewer provides a widget to view termshark's log file in a terminal
+// Package fileviewer provides a widget to view a text file in a terminal
 // via a pager program.
-package logviewer
+package fileviewer
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/hpadding"
@@ -18,28 +17,37 @@ import (
 	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/terminal"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark/v2"
 )
 
 //======================================================================
 
+type Options struct {
+	GoToBottom bool
+	Pager      string
+}
+
 type Widget struct {
 	gowid.IWidget
+	opt Options
 }
 
 // New - a bit clumsy, UI will always be legit, but error represents terminal failure
-func New(cb gowid.IWidgetChangedCallback) (*Widget, error) {
-	logfile := termshark.CacheFile("termshark.log")
+func New(logfile string, cb gowid.IWidgetChangedCallback, opts ...Options) (*Widget, error) {
+	var opt Options
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 
 	var args []string
-	pager := termshark.ConfString("main.pager", "")
-	if pager == "" {
-		pager = os.Getenv("PAGER")
-	}
-	if pager == "" {
-		args = []string{"less", "+G", logfile}
+
+	if opt.Pager == "" {
+		if opt.GoToBottom {
+			args = []string{"less", "+G", logfile}
+		} else {
+			args = []string{"less", logfile}
+		}
 	} else {
-		args = []string{"sh", "-c", fmt.Sprintf("%s %s", pager, logfile)}
+		args = []string{"sh", "-c", fmt.Sprintf("%s %s", opt.Pager, logfile)}
 	}
 
 	var term gowid.IWidget
@@ -72,6 +80,7 @@ func New(cb gowid.IWidgetChangedCallback) (*Widget, error) {
 
 	res := &Widget{
 		IWidget: main,
+		opt:     opt,
 	}
 
 	return res, errTerm

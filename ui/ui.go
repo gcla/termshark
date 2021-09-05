@@ -1426,6 +1426,10 @@ func lastLineMode(app gowid.IApp) {
 			openLogsUi(app)
 			return nil
 		}))
+		MiniBuffer.Register("config", minibufferFn(func(gowid.IApp, ...string) error {
+			openConfigUi(app)
+			return nil
+		}))
 	}
 
 	MiniBuffer.Register("set", setCommand{})
@@ -3186,6 +3190,13 @@ func Build() (*gowid.App, error) {
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				multiMenu1Opener.CloseMenu(analysisMenu, app)
 				openLogsUi(app)
+			},
+		})
+		generalMenuItems = append(generalMenuItems, menuutil.SimpleMenuItem{
+			Txt: "Show Config",
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				multiMenu1Opener.CloseMenu(analysisMenu, app)
+				openConfigUi(app)
 			},
 		})
 	}

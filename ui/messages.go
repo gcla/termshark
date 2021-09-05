@@ -113,6 +113,7 @@ Hit tab to see and choose possible completions.
 
 capinfo_ - Capture file properties
 clear___ - Clear current pcap
+config__ - Show termshark's config file (Unix-only)
 convs___ - Open conversations view
 filter__ - Choose a display filter from recently-used
 help____ - Various help dialogs

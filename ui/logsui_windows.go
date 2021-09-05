@@ -14,7 +14,7 @@ import (
 func openLogsUi(app gowid.IApp) {
 }
 
-func closeLogsUi(app gowid.IApp) {
+func openConfigUi(app gowid.IApp) {
 }
 
 //======================================================================
