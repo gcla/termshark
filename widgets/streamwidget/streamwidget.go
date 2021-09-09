@@ -901,7 +901,7 @@ func (w *Widget) AddChunkEntire(ch streams.IChunk, app gowid.IApp) {
 		w.updateChunkModel(i, w.displayAs, app)
 	}
 
-	w.doMenuUpdate = true
+	w.updateConvMenuWidget(app)
 
 	w.data.currentChunk++
 }

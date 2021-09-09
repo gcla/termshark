@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Fixed a bug that caused the "client pkts" and "server pkts" counts in the stream reassembly view not to be
+  updated.
+
 ## [2.3.0] - 2021-09-04
 ### Added
 
