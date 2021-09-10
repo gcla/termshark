@@ -19,6 +19,7 @@ import (
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
+	"github.com/gcla/termshark/v2/widgets/framefocus"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
 	"github.com/gcla/termshark/v2/widgets/scrollabletext"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
@@ -65,7 +66,7 @@ func OpenMessageForCopy(msgt string, openOver gowid.ISettableComposite, app gowi
 	return openMessage(msgt, openOver, true, false, app)
 }
 
-func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget bool, doFlow bool, app gowid.IApp) *dialog.Widget {
+func openMessage(msgt string, openOver gowid.ISettableComposite, selectableWidget bool, doFlow bool, app gowid.IApp) *dialog.Widget {
 	var dh gowid.IWidgetDimension = fixed
 	var dw gowid.IWidgetDimension = fixed
 
@@ -86,13 +87,19 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 		},
 	)
 
-	view = selectable.New(view)
+	if selectableWidget {
+		view = selectable.New(view)
+	}
 
 	view = hpadding.New(
 		view,
 		hmiddle,
 		dh,
 	)
+
+	if selectableWidget {
+		view = framefocus.NewSlim(view)
+	}
 
 	view = framed.NewSpace(view)
 
@@ -104,7 +111,6 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
-			FocusOnWidget:   focusOnWidget,
 			Modal:           true,
 		},
 	)
