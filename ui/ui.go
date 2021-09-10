@@ -1347,6 +1347,7 @@ func reallyQuit(app gowid.IApp) {
 			BackgroundStyle: gowid.MakePaletteRef("dialog"),
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
+			Modal:           true,
 		},
 	)
 	YesNo.Open(appView, units(len(msgt)+20), app)

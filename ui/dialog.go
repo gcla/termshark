@@ -105,6 +105,7 @@ func openMessage(msgt string, openOver gowid.ISettableComposite, focusOnWidget b
 			BorderStyle:     gowid.MakePaletteRef("dialog"),
 			ButtonStyle:     gowid.MakePaletteRef("dialog-button"),
 			FocusOnWidget:   focusOnWidget,
+			Modal:           true,
 		},
 	)
 
