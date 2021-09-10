@@ -14,7 +14,7 @@ import (
 )
 
 var NoPicker error = fmt.Errorf("No file picker available") // not running on termux
-var NoTermuxApi error = fmt.Errorf("Could not launch file picker. Please install termux-api:\npkg install termux-api")
+var NoTermuxApi error = fmt.Errorf("Could not launch file picker. Please install termux-api:\npkg install termux-api\n")
 
 func PickFile() (string, error) {
 	tsdir := "/data/data/com.termux/files/home"
