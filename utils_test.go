@@ -164,6 +164,16 @@ func TestIPComp1(t *testing.T) {
 	assert.False(t, ip.Less("2001:db8::68", "192.168.0.253"))
 }
 
+func TestMACComp1(t *testing.T) {
+	var mac MACCompare
+	assert.True(t, mac.Less("x", "y"))
+	assert.True(t, mac.Less("11:22:33:44:55:66", "y"))
+	assert.True(t, mac.Less("xx:22:33:44:55:66", "y"))
+	assert.False(t, mac.Less("xx:22:33:44:55:66", "11:22:33:44:55:66"))
+	assert.True(t, mac.Less("11:22:33:44:55:66", "11:22:33:44:55:67"))
+	assert.False(t, mac.Less("11:22:33:44:55:66", "11:22:33:44:54:66"))
+}
+
 func TestFolders(t *testing.T) {
 	tmp := os.Getenv("TMPDIR")
 	os.Setenv("TMPDIR", "/foo")

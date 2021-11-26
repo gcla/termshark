@@ -841,6 +841,36 @@ var _ table.ICompare = IPCompare{}
 
 //======================================================================
 
+// MacCompare is a unit type that satisfies ICompare, and can be used
+// for numerically comparing MAC addresses.
+type MACCompare struct{}
+
+func (s MACCompare) Less(i, j string) bool {
+	x, errx := net.ParseMAC(i)
+	y, erry := net.ParseMAC(j)
+	if errx == nil && erry == nil {
+		for i := 0; i < len(x); i++ {
+			switch {
+			case x[i] < y[i]:
+				return true
+			case y[i] < x[i]:
+				return false
+			}
+		}
+		return false
+	} else if errx == nil {
+		return true
+	} else if erry == nil {
+		return false
+	} else {
+		return i < j
+	}
+}
+
+var _ table.ICompare = MACCompare{}
+
+//======================================================================
+
 func PrunePcapCache() error {
 	// This is a new option. Best to err on the side of caution and, if not, present
 	// assume the cache can grow indefinitely - in case users are now relying on this

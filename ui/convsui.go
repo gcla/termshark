@@ -61,6 +61,14 @@ const (
 	From Direction = iota
 )
 
+type ConvAddr int
+
+const (
+	IPv4Addr ConvAddr = 0
+	IPv6Addr ConvAddr = iota
+	MacAddr  ConvAddr = iota
+)
+
 type FilterMask int
 
 const (
@@ -833,6 +841,11 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 			ports = termshark.StringInSlice(cur, []string{"UDP", "TCP"})
 			ipv6 := (cur == "IPv6")
 
+			var addrComp table.ICompare = termshark.IPCompare{}
+			if termshark.StringInSlice(cur, []string{"Ethernet"}) {
+				addrComp = termshark.MACCompare{}
+			}
+
 			if ports {
 				hdrs = []string{
 					"Addr A",
@@ -863,9 +876,9 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 					weightupto(200, 8),  // durn
 				}
 				comps = []table.ICompare{
-					table.StringCompare{},
+					addrComp,
 					table.IntCompare{},
-					table.StringCompare{},
+					addrComp,
 					table.IntCompare{},
 					table.IntCompare{},
 					table.IntCompare{},
@@ -908,8 +921,8 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 					wids[1] = weightupto(500, 42)
 				}
 				comps = []table.ICompare{
-					table.StringCompare{},
-					table.StringCompare{},
+					addrComp,
+					addrComp,
 					table.IntCompare{},
 					table.IntCompare{},
 					table.IntCompare{},
