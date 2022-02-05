@@ -29,7 +29,7 @@ import (
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/shark/wiresharkcfg"
 	"github.com/gcla/termshark/v2/ui/menuutil"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -24,7 +24,7 @@ import (
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gcla/termshark/v2/widgets/streamwidget"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	lru "github.com/hashicorp/golang-lru"
 	log "github.com/sirupsen/logrus"
 )

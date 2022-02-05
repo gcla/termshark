@@ -8,7 +8,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwtest"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )

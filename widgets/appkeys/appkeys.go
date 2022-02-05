@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/gcla/gowid"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //======================================================================

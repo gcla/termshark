@@ -7,7 +7,7 @@ package widgets
 import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/menu"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //======================================================================

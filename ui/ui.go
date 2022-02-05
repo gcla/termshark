@@ -67,7 +67,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gcla/termshark/v2/widgets/rossshark"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -3966,10 +3966,9 @@ func Build() (*gowid.App, error) {
 
 	// Create app, etc, but don't init screen which sets ICANON, etc
 	app, err = gowid.NewApp(gowid.AppArgs{
-		View:         keyMapper,
-		Palette:      palette,
-		DontActivate: true,
-		Log:          log.StandardLogger(),
+		View:    keyMapper,
+		Palette: palette,
+		Log:     log.StandardLogger(),
 	})
 
 	if err != nil {

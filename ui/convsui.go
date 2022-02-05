@@ -41,7 +41,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/keepselected"
 	"github.com/gcla/termshark/v2/widgets/scrollabletable"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 var convsView *holder.Widget

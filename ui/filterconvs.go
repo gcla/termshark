@@ -11,7 +11,7 @@ import (
 	"github.com/gcla/gowid/widgets/holder"
 	"github.com/gcla/gowid/widgets/menu"
 	"github.com/gcla/termshark/v2/ui/menuutil"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //======================================================================

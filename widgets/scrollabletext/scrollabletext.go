@@ -13,7 +13,7 @@ import (
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //======================================================================

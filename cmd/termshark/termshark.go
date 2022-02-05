@@ -31,7 +31,7 @@ import (
 	"github.com/gcla/termshark/v2/ui"
 	"github.com/gcla/termshark/v2/widgets/filter"
 	"github.com/gcla/termshark/v2/widgets/wormhole"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mattn/go-isatty"
 	"github.com/shibukawa/configdir"

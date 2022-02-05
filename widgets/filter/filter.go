@@ -34,7 +34,7 @@ import (
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //======================================================================

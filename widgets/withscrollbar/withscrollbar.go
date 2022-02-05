@@ -12,7 +12,7 @@ import (
 	"github.com/gcla/gowid/widgets/selectable"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/gowid/widgets/vscroll"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //======================================================================

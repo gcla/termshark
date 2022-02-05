@@ -12,7 +12,7 @@ package mapkeys
 import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/vim"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 )
 
 //======================================================================

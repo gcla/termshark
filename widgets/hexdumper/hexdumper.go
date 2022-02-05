@@ -23,7 +23,7 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/format"
 	"github.com/gcla/termshark/v2/widgets/renderfocused"
-	"github.com/gdamore/tcell"
+	"github.com/gdamore/tcell/v2"
 	"github.com/pkg/errors"
 )
 
