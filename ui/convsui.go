@@ -846,6 +846,8 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 				addrComp = termshark.MACCompare{}
 			}
 
+			var convComp table.ICompare = termshark.ConvPktsCompare{}
+
 			if ports {
 				hdrs = []string{
 					"Addr A",
@@ -881,11 +883,11 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 					addrComp,
 					table.IntCompare{},
 					table.IntCompare{},
+					convComp,
 					table.IntCompare{},
+					convComp,
 					table.IntCompare{},
-					table.IntCompare{},
-					table.IntCompare{},
-					table.IntCompare{},
+					convComp,
 					table.FloatCompare{},
 					table.FloatCompare{},
 				}
@@ -924,11 +926,11 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 					addrComp,
 					addrComp,
 					table.IntCompare{},
+					convComp,
 					table.IntCompare{},
+					convComp,
 					table.IntCompare{},
-					table.IntCompare{},
-					table.IntCompare{},
-					table.IntCompare{},
+					convComp,
 					table.FloatCompare{},
 					table.FloatCompare{},
 				}
@@ -938,6 +940,10 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 			continue
 		}
 
+		line = strings.Replace(line, " bytes", "", -1)
+		line = strings.Replace(line, "bytes", "", -1)
+		line = strings.Replace(line, " kB", "kB", -1)
+		line = strings.Replace(line, " MB", "MB", -1)
 		r = strings.NewReader(line)
 		n, err = fmt.Fscanf(r, "%s <-> %s %s %s %s %s %s %s %s %s",
 			&addra,
@@ -952,6 +958,12 @@ func (w *ConvsUiWidget) OnData(data string, app gowid.IApp) {
 			&durn,
 		)
 		if err == nil && n == 10 {
+			bytesto = strings.Replace(bytesto, "kB", " kB", -1)
+			bytesfrom = strings.Replace(bytesfrom, "kB", " kB", -1)
+			bytes = strings.Replace(bytes, "kB", " kB", -1)
+			bytesto = strings.Replace(bytesto, "MB", " MB", -1)
+			bytesfrom = strings.Replace(bytesfrom, "MB", " MB", -1)
+			bytes = strings.Replace(bytes, "MB", " MB", -1)
 			if ports {
 				pa := strings.Split(addra, ":")
 				pb := strings.Split(addrb, ":")
