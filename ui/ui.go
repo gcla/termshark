@@ -2813,6 +2813,7 @@ func RequestLoadPcap(pcapf string, displayFilter string, jump termshark.GlobalJu
 func RequestNewFilter(displayFilter string, app gowid.IApp) {
 	handlers := pcap.HandlerList{
 		SimpleErrors{},
+		MakeSaveRecents("", displayFilter),
 		MakePacketViewUpdater(),
 		MakeUpdateCurrentCaptureInTitle(),
 		SetStructWidgets{Loader}, // for OnClear
