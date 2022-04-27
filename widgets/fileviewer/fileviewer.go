@@ -22,6 +22,7 @@ import (
 //======================================================================
 
 type Options struct {
+	Name       string
 	GoToBottom bool
 	Pager      string
 }
@@ -32,7 +33,7 @@ type Widget struct {
 }
 
 // New - a bit clumsy, UI will always be legit, but error represents terminal failure
-func New(logfile string, cb gowid.IWidgetChangedCallback, opts ...Options) (*Widget, error) {
+func New(vfile string, cb gowid.IWidgetChangedCallback, opts ...Options) (*Widget, error) {
 	var opt Options
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -42,12 +43,12 @@ func New(logfile string, cb gowid.IWidgetChangedCallback, opts ...Options) (*Wid
 
 	if opt.Pager == "" {
 		if opt.GoToBottom {
-			args = []string{"less", "+G", logfile}
+			args = []string{"less", "+G", vfile}
 		} else {
-			args = []string{"less", logfile}
+			args = []string{"less", vfile}
 		}
 	} else {
-		args = []string{"sh", "-c", fmt.Sprintf("%s %s", opt.Pager, logfile)}
+		args = []string{"sh", "-c", fmt.Sprintf("%s %s", opt.Pager, vfile)}
 	}
 
 	var term gowid.IWidget
@@ -62,7 +63,7 @@ func New(logfile string, cb gowid.IWidgetChangedCallback, opts ...Options) (*Wid
 	}
 
 	header := hpadding.New(
-		text.New(fmt.Sprintf("Logs - %s", logfile)),
+		text.New(fmt.Sprintf("%s - %s", opt.Name, vfile)),
 		gowid.HAlignMiddle{},
 		gowid.RenderFixed{},
 	)

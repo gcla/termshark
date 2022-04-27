@@ -35,6 +35,7 @@ func pager() string {
 // filter" checkbox is checked, then the data needs to be reloaded.
 func openLogsUi(app gowid.IApp) {
 	openFileUi(termshark.CacheFile("termshark.log"), false, fileviewer.Options{
+		Name:       "Logs",
 		GoToBottom: true,
 		Pager:      pager(),
 	}, app)
@@ -51,9 +52,10 @@ func openConfigUi(app gowid.IApp) {
 
 	err = viper.WriteConfigAs(tmp.Name())
 	if err != nil {
-		OpenError(fmt.Sprintf("Could not run logs viewer\n\n%v", err), app)
+		OpenError(fmt.Sprintf("Could not run config viewer\n\n%v", err), app)
 	} else {
 		openFileUi(tmp.Name(), true, fileviewer.Options{
+			Name:  "Config",
 			Pager: pager(),
 		}, app)
 	}
@@ -67,7 +69,7 @@ func openFileUi(file string, delete bool, opt fileviewer.Options, app gowid.IApp
 				ecode := t.Cmd.ProcessState.ExitCode()
 				// -1 for signals - don't show an error for that
 				if ecode != 0 && ecode != -1 {
-					d := OpenError(fmt.Sprintf("Could not run logs viewer\n\n%s", t.Cmd.ProcessState), app)
+					d := OpenError(fmt.Sprintf("Could not run file viewer\n\n%s", t.Cmd.ProcessState), app)
 					d.OnOpenClose(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 						closeFileUi(app)
 					}))
