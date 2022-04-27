@@ -9,9 +9,9 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.3.1-0.20220131052119-b14cbf6edf40
+	github.com/gcla/gowid v1.3.1-0.20220427034012-f8f1f91caee4
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
-	github.com/gdamore/tcell/v2 v2.4.0
+	github.com/gdamore/tcell/v2 v2.5.0
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/jessevdk/go-flags v1.4.0
@@ -35,8 +35,6 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tevino/abool v1.2.0
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
-	golang.org/x/sys v0.0.0-20210108172913-0df2131ae363 // indirect
-	golang.org/x/text v0.3.5 // indirect
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
@@ -44,3 +42,7 @@ require (
 )
 
 replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
+
+//replace github.com/gcla/gowid => /home/gcla/go/src/github.com/gcla/gowid
+
+//replace github.com/gdamore/tcell/v2 => /home/gcla/source/tcell
