@@ -3967,9 +3967,10 @@ func Build() (*gowid.App, error) {
 
 	// Create app, etc, but don't init screen which sets ICANON, etc
 	app, err = gowid.NewApp(gowid.AppArgs{
-		View:    keyMapper,
-		Palette: palette,
-		Log:     log.StandardLogger(),
+		View:                 keyMapper,
+		Palette:              palette,
+		Log:                  log.StandardLogger(),
+		EnableBracketedPaste: true,
 	})
 
 	if err != nil {

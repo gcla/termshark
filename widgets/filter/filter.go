@@ -699,6 +699,9 @@ type activatorWidget struct {
 }
 
 func (w *activatorWidget) UserInput(ev interface{}, size gowid.IRenderSize, focus gowid.Selector, app gowid.IApp) bool {
+	if _, ok := ev.(*tcell.EventPaste); ok && !w.active {
+		return false
+	}
 	if ev, ok := ev.(*tcell.EventKey); ok && !w.active {
 		if vim.KeyIn(ev, vim.AllDownKeys) && !termshark.KeyPressIsPrintable(ev) {
 			w.active = true
