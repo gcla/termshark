@@ -853,7 +853,7 @@ func cmain() int {
 
 	ui.Running = false
 
-	validator := filter.Validator{
+	validator := filter.DisplayFilterValidator{
 		Invalid: &filter.ValidateCB{
 			App: app,
 			Fn: func(app gowid.IApp) {
@@ -904,6 +904,7 @@ func cmain() int {
 			ui.RequestLoadPcap(absfile, displayFilter, ui.NoGlobalJump, app)
 		}
 		validator.Valid = &filter.ValidateCB{Fn: doit, App: app}
+		validator.EmptyCB = &filter.ValidateCB{Fn: doit, App: app}
 		validator.Validate(displayFilter)
 	} else {
 
@@ -925,14 +926,20 @@ func cmain() int {
 			}
 		}
 
+		doLoad := func(app gowid.IApp) {
+			ifacePcapFilename = ifaceTmpFile
+			ui.RequestLoadInterfaces(psrcs, captureFilter, displayFilter, ifaceTmpFile, app)
+		}
+
 		ifValid := func(app gowid.IApp) {
 			app.Run(gowid.RunFunction(func(app gowid.IApp) {
 				ui.FilterWidget.SetValue(displayFilter, app)
 			}))
-			ifacePcapFilename = ifaceTmpFile
-			ui.RequestLoadInterfaces(psrcs, captureFilter, displayFilter, ifaceTmpFile, app)
+			doLoad(app)
 		}
+
 		validator.Valid = &filter.ValidateCB{Fn: ifValid, App: app}
+		validator.EmptyCB = &filter.ValidateCB{Fn: doLoad, App: app}
 		validator.Validate(displayFilter)
 	}
 

@@ -60,6 +60,7 @@ type Widget struct {
 	valid                gowid.IWidget    // what to display when the filter value is valid
 	invalid              gowid.IWidget    // what to display when the filter value is invalid
 	intermediate         gowid.IWidget    // what to display when the filter value's validity is being determined
+	empty                gowid.IWidget    // what to display when the filter value's is empty (special state)
 	edCtx                context.Context
 	edCancelFn           context.CancelFunc
 	edCtxLock            sync.Mutex
@@ -83,6 +84,7 @@ var _ io.Closer = (*Widget)(nil)
 type IntermediateCB struct{}
 type ValidCB struct{}
 type InvalidCB struct{}
+type EmptyCB struct{}
 type SubmitCB struct{}
 
 type Pos int
@@ -96,6 +98,7 @@ type Options struct {
 	Completer      termshark.IPrefixCompleter
 	MenuOpener     menu.IOpener
 	Position       Pos
+	Validator      IValidator
 	MaxCompletions int
 }
 
@@ -114,6 +117,11 @@ func New(name string, opt Options) *Widget {
 		// apply a filter to a stale value
 		res.enterPending = false
 	}})
+
+	validator := opt.Validator
+	if validator == nil {
+		validator = &DisplayFilterValidator{}
+	}
 
 	filterList := list.New(list.NewSimpleListWalker([]gowid.IWidget{}))
 	filterActivator := &activatorWidget{
@@ -176,8 +184,12 @@ func New(name string, opt Options) *Widget {
 	intermediate := styled.New(onelineEd,
 		gowid.MakePaletteRef("filter-intermediate"),
 	)
+	empty := styled.New(onelineEd,
+		gowid.MakePaletteRef("filter-empty"),
+	)
 
-	placeholder := holder.New(valid)
+	var placeholder *holder.Widget
+	placeholder = holder.New(empty)
 
 	var wrapped gowid.IWidget
 	switch opt.Position {
@@ -208,6 +220,7 @@ func New(name string, opt Options) *Widget {
 		valid:                valid,
 		invalid:              invalid,
 		intermediate:         intermediate,
+		empty:                empty,
 		fields:               opt.Completer,
 		completionsList:      filterList,
 		completionsActivator: filterActivator,
@@ -257,11 +270,20 @@ func New(name string, opt Options) *Widget {
 		},
 	}
 
-	validator := Validator{
-		Valid:    validcb,
-		Invalid:  invalidcb,
-		KilledCB: killedcb,
+	emptycb := &ValidateCB{
+		Fn: func(app gowid.IApp) {
+			app.Run(gowid.RunFunction(func(app gowid.IApp) {
+				res.validitySite.SetSubWidget(res.empty, app)
+				gowid.RunWidgetCallbacks(res.Callbacks, EmptyCB{}, app, res)
+				res.enterPending = false
+			}))
+		},
 	}
+
+	validator.SetValid(validcb)
+	validator.SetInvalid(invalidcb)
+	validator.SetKilled(killedcb)
+	validator.SetEmpty(emptycb)
 
 	// Save up filter changes, send latest over when process is ready, discard ones in between
 	termshark.TrackedGo(func() {
@@ -311,87 +333,20 @@ func New(name string, opt Options) *Widget {
 				validcb.App = fs.app
 				invalidcb.App = fs.app
 				killedcb.App = fs.app
+				emptycb.App = fs.app
 				validator.Validate(fs.txt)
 			}
 		}
 	}, Goroutinewg)
 
-	ed.OnTextSet(gowid.MakeWidgetCallback("cb", gowid.WidgetChangedFunction(func(app gowid.IApp, ew gowid.IWidget) {
+	ed.OnTextSet(gowid.MakeWidgetCallback("cb2", gowid.WidgetChangedFunction(func(app gowid.IApp, ew gowid.IWidget) {
 		res.UpdateCompletions(app)
 	})))
 
 	return res
 }
 
-type IValidateCB interface {
-	Call(filter string)
-}
-
-type AppFilterCB func(gowid.IApp)
-
-type ValidateCB struct {
-	App gowid.IApp
-	Fn  AppFilterCB
-}
-
-var _ IValidateCB = (*ValidateCB)(nil)
-
-func (v *ValidateCB) Call(filter string) {
-	v.Fn(v.App)
-}
-
-type Validator struct {
-	Valid    IValidateCB
-	Invalid  IValidateCB
-	KilledCB IValidateCB
-	Cmd      *exec.Cmd
-}
-
-func (f *Validator) Kill() (bool, error) {
-	var err error
-	var res bool
-	if f.Cmd != nil {
-		proc := f.Cmd.Process
-		if proc != nil {
-			res = true
-			err = proc.Kill()
-		}
-	}
-	return res, err
-}
-
-func (f *Validator) Validate(filter string) {
-	var err error
-
-	if filter != "" {
-		f.Cmd = exec.Command(termshark.TSharkBin(), []string{"-Y", filter, "-r", termshark.CacheFile("empty.pcap")}...)
-		err = f.Cmd.Run()
-	}
-
-	if err == nil {
-		if f.Valid != nil {
-			f.Valid.Call(filter)
-		}
-	} else {
-		killed := true
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				if status.ExitStatus() == 2 {
-					killed = false
-				}
-			}
-		}
-		if killed {
-			if f.KilledCB != nil {
-				f.KilledCB.Call(filter)
-			}
-		} else {
-			if f.Invalid != nil {
-				f.Invalid.Call(filter)
-			}
-		}
-	}
-}
+//======================================================================
 
 type iFilterEnter interface {
 	setDisabled()
@@ -448,8 +403,7 @@ func newMenuWidgets(ed *edit.Widget, completions []string) []gowid.IWidget {
 			button.Options{
 				Decoration:         button.BareDecoration,
 				SelectKeysProvided: true,
-				//SelectKeys:         []gowid.IKey{},
-				SelectKeys: []gowid.IKey{gowid.MakeKeyExt(tcell.KeyEnter)},
+				SelectKeys:         []gowid.IKey{gowid.MakeKeyExt(tcell.KeyEnter)},
 			},
 		)
 		clickmeStyled := styled.NewInvertedFocus(clickme, gowid.MakePaletteRef("filter-menu"))
@@ -504,14 +458,16 @@ func (f fnCallback) Call(res []string) {
 }
 
 func makeCompletions(comp termshark.IPrefixCompleter, txt string, max int, app gowid.IApp, fn func([]string, gowid.IApp)) {
-	cb := fnCallback{
-		app: app,
-		fn: func(completions []string, app gowid.IApp) {
-			completions = completions[0:gwutil.Min(max, len(completions))]
-			fn(completions, app)
-		},
+	if comp != nil {
+		cb := fnCallback{
+			app: app,
+			fn: func(completions []string, app gowid.IApp) {
+				completions = completions[0:gwutil.Min(max, len(completions))]
+				fn(completions, app)
+			},
+		}
+		comp.Completions(txt, cb)
 	}
-	comp.Completions(txt, cb)
 }
 
 func (w *Widget) setDisabled() {
@@ -639,6 +595,10 @@ func (w *Widget) OnInvalid(f gowid.IWidgetChangedCallback) {
 	gowid.AddWidgetCallback(w, InvalidCB{}, f)
 }
 
+func (w *Widget) OnEmpty(f gowid.IWidgetChangedCallback) {
+	gowid.AddWidgetCallback(w, EmptyCB{}, f)
+}
+
 func (w *Widget) IsValid() bool {
 	return w.validitySite.SubWidget() == w.valid
 }
@@ -664,10 +624,12 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	// It can be disabled if e.g. the user's last input caused the filter value to
 	// be submitted. Then the best UX is to not display the drop down until further input
 	// or cursor movement.
-	if focus.Focus && len(w.completions) > 0 && !*w.temporarilyDisabled {
-		w.opts.MenuOpener.OpenMenu(w.dropDown, w.dropDownSite, app)
-	} else {
-		w.opts.MenuOpener.CloseMenu(w.dropDown, app)
+	if w.opts.MenuOpener != nil {
+		if focus.Focus && len(w.completions) > 0 && !*w.temporarilyDisabled {
+			w.opts.MenuOpener.OpenMenu(w.dropDown, w.dropDownSite, app)
+		} else {
+			w.opts.MenuOpener.CloseMenu(w.dropDown, app)
+		}
 	}
 	return w.wrapped.Render(size, focus, app)
 }
@@ -730,6 +692,114 @@ func (w *activatorWidget) Render(size gowid.IRenderSize, focus gowid.Selector, a
 		newf = gowid.NotSelected
 	}
 	return w.IWidget.Render(size, newf, app)
+}
+
+//======================================================================
+
+// IValidator is passed to the filter constructor
+type IValidator interface {
+	SetValid(cb IValidateCB)
+	SetInvalid(cb IValidateCB)
+	SetKilled(cb IValidateCB)
+	SetEmpty(cv IValidateCB)
+	Kill() (bool, error)
+	Validate(filter string)
+}
+
+//======================================================================
+
+type IValidateCB interface {
+	Call(filter string)
+}
+
+type AppFilterCB func(gowid.IApp)
+
+type ValidateCB struct {
+	App gowid.IApp
+	Fn  AppFilterCB
+}
+
+var _ IValidateCB = (*ValidateCB)(nil)
+
+func (v *ValidateCB) Call(filter string) {
+	v.Fn(v.App)
+}
+
+type DisplayFilterValidator struct {
+	Valid    IValidateCB
+	Invalid  IValidateCB
+	KilledCB IValidateCB
+	EmptyCB  IValidateCB
+	Cmd      *exec.Cmd
+}
+
+var _ IValidator = (*DisplayFilterValidator)(nil)
+
+func (f *DisplayFilterValidator) SetValid(cb IValidateCB) {
+	f.Valid = cb
+}
+
+func (f *DisplayFilterValidator) SetInvalid(cb IValidateCB) {
+	f.Invalid = cb
+}
+
+func (f *DisplayFilterValidator) SetKilled(cb IValidateCB) {
+	f.KilledCB = cb
+}
+
+func (f *DisplayFilterValidator) SetEmpty(cb IValidateCB) {
+	f.EmptyCB = cb
+}
+
+func (f *DisplayFilterValidator) Kill() (bool, error) {
+	var err error
+	var res bool
+	if f.Cmd != nil {
+		proc := f.Cmd.Process
+		if proc != nil {
+			res = true
+			err = proc.Kill()
+		}
+	}
+	return res, err
+}
+
+func (f *DisplayFilterValidator) Validate(filter string) {
+	var err error
+
+	if filter == "" {
+		if f.EmptyCB != nil {
+			f.EmptyCB.Call(filter)
+		}
+		return
+	}
+
+	f.Cmd = exec.Command(termshark.TSharkBin(), []string{"-Y", filter, "-r", termshark.CacheFile("empty.pcap")}...)
+	err = f.Cmd.Run()
+
+	if err == nil {
+		if f.Valid != nil {
+			f.Valid.Call(filter)
+		}
+	} else {
+		killed := true
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				if status.ExitStatus() == 2 {
+					killed = false
+				}
+			}
+		}
+		if killed {
+			if f.KilledCB != nil {
+				f.KilledCB.Call(filter)
+			}
+		} else {
+			if f.Invalid != nil {
+				f.Invalid.Call(filter)
+			}
+		}
+	}
 }
 
 //======================================================================
