@@ -49,16 +49,17 @@ type Options struct {
 }
 
 type Widget struct {
-	data              []byte
-	layers            []LayerStyler
-	position          int
-	cursorUnselected  string
-	cursorSelected    string
-	lineNumUnselected string
-	lineNumSelected   string
-	offset            int // scroll position, bit of a hack
-	paletteIfCopying  string
-	opt               Options
+	data                    []byte
+	layers                  []LayerStyler
+	position                int
+	cursorUnselected        string
+	cursorSelected          string
+	lineNumUnselected       string
+	lineNumSelected         string
+	offset                  int  // scroll position, bit of a hack
+	adjustOffsetsNextRender bool // adjust offsets next render to keep position in view e.g. after SetPosition
+	paletteIfCopying        string
+	opt                     Options
 	gowid.AddressProvidesID
 	styled.UsePaletteIfSelectedForCopy
 	Callbacks *gowid.Callbacks
@@ -155,6 +156,7 @@ func (w *Widget) Position() int {
 func (w *Widget) SetPosition(pos int, app gowid.IApp) {
 	curpos := w.Position()
 	w.position = pos
+	w.adjustOffsetsNextRender = true
 	if curpos != pos {
 		gowid.RunWidgetCallbacks(w.Callbacks, PositionChangedCB{}, app, w)
 	}
@@ -218,12 +220,16 @@ func (w *Widget) Render(size gowid.IRenderSize, focus gowid.Selector, app gowid.
 	}
 	rows := gwutil.Min(canvasRows, drows)
 
-	if w.Position() < w.offset*16 {
-		w.SetPosition(w.Position()%16+(w.offset*16), app)
-	}
+	if w.adjustOffsetsNextRender {
+		if w.Position() < w.offset*16 {
+			w.offset = w.Position() / 16
+		}
 
-	if w.Position() >= ((canvasRows + w.offset) * 16) {
-		w.SetPosition(w.Position()%16+((canvasRows+w.offset-1)*16), app)
+		if w.Position() >= ((canvasRows + w.offset) * 16) {
+			w.offset = (w.Position() / 16) - (canvasRows - 1)
+		}
+
+		w.adjustOffsetsNextRender = false
 	}
 
 	var lineNumStyle convertedStyle
@@ -475,6 +481,7 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 
 	scrollDown := false
 	scrollUp := false
+	moveCursor := true
 
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
@@ -503,8 +510,10 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 		switch ev.Buttons() {
 		case tcell.WheelDown:
 			scrollDown = true
+			moveCursor = false
 		case tcell.WheelUp:
 			scrollUp = true
+			moveCursor = false
 		case tcell.Button1:
 			xp := -1
 			mx, my := ev.Position()
@@ -522,7 +531,7 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 				xp = mx - (1 + 4 + 3 + ((8 * 3) - 1) + 2 + ((8 * 3) - 1) + 3 + 8 + 1) + 8
 			}
 			if xp != -1 {
-				pos := (my * 16) + xp
+				pos := ((my + w.offset) * 16) + xp
 				if pos < len(w.data) {
 					w.SetPosition(pos, app)
 					res = true
@@ -547,18 +556,34 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 	atBottom = ((pos / 16) == (w.offset + canvasRows - 1))
 
 	if scrollDown {
-		if pos+16 < len(w.data) {
-			w.SetPosition(pos+16, app)
-			if atBottom {
-				w.offset += 1
+		if moveCursor {
+			if pos+16 < len(w.data) {
+				w.SetPosition(pos+16, app)
+				if atBottom {
+					w.offset += 1
+				}
+				res = true
+			}
+		} else {
+			w.offset += 1
+			if w.offset > (len(w.data)/16)-(canvasRows-1) {
+				w.offset -= 1
 			}
 			res = true
 		}
 	} else if scrollUp {
-		if pos-16 >= 0 {
-			w.SetPosition(pos-16, app)
-			if atTop {
-				w.offset -= 1
+		if moveCursor {
+			if pos-16 >= 0 {
+				w.SetPosition(pos-16, app)
+				if atTop {
+					w.offset -= 1
+				}
+				res = true
+			}
+		} else {
+			w.offset -= 1
+			if w.offset < 0 {
+				w.offset = 0
 			}
 			res = true
 		}
