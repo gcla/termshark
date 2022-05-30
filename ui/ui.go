@@ -3971,6 +3971,7 @@ func Build() (*gowid.App, error) {
 		Palette:              palette,
 		Log:                  log.StandardLogger(),
 		EnableBracketedPaste: true,
+		DontActivate:         true,
 	})
 
 	if err != nil {
