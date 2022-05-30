@@ -121,6 +121,9 @@ type PacketLoader struct {
 	*ParentLoader
 }
 
+// Renew is called when a new pcap is loaded from an open termshark session i.e. termshark
+// was started with one packet source, then a new one is selected. This ensures that all
+// connected loaders that might still be doing work are cancelled.
 func (c *PacketLoader) Renew() {
 	if c.ParentLoader != nil {
 		c.ParentLoader.CloseMain()
@@ -198,9 +201,12 @@ type PsmlLoader struct {
 	packetPsmlData      [][]string
 	packetPsmlColors    []PacketColors
 	packetPsmlHeaders   []string
-	PacketNumberMap     map[int]int // map from actual packet row <section>12</section> to pos in unsorted table
+	PacketNumberMap     map[int]int // map from actual packet row <packet>12</packet> to pos in unsorted table
 	// This would be affected by a display filter e.g. packet 12 might be the 1st packet in the table.
 	// I need this so that if the user jumps to a mark stored as "packet 12", I can find the right table row.
+	PacketNumberOrder map[int]int // e.g. {12->44, 44->71, 71->72,...} - the packet numbers, in order, affected by a filter.
+	// If I use a generic ordered map, I could avoid this separate structure
+
 	PacketCache *lru.Cache // i -> [pdml(i * 1000)..pdml(i+1*1000)] - accessed from any goroutine
 
 	opt Options
@@ -324,6 +330,7 @@ func (c *ParentLoader) RenewPsmlLoader() {
 		packetPsmlColors:    make([]PacketColors, 0),
 		packetPsmlHeaders:   make([]string, 0, 10),
 		PacketNumberMap:     make(map[int]int),
+		PacketNumberOrder:   make(map[int]int),
 		startStage2Chan:     make(chan struct{}), // do this before signalling start
 		PsmlFinishedChan:    make(chan struct{}),
 		opt:                 c.opt,
@@ -438,7 +445,7 @@ func (c *PacketLoader) Reload(filter string, cb interface{}, app gowid.IApp) {
 
 		// This is not ideal. I'm clearing the views, but I'm about to
 		// restart. It's not really a new source, so called the new source
-		// handler is an untify way of updating the current capture in the
+		// handler is an untidy way of updating the current capture in the
 		// title bar again
 		handleClear(NoneCode, app, cb)
 
@@ -468,10 +475,10 @@ func (c *PacketLoader) LoadPcap(pcap string, displayFilter string, cb interface{
 		c.stopLoadIface()
 
 		OpsChan <- gowid.RunFunction(func(app gowid.IApp) {
+			c.Renew()
+
 			// This will enable the operation when clear completes
 			handleClear(NoneCode, app, cb)
-
-			c.Renew()
 
 			c.psrcs = []IPacketSource{FileSource{Filename: pcap}}
 			c.ifaceFile = ""
@@ -521,12 +528,12 @@ func (c *PacketLoader) ClearPcap(cb interface{}) {
 
 	// When stop is done, launch the clear and restart
 	OpsChan <- gowid.RunFunction(func(app gowid.IApp) {
-		handleClear(NoneCode, app, cb)
-
 		// Don't CloseMain - that will stop the interface process too
 		c.loadWasCancelled = false
 		c.RenewPsmlLoader()
 		c.RenewPdmlLoader()
+
+		handleClear(NoneCode, app, cb)
 
 		if !startIfaceAgain {
 			c.psrcs = c.psrcs[:0]
@@ -1740,6 +1747,8 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 		var fg string
 		var bg string
 		var pidx int
+		ppidx := 0 // the previous packet number read; 0 means no packet. I can use 0 because
+		// the psml I read will start at packet 1 so - map[0] => 1st packet
 		ready := false
 		empty := true
 		structure := false
@@ -1778,6 +1787,8 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 						log.Fatal(err)
 					}
 					p.PacketNumberMap[pidx] = len(p.packetPsmlData)
+					p.PacketNumberOrder[ppidx] = pidx
+					ppidx = pidx
 
 					p.packetPsmlData = append(p.packetPsmlData, curPsml[1:])
 

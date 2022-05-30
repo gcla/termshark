@@ -1008,8 +1008,8 @@ Loop:
 				// loads/filters to that now.
 				ui.Loader.TurnOffPipe()
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					ui.ClearProgressWidget(app)
-					ui.SetProgressDeterminate(app) // always switch back - for pdml (partial) loads of later data.
+					ui.ClearProgressWidgetFor(app, ui.LoaderOwns)
+					ui.SetProgressDeterminateFor(app, ui.LoaderOwns) // always switch back - for pdml (partial) loads of later data.
 				}))
 
 				// When the progress bar is enabled, track the previous percentage reached. This is
@@ -1050,7 +1050,7 @@ Loop:
 				if progCancelTimer == nil {
 					progCancelTimer = time.AfterFunc(time.Duration(100000)*time.Hour, func() {
 						app.Run(gowid.RunFunction(func(app gowid.IApp) {
-							ui.ClearProgressWidget(app)
+							ui.ClearProgressWidgetFor(app, ui.LoaderOwns)
 							progCancelTimer = nil
 						}))
 					})
@@ -1240,6 +1240,9 @@ Loop:
 			}
 			if ui.CurrentColsWidget != nil {
 				ui.CurrentColsWidget.Close()
+			}
+			if ui.SearchWidget != nil {
+				ui.SearchWidget.Close(app)
 			}
 
 		case sig := <-sigChan:

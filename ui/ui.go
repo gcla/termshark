@@ -66,6 +66,7 @@ import (
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gcla/termshark/v2/widgets/rossshark"
+	"github.com/gcla/termshark/v2/widgets/search"
 	"github.com/gcla/termshark/v2/widgets/withscrollbar"
 	"github.com/gdamore/tcell/v2"
 	lru "github.com/hashicorp/golang-lru"
@@ -76,6 +77,14 @@ import (
 //======================================================================
 
 var Goroutinewg *sync.WaitGroup
+
+type WidgetOwner int
+
+const (
+	NoOwner WidgetOwner = iota
+	LoaderOwns
+	SearchOwns
+)
 
 // Global so that we can change the displayed packet in the struct view, etc
 // test
@@ -99,6 +108,10 @@ var viewOnlyPacketList *pile.Widget
 var viewOnlyPacketStructure *pile.Widget
 var viewOnlyPacketHex *pile.Widget
 var filterCols *columns.Widget
+var loadProg *columns.Widget
+var loadStop *button.Widget
+var searchProg *columns.Widget
+var searchStop *button.Widget
 var progWidgetIdx int
 var mainviewPaths [][]interface{}
 var altview1Paths [][]interface{}
@@ -107,6 +120,9 @@ var maxViewPath []interface{}
 var filterPathMain []interface{}
 var filterPathAlt []interface{}
 var filterPathMax []interface{}
+var searchPathMain []interface{}
+var searchPathAlt []interface{}
+var searchPathMax []interface{}
 var menuPathMain []interface{}
 var menuPathAlt []interface{}
 var menuPathMax []interface{}
@@ -126,6 +142,8 @@ var packetListTable *table.BoundedWidget
 var packetStructureViewHolder *holder.Widget
 var packetHexViewHolder *holder.Widget
 var progressHolder *holder.Widget
+var progressOwner WidgetOwner
+var stopCurrentSearch search.IRequestStop
 var loadProgress *progress.Widget
 var loadSpinner *spinner.Widget
 var savedListBoxWidgetHolder *holder.Widget
@@ -162,11 +180,33 @@ var curPacketStructWidget *copymodetree.Widget
 var packetHexWidgets *lru.Cache
 var packetListView *psmlTableRowWidget
 
+// Usually false. When the user moves the cursor in the hex widget, a callback will update the
+// struct widget's current expansion. That results in a callback to the current hex widget to
+// update its position - ad inf. The hex widget callback checks to see whether or not the hex
+// widget has "focus". If it doesn't, the callback is suppressed - to short circuit the callback
+// loop. BUT - after a packet search, we reposition the hex widget and want the callback from
+// hex to struct to happen once. So this is a workaround to allow it in that case.
+//
+// This variable has two effects:
+// - when the hex widget is positioned programmatically, and focus is not on the hex widget,
+//   the struct widget is nevertheless updated accordingly
+// - but when the struct widget is updated, if the innermost layer does not capture the
+//   current hex location (the search destination), DON'T update the hex position to be
+//   inside the PDML's innermost layer, which maybe somewhere else in the packet.
+//
+var allowHexToStructRepositioning bool
+
+var filterWithSearch gowid.IWidget
+var filterWithoutSearch gowid.IWidget
+var filterHolder *holder.Widget
+var SearchWidget *search.Widget
+
 var Loadingw gowid.IWidget    // "loading..."
 var MissingMsgw gowid.IWidget // centered, holding singlePacketViewMsgHolder
 var EmptyStructViewTimer *time.Timer
 var EmptyHexViewTimer *time.Timer
 
+var curSearchPosition tree.IPos                   // e.g. [0, 4] -> the indices of the struct layer
 var curExpandedStructNodes pdmltree.ExpandedPaths // a path to each expanded node in the packet, preserved while navigating
 var curStructPosition tree.IPos                   // e.g. [0, 2, 1] -> the indices of the expanded nodes
 var curPdmlPosition []string                      // e.g. [ , tcp, tcp.srcport ] -> the path from focus to root in the current struct
@@ -437,13 +477,13 @@ func RequestQuit() {
 
 // Runs in app goroutine
 func UpdateProgressBarForInterface(c *pcap.InterfaceLoader, app gowid.IApp) {
-	SetProgressIndeterminate(app)
+	SetProgressIndeterminateFor(app, LoaderOwns)
 	loadSpinner.Update()
 }
 
 // Runs in app goroutine
 func UpdateProgressBarForFile(c *pcap.PacketLoader, prevRatio float64, app gowid.IApp) float64 {
-	SetProgressDeterminate(app)
+	SetProgressDeterminateFor(app, LoaderOwns)
 
 	psmlProg := Prog{0, 100}
 	pdmlPacketProg := Prog{0, 100}
@@ -1151,6 +1191,12 @@ func (h userCopiedCallbacks) ProcessOutput(output string) error {
 
 //======================================================================
 
+type OpenErrorDialog struct{}
+
+func (f OpenErrorDialog) OnError(err error, app gowid.IApp) {
+	OpenError(err.Error(), app)
+}
+
 func OpenError(msgt string, app gowid.IApp) *dialog.Widget {
 	// the same, for now
 	return OpenMessage(msgt, appView, app)
@@ -1451,16 +1497,20 @@ func lastLineMode(app gowid.IApp) {
 
 //======================================================================
 
-// getCurrentStructModel will return a termshark model of a packet section of PDML given a row number,
-// or nil if there is no model for the given row.
 func getCurrentStructModel(row int) *pdmltree.Model {
+	return getCurrentStructModelWith(row, Loader.PsmlLoader)
+}
+
+// getCurrentStructModelWith will return a termshark model of a packet section of PDML given a row number,
+// or nil if there is no model for the given row.
+func getCurrentStructModelWith(row int, lock sync.Locker) *pdmltree.Model {
 	var res *pdmltree.Model
 
 	pktsPerLoad := Loader.PacketsPerLoad()
 	row2 := (row / pktsPerLoad) * pktsPerLoad
 
-	Loader.PsmlLoader.Lock()
-	defer Loader.PsmlLoader.Unlock()
+	lock.Lock()
+	defer lock.Unlock()
 	if ws, ok := Loader.PacketCache.Get(row2); ok {
 		srca := ws.(pcap.CacheEntry).Pdml
 		if len(srca) > row%pktsPerLoad {
@@ -1499,6 +1549,7 @@ func reallyClear(app gowid.IApp) {
 									ManageCapinfoCache{},
 									SetStructWidgets{Loader}, // for OnClear
 									ClearMarksHandler{},
+									ManageSearchData{},
 									CancelledMessage{},
 								},
 							)
@@ -1676,6 +1727,15 @@ func setFocusOnDisplayFilter(app gowid.IApp) {
 	gowid.SetFocusPath(viewOnlyPacketHex, filterPathMax, app)
 }
 
+func setFocusOnSearch(app gowid.IApp) {
+	gowid.SetFocusPath(mainview, searchPathMain, app)
+	gowid.SetFocusPath(altview1, searchPathAlt, app)
+	gowid.SetFocusPath(altview2, searchPathAlt, app)
+	gowid.SetFocusPath(viewOnlyPacketList, searchPathMax, app)
+	gowid.SetFocusPath(viewOnlyPacketStructure, searchPathMax, app)
+	gowid.SetFocusPath(viewOnlyPacketHex, searchPathMax, app)
+}
+
 func clearOffsets(app gowid.IApp) {
 	if mainViewNoKeys.SubWidget() == mainview {
 		mainviewRows.SetOffsets([]resizable.Offset{}, app)
@@ -1725,6 +1785,10 @@ func packetNumberFromTableRow(tableRow int) (termshark.JumpPos, error) {
 		summary = psmlSummary(Loader.PsmlData()[packetRowId]).String()
 	}
 
+	if int(packetRowId) >= len(Loader.PsmlData()) {
+		return termshark.JumpPos{}, fmt.Errorf("Packet %d is not loaded.", packetRowId)
+	}
+
 	packetNum, err := strconv.Atoi(Loader.PsmlData()[packetRowId][0])
 	if err != nil {
 		return termshark.JumpPos{}, fmt.Errorf("Unexpected error determining no. of packet %d: %v.", tableRow, err)
@@ -1734,6 +1798,41 @@ func packetNumberFromTableRow(tableRow int) (termshark.JumpPos, error) {
 		Pos:     packetNum,
 		Summary: summary,
 	}, nil
+}
+
+func searchOpen() bool {
+	return filterHolder.SubWidget() == filterWithSearch
+}
+
+func searchIsActive() bool {
+	return stopCurrentSearch != nil
+}
+
+func searchPacketsMainView(evk *tcell.EventKey, app gowid.IApp) bool {
+	handled := true
+
+	if evk.Key() == tcell.KeyCtrlF {
+		if !searchOpen() {
+			filterHolder.SetSubWidget(filterWithSearch, app)
+			setFocusOnSearch(app)
+		} else {
+			// If it's open and focus is on the text area for search, then close it
+			if SearchWidget != nil && SearchWidget.FocusIsOnFilter() {
+				filterHolder.SetSubWidget(filterWithoutSearch, app)
+				// This seems to make the most sense
+				setFocusOnPacketList(app)
+			} else {
+				// Otherwise, put focus on the text area. This provides for a quick
+				// way to get control back on the search text area - ctrl-f will do it.
+				// Closing search is then just two ctrl-f keypresses at most.
+				setFocusOnSearch(app)
+			}
+		}
+	} else {
+		handled = false
+	}
+
+	return handled
 }
 
 // These only apply to the traditional wireshark-like main view
@@ -1873,6 +1972,34 @@ func vimKeysMainView(evk *tcell.EventKey, app gowid.IApp) bool {
 	return handled
 }
 
+func currentlyFocusedViewNotHex() bool {
+	return currentlyFocusedViewNotByIndex(2)
+}
+
+func currentlyFocusedViewNotStruct() bool {
+	return currentlyFocusedViewNotByIndex(1)
+}
+
+func currentlyFocusedViewNotByIndex(idx int) bool {
+	if mainViewNoKeys.SubWidget() == mainview {
+		v1p := gowid.FocusPath(mainview)
+		if deep.Equal(v1p, mainviewPaths[idx]) != nil { // it's not hex
+			return true
+		}
+	} else if mainViewNoKeys.SubWidget() == altview1 {
+		v2p := gowid.FocusPath(altview1)
+		if deep.Equal(v2p, altview1Paths[idx]) != nil { // it's not hex
+			return true
+		}
+	} else { // altview2
+		v3p := gowid.FocusPath(altview2)
+		if deep.Equal(v3p, altview2Paths[idx]) != nil { // it's not hex
+			return true
+		}
+	}
+	return false
+}
+
 // Move focus among the packet list view, structure view and hex view
 func cycleView(app gowid.IApp, forward bool, tabMap map[gowid.IWidget]gowid.IWidget) {
 	if v, ok := tabMap[mainViewNoKeys.SubWidget()]; ok {
@@ -1931,7 +2058,9 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 
 	isrune := evk.Key() == tcell.KeyRune
 
-	if evk.Key() == tcell.KeyCtrlC && Loader.PsmlLoader.IsLoading() {
+	if evk.Key() == tcell.KeyCtrlC && searchIsActive() {
+		stopCurrentSearch.RequestStop(app)
+	} else if evk.Key() == tcell.KeyCtrlC && Loader.PsmlLoader.IsLoading() {
 		Loader.StopLoadPsmlAndIface(NoHandlers{}) // iface and psml
 	} else if evk.Key() == tcell.KeyTAB || evk.Key() == tcell.KeyBacktab {
 		isTab := (evk.Key() == tcell.KeyTab)
@@ -2100,30 +2229,48 @@ func IsProgressIndeterminate() bool {
 	return progressHolder.SubWidget() == loadSpinner
 }
 
-func SetProgressDeterminate(app gowid.IApp) {
-	progressHolder.SetSubWidget(loadProgress, app)
+func SetProgressDeterminateFor(app gowid.IApp, owner WidgetOwner) {
+	if progressOwner == 0 || progressOwner == owner {
+		progressOwner = owner
+		progressHolder.SetSubWidget(loadProgress, app)
+	}
 }
 
-func SetProgressIndeterminate(app gowid.IApp) {
-	progressHolder.SetSubWidget(loadSpinner, app)
+func SetProgressIndeterminateFor(app gowid.IApp, owner WidgetOwner) {
+	if progressOwner == 0 || progressOwner == owner {
+		progressOwner = owner
+		progressHolder.SetSubWidget(loadSpinner, app)
+	}
 }
 
-func ClearProgressWidget(app gowid.IApp) {
+func ClearProgressWidgetFor(app gowid.IApp, owner WidgetOwner) {
+	if progressOwner != owner {
+		return
+	}
+
 	ds := filterCols.Dimensions()
 	sw := filterCols.SubWidgets()
 	sw[progWidgetIdx] = nullw
 	ds[progWidgetIdx] = fixed
 	filterCols.SetSubWidgets(sw, app)
 	filterCols.SetDimensions(ds, app)
+
+	progressOwner = NoOwner
 }
 
-func SetProgressWidget(app gowid.IApp) {
-	stop := button.New(text.New("Stop"))
-	stop2 := styled.NewExt(stop, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
+func createLoaderProgressWidget() (*button.Widget, *columns.Widget) {
+	btn, cols := createProgressWidget()
 
-	stop.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
+	btn.OnClick(gowid.MakeWidgetCallback("loaderstop", func(app gowid.IApp, w gowid.IWidget) {
 		Loader.StopLoadPsmlAndIface(NoHandlers{}) // psml and iface
 	}))
+
+	return btn, cols
+}
+
+func createProgressWidget() (*button.Widget, *columns.Widget) {
+	stop := button.New(text.New("Stop"))
+	stop2 := styled.NewExt(stop, gowid.MakePaletteRef("button"), gowid.MakePaletteRef("button-focus"))
 
 	prog := vpadding.New(progressHolder, gowid.VAlignTop{}, flow)
 	prog2 := columns.New([]gowid.IContainerWidget{
@@ -2138,9 +2285,26 @@ func SetProgressWidget(app gowid.IApp) {
 		},
 	})
 
+	return stop, prog2
+}
+
+func SetProgressWidget(app gowid.IApp) {
+	SetProgressWidgetCustom(app, loadProg, LoaderOwns)
+}
+
+func SetSearchProgressWidget(app gowid.IApp) {
+	SetProgressWidgetCustom(app, searchProg, SearchOwns)
+}
+
+func SetProgressWidgetCustom(app gowid.IApp, c *columns.Widget, owner WidgetOwner) {
+
+	if progressOwner != owner && progressOwner != 0 {
+		return
+	}
+
 	ds := filterCols.Dimensions()
 	sw := filterCols.SubWidgets()
-	sw[progWidgetIdx] = prog2
+	sw[progWidgetIdx] = c
 	ds[progWidgetIdx] = weight(33)
 	filterCols.SetSubWidgets(sw, app)
 	filterCols.SetDimensions(ds, app)
@@ -2234,7 +2398,7 @@ func setLowerWidgets(app gowid.IApp) {
 
 }
 
-func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
+func makePacketListModel(psml iPsmlInfo, app gowid.IApp) *psmlmodel.Model {
 	headers := psml.PsmlHeaders()
 
 	avgs := psml.PsmlAverageLengths()
@@ -2303,7 +2467,7 @@ func makePacketListModel(psml psmlInfo, app gowid.IApp) *psmlmodel.Model {
 	return expandingModel
 }
 
-func updatePacketListWithData(psml psmlInfo, app gowid.IApp) {
+func updatePacketListWithData(psml iPsmlInfo, app gowid.IApp) {
 	packetListView.colors = psml.PsmlColors() // otherwise this isn't updated
 	model := makePacketListModel(psml, app)
 	newPacketsArrived = true
@@ -2350,7 +2514,7 @@ func ApplyAutoScroll(ev *tcell.EventKey, app gowid.IApp) bool {
 	return false
 }
 
-type psmlInfo interface {
+type iPsmlInfo interface {
 	PsmlData() [][]string
 	PsmlHeaders() []string
 	PsmlColors() []pcap.PacketColors
@@ -2358,7 +2522,7 @@ type psmlInfo interface {
 	PsmlMaxLengths() []int
 }
 
-func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
+func setPacketListWidgets(psml iPsmlInfo, app gowid.IApp) {
 	expandingModel := makePacketListModel(psml, app)
 
 	packetListTable = &table.BoundedWidget{Widget: table.New(expandingModel)}
@@ -2422,6 +2586,7 @@ func setPacketListWidgets(psml psmlInfo, app gowid.IApp) {
 
 		// When the focus changes, update the hex and struct view. If they cannot
 		// be populated, display a loading message
+
 		setLowerWidgets(app)
 	}))
 
@@ -2487,7 +2652,11 @@ func expandStructWidgetAtPosition(row int, pos int, app gowid.IApp) {
 }
 
 func updateCurrentPdmlPosition(tr tree.IModel) {
-	treeAtCurPos := curStructPosition.GetSubStructure(tr)
+	updateCurrentPdmlPositionFrom(tr, curStructPosition)
+}
+
+func updateCurrentPdmlPositionFrom(tr tree.IModel, pos tree.IPos) {
+	treeAtCurPos := pos.GetSubStructure(tr)
 	// Save [/, tcp, tcp.srcport] - so we can apply if user moves in packet list
 	curPdmlPosition = treeAtCurPos.(*pdmltree.Model).PathToRoot()
 }
@@ -2538,7 +2707,6 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 				// pdml tree/struct widget's currently selected layer. That in turn will result in a callback
 				// to the hex widget to set the active layers.
 				res2.OnPositionChanged(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, target gowid.IWidget) {
-
 					// If we're not focused on hex, then don't expand the struct widget. That's because if
 					// we're focused on struct, then changing the struct position causes a callback to the
 					// hex to update layers - which can update the hex position - which invokes a callback
@@ -2546,24 +2714,12 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 					// which moves the struct and causes the struct to jump around. I need to check
 					// the alt view too because the user can click with the mouse and in one view have
 					// struct selected but in the other view have hex selected.
-					if mainViewNoKeys.SubWidget() == mainview {
-						v1p := gowid.FocusPath(mainview)
-						if deep.Equal(v1p, mainviewPaths[2]) != nil { // it's not hex
-							return
-						}
-					} else if mainViewNoKeys.SubWidget() == altview1 {
-						v2p := gowid.FocusPath(altview1)
-						if deep.Equal(v2p, altview1Paths[2]) != nil { // it's not hex
-							return
-						}
-					} else { // altview2
-						v3p := gowid.FocusPath(altview2)
-						if deep.Equal(v3p, altview2Paths[2]) != nil { // it's not hex
-							return
-						}
-					}
 
 					expandStructWidgetAtPosition(row, res2.Position(), app)
+
+					// Ensure the behavior is reset after this callback runs. Just do it once.
+
+					allowHexToStructRepositioning = false
 				}))
 
 				packetHexWidgets.Add(row, res2)
@@ -2634,14 +2790,17 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 		// This could be the user clicking inside the tree. Or it might be the position changing
 		// in the hex widget, resulting in a callback to programmatically change the tree expansion,
 		// which then calls back to the hex
-		updateHex := func(app gowid.IApp, twalker tree.ITreeWalker) {
+		updateHex := func(app gowid.IApp, doCursor bool, twalker tree.ITreeWalker) {
+
 			newhex := getHexWidgetToDisplay(row)
 			if newhex != nil {
 
 				newtree := twalker.Tree().(*pdmltree.Model)
 				newpos := twalker.Focus().(tree.IPos)
 
-				leaf := newpos.GetSubStructure(twalker.Tree()).(*pdmltree.Model)
+				expTree := (*pdmltree.ExpandedModel)(twalker.Tree().(*pdmltree.Model))
+
+				leaf := newpos.GetSubStructure(expTree).(*pdmltree.ExpandedModel)
 
 				coverWholePacket := false
 
@@ -2655,18 +2814,29 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 					coverWholePacket = true
 				}
 
-				newlayers := newtree.HexLayers(leaf.Pos, coverWholePacket)
-				if len(newlayers) > 0 {
-					newhex.SetLayers(newlayers, app)
+				newLayers := newtree.HexLayers(leaf.Pos, coverWholePacket)
+				if len(newLayers) > 0 {
+					newhex.SetLayers(newLayers, app)
 
-					curhexpos := newhex.Position()
-					smallestlayer := newlayers[len(newlayers)-1]
+					// If the hex view is changed by the user (or SetPosition), which then causes a callback to update
+					// the struct view - which then causes a callback to update the hex layer - the cursor can move in
+					// such a way it stays inside a valid layer and can't get outside. This boolean controls that
+					if doCursor {
+						if !allowHexToStructRepositioning || true {
+							curhexpos := newhex.Position()
+							smallestlayer := newLayers[len(newLayers)-1]
 
-					if !(smallestlayer.Start <= curhexpos && curhexpos < smallestlayer.End) {
-						// This might trigger a callback from the hex layer since the position is set. Which will call
-						// back into here. But then this logic should not be triggered because the new pos will be
-						// inside the smallest layer
-						newhex.SetPosition(smallestlayer.Start, app)
+							if !(smallestlayer.Start <= curhexpos && curhexpos < smallestlayer.End) {
+								// This might trigger a callback from the hex layer since the position is set. Which will call
+								// back into here. But then this logic should not be triggered because the new pos will be
+								// inside the smallest layer
+
+								// The reason for this is to ensure the hex cursor moves according to the current struct
+								// layer - otherwise when you tab to the hex layer, you immediately lose your struct layer
+								// when you move the cursor - because it's outside of your struct context.
+								newhex.SetPosition(smallestlayer.Start, app)
+							}
+						}
 					}
 				}
 			}
@@ -2676,39 +2846,59 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 		tb := copymodetree.New(tree.New(walker), copyModePalette{})
 		res = tb
 		// Save this in case the hex layer needs to change it
+
 		curPacketStructWidget = tb
 
-		// if not nil, it means the user has interacted with some struct widget at least once causing
-		// a focus change. We track the current focus e.g. [0, 2, 1] - the indices through the tree leading
-		// to the focused item. We programmatically adjust the focus widget of the new struct (e.g. after
-		// navigating down one in the packet list), but only if we can move focus to the same PDML field
-		// as the old struct. For example, if we are on tcp.srcport in the old packet, and we can
-		// open up tcp.srcport in the new packet, then we do so. This is not perfect, because I use the old
-		// pdml tre eposition, which is a sequence of integer indices. This means if the next packet has
-		// an extra layer before TCP, say some encapsulation, then I could still open up tcp.srcport, but
-		// I don't find it because I find the candidate focus widget using the list of integer indices.
+		// If not nil, it means we're re-rendering this part of the UI because of a hit in a packet
+		// struct search. So set the struct position, and then the next block of code will adjust the
+		// UI to focus on the part of the struct that matched the search.
+		if curSearchPosition != nil {
+			curStructPosition = curSearchPosition
+		}
+
 		if curStructPosition != nil {
+			// if not nil, it means the user has interacted with some struct widget at least once causing
+			// a focus change. We track the current focus e.g. [0, 2, 1] - the indices through the tree leading
+			// to the focused item. We programmatically adjust the focus widget of the new struct (e.g. after
+			// navigating down one in the packet list), but only if we can move focus to the same PDML field
+			// as the old struct. For example, if we are on tcp.srcport in the old packet, and we can
+			// open up tcp.srcport in the new packet, then we do so. This is not perfect, because I use the old
+			// pdml tree position, which is a sequence of integer indices. This means if the next packet has
+			// an extra layer before TCP, say some encapsulation, then I could still open up tcp.srcport, but
+			// I don't find it because I find the candidate focus widget using the list of integer indices.
 
-			curPos := curStructPosition                           // e.g. [0, 2, 1]
-			treeAtCurPos := curPos.GetSubStructure(walker.Tree()) // e.g. the TCP *pdmltree.Model
-			if treeAtCurPos != nil && deep.Equal(curPdmlPosition, treeAtCurPos.(*pdmltree.Model).PathToRoot()) == nil {
-				// if the newly selected struct has a node at [0, 2, 1] and it maps to tcp.srcport via the same path,
+			curPos := curStructPosition // e.g. [0, 2, 1]
+			expTree := (*pdmltree.ExpandedModel)(walker.Tree().(*pdmltree.Model))
+			treeAtCurPos := curPos.GetSubStructure(expTree) // e.g. the TCP *pdmltree.Model
+			if treeAtCurPos != nil {
+				// If curSearchPosition != nil, it means out saved path will definitely be a hit in this
+				// struct, so we are guaranteed to be able to apply it to the current tree walker. If
+				// curSearchPosition == nil, it means we try our best to apply the previous position to
+				// the current struct, knowing that the packet structure might be different.
+				if curSearchPosition != nil || deep.Equal(curPdmlPosition, (*pdmltree.Model)(treeAtCurPos.(*pdmltree.ExpandedModel)).PathToRoot()) == nil {
+					// if the newly selected struct has a node at [0, 2, 1] and it maps to tcp.srcport via the same path,
+					// set the focus widget of the new struct i.e. which leaf has focus
+					walker.SetFocus(curPos, app)
 
-				// set the focus widget of the new struct i.e. which leaf has focus
-				walker.SetFocus(curPos, app)
-
-				if curStructWidgetState != nil {
-					// we scrolled the previous struct a bit, apply it to the new one too
-					tb.SetState(curStructWidgetState, app)
-				} else {
-					// First change by the user, so remember it and use it when navigating to the next
-					curStructWidgetState = tb.State()
+					if curStructWidgetState != nil {
+						// we scrolled the previous struct a bit, apply it to the new one too
+						tb.SetState(curStructWidgetState, app)
+					} else {
+						// First change by the user, so remember it and use it when navigating to the next
+						curStructWidgetState = tb.State()
+					}
 				}
-
 			}
 
 		} else {
 			curStructPosition = walker.Focus().(tree.IPos)
+		}
+
+		if curSearchPosition != nil {
+			curPacketStructWidget.GoToMiddle(app)
+			// Reset so as we move up and down, after a search, we do our best to preserve the
+			// position, but we're not misled into thinking we have a guaranteed hit on the position.
+			curSearchPosition = nil
 		}
 
 		tb.OnFocusChanged(gowid.MakeWidgetCallback("cb", gowid.WidgetChangedFunction(func(app gowid.IApp, w gowid.IWidget) {
@@ -2716,19 +2906,14 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 		})))
 
 		walker.OnFocusChanged(tree.MakeCallback("cb", func(app gowid.IApp, twalker tree.ITreeWalker) {
-			updateHex(app, twalker)
+			updateHex(app, currentlyFocusedViewNotHex() && !allowHexToStructRepositioning, twalker)
+
 			// need to save the position, so it can be applied to the next struct widget
 			// if brought into focus by packet list navigation
 			curStructPosition = walker.Focus().(tree.IPos)
 
 			updateCurrentPdmlPosition(walker.Tree())
 		}))
-
-		// Update hex at the end, having set up callbacks. We want to make sure that
-		// navigating around the hext view expands the struct view in such a way as to
-		// preserve these changes when navigating the packet view
-		updateHex(app, walker)
-
 	}
 	return res
 }
@@ -2763,6 +2948,7 @@ func RequestLoadInterfaces(psrcs []pcap.IPacketSource, captureFilter string, dis
 			SetStructWidgets{Loader}, // for OnClear
 			ClearWormholeState{},
 			ClearMarksHandler{},
+			ManageSearchData{},
 			CancelledMessage{},
 		},
 		app,
@@ -2796,6 +2982,7 @@ func RequestLoadPcap(pcapf string, displayFilter string, jump termshark.GlobalJu
 		MakeCheckGlobalJumpAfterPsml(jump),
 		ClearWormholeState{},
 		ClearMarksHandler{},
+		ManageSearchData{},
 		CancelledMessage{},
 	}
 
@@ -2818,6 +3005,7 @@ func RequestNewFilter(displayFilter string, app gowid.IApp) {
 		MakeUpdateCurrentCaptureInTitle(),
 		SetStructWidgets{Loader}, // for OnClear
 		ClearMarksHandler{},
+		ManageSearchData{},
 		// Don't use this one - we keep the cancelled flag set so that we
 		// don't restart live captures on clear if ctrl-c has been issued
 		// so we don't want this handler on a new filter because we don't
@@ -2840,6 +3028,7 @@ func RequestReload(app gowid.IApp) {
 		MakeUpdateCurrentCaptureInTitle(),
 		SetStructWidgets{Loader}, // for OnClear
 		ClearMarksHandler{},
+		ManageSearchData{},
 		// Don't use this one - we keep the cancelled flag set so that we
 		// don't restart live captures on clear if ctrl-c has been issued
 		// so we don't want this handler on a new filter because we don't
@@ -3523,7 +3712,85 @@ func Build() (*gowid.App, error) {
 		},
 		applyWidget, colSpace, savedBtnSite, savedWidget, colSpace, nullw)
 
-	filterView := framed.NewUnicode(filterCols)
+	//======================================================================
+
+	loadStop, loadProg = createLoaderProgressWidget()
+	searchStop, searchProg = createProgressWidget()
+
+	//======================================================================
+
+	searchCh := make(chan search.IntermediateResult)
+
+	cbs := &commonSearchCallbacks{}
+
+	listSearchCallbacks := func() search.ICallbacks {
+		return &ListSearchCallbacks{
+			commonSearchCallbacks: cbs,
+			SearchStopper:         &SearchStopper{},
+			search:                searchCh,
+		}
+	}
+
+	structSearchCallbacks := func() search.ICallbacks {
+		return &StructSearchCallbacks{
+			commonSearchCallbacks: cbs,
+			SearchStopper:         &SearchStopper{},
+			search:                searchCh,
+		}
+	}
+
+	bytesSearchCallbacks := func() search.ICallbacks {
+		return &BytesSearchCallbacks{
+			commonSearchCallbacks: cbs,
+			SearchStopper:         &SearchStopper{},
+			search:                searchCh,
+		}
+	}
+
+	filterSearchCallbacks := func() search.ICallbacks {
+		return NewFilterSearchCallbacks(cbs, searchCh)
+	}
+
+	SearchWidget = search.New(
+		&PacketSearcher{
+			resultChan: searchCh,
+		},
+		listSearchCallbacks,
+		structSearchCallbacks,
+		bytesSearchCallbacks,
+		filterSearchCallbacks,
+		&multiMenu1Opener,
+		savedCompleter{def: FieldCompleter},
+		OpenErrorDialog{},
+	)
+
+	//======================================================================
+
+	filterWithoutSearch = pile.New([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{
+			IWidget: filterCols,
+			D:       units(1),
+		},
+	})
+
+	filterWithSearch = pile.New([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{
+			IWidget: filterCols,
+			D:       units(1),
+		},
+		&gowid.ContainerWidget{
+			IWidget: fill.New('━'),
+			D:       units(1),
+		},
+		&gowid.ContainerWidget{
+			IWidget: SearchWidget,
+			D:       units(1),
+		},
+	})
+
+	filterHolder = holder.New(filterWithoutSearch)
+
+	filterView := framed.NewUnicode(filterHolder)
 
 	// swallowMovementKeys will prevent cursor movement that is not accepted
 	// by the main views (column or pile) to change focus e.g. moving from the
@@ -3601,7 +3868,7 @@ func Build() (*gowid.App, error) {
 		},
 		&gowid.ContainerWidget{
 			IWidget: filterView,
-			D:       units(3),
+			D:       flow,
 		},
 		&gowid.ContainerWidget{
 			IWidget: packetListViewWithKeys,
@@ -3636,7 +3903,7 @@ func Build() (*gowid.App, error) {
 		},
 		&gowid.ContainerWidget{
 			IWidget: filterView,
-			D:       units(3),
+			D:       flow,
 		},
 		&gowid.ContainerWidget{
 			IWidget: packetListViewHolder,
@@ -3651,7 +3918,7 @@ func Build() (*gowid.App, error) {
 		},
 		&gowid.ContainerWidget{
 			IWidget: filterView,
-			D:       units(3),
+			D:       flow,
 		},
 		&gowid.ContainerWidget{
 			IWidget: packetStructureViewHolder,
@@ -3666,7 +3933,7 @@ func Build() (*gowid.App, error) {
 		},
 		&gowid.ContainerWidget{
 			IWidget: filterView,
-			D:       units(3),
+			D:       flow,
 		},
 		&gowid.ContainerWidget{
 			IWidget: packetHexViewHolder,
@@ -3736,7 +4003,7 @@ func Build() (*gowid.App, error) {
 		},
 		&gowid.ContainerWidget{
 			IWidget: filterView,
-			D:       units(3),
+			D:       flow,
 		},
 		&gowid.ContainerWidget{
 			IWidget: altview1ColsAndKeys,
@@ -3801,7 +4068,7 @@ func Build() (*gowid.App, error) {
 		},
 		&gowid.ContainerWidget{
 			IWidget: filterView,
-			D:       units(3),
+			D:       flow,
 		},
 		&gowid.ContainerWidget{
 			IWidget: altview2PileAndKeys,
@@ -3831,9 +4098,13 @@ func Build() (*gowid.App, error) {
 		{2, 2, 2}, // packet hex
 	}
 
-	filterPathMain = []interface{}{1, 1}
-	filterPathAlt = []interface{}{1, 1}
-	filterPathMax = []interface{}{1, 1}
+	filterPathMain = []interface{}{1, 0, 1}
+	filterPathAlt = []interface{}{1, 0, 1}
+	filterPathMax = []interface{}{1, 0, 1}
+
+	searchPathMain = []interface{}{1, 2, 6} // 6 is the index of the filter in the search widget
+	searchPathAlt = []interface{}{1, 2, 6}
+	searchPathMax = []interface{}{1, 2, 6}
 
 	mainview = mainviewRows
 	altview1 = altview1OuterRows
@@ -3860,10 +4131,16 @@ func Build() (*gowid.App, error) {
 
 	mainView = appkeys.New(
 		appkeys.New(
-			mainViewNoKeys,
-			mainKeyPress,
+			appkeys.New(
+				mainViewNoKeys,
+				mainKeyPress, // applied after mainViewNoKeys processes the input
+			),
+			vimKeysMainView,
+			appkeys.Options{
+				ApplyBefore: true,
+			},
 		),
-		vimKeysMainView,
+		searchPacketsMainView,
 		appkeys.Options{
 			ApplyBefore: true,
 		},

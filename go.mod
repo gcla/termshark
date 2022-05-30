@@ -35,15 +35,18 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tevino/abool v1.2.0
+	gitlab.com/jonas.jasas/condchan v0.0.0-20190210165812-36637ad2b5bc // indirect
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	modernc.org/interval v1.0.0 // indirect
+	modernc.org/mathutil v1.4.1 // indirect
 )
 
 replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
 
-//replace github.com/gcla/gowid => /home/gcla/go/src/github.com/gcla/gowid
+replace github.com/gcla/gowid => /home/gcla/go/src/github.com/gcla/gowid
 
 //replace github.com/gdamore/tcell/v2 => /home/gcla/source/tcell
