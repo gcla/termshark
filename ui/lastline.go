@@ -200,6 +200,7 @@ func (s recentsArg) Completions() []string {
 //======================================================================
 
 type filterArg struct {
+	field  string
 	substr string
 }
 
@@ -211,7 +212,7 @@ func (s filterArg) OfferCompletion() bool {
 
 func (s filterArg) Completions() []string {
 	matches := make([]string, 0)
-	cfiles := termshark.ConfStringSlice("main.recent-filters", []string{})
+	cfiles := termshark.ConfStringSlice(s.field, []string{})
 	if cfiles != nil {
 		for _, sc := range cfiles {
 			scopy := sc
@@ -525,7 +526,10 @@ func (d filterCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IAr
 	if len(toks) > 0 {
 		pref = toks[0]
 	}
-	res = append(res, filterArg{substr: pref})
+	res = append(res, filterArg{
+		field:  "main.recent-filters",
+		substr: pref,
+	})
 	return res
 }
 

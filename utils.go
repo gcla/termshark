@@ -694,13 +694,17 @@ func AddToRecentFiles(pcap string) {
 }
 
 func AddToRecentFilters(val string) {
-	comps := ConfStrings("main.recent-filters")
+	addToRecent("main.recent-filters", val)
+}
+
+func addToRecent(field string, val string) {
+	comps := ConfStrings(field)
 	if (len(comps) == 0 || comps[0] != val) && strings.TrimSpace(val) != "" {
 		comps = RemoveFromStringSlice(val, comps)
 		if len(comps) > 64 {
 			comps = comps[0 : 64-1]
 		}
-		SetConf("main.recent-filters", comps)
+		SetConf(field, comps)
 	}
 }
 
