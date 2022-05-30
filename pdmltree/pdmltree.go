@@ -57,6 +57,27 @@ func (p *Iterator) Value() tree.IModel {
 	return p.tree.Children_[p.pos-1]
 }
 
+// pos points one head, so logically is -1 on init, but I use zero so the
+// go default init makes sense.
+type ExpandedIterator struct {
+	tree *ExpandedModel
+	pos  int
+}
+
+var _ tree.IIterator = (*ExpandedIterator)(nil)
+
+func (p *ExpandedIterator) Next() bool {
+	p.pos += 1
+	return (p.pos - 1) < len(p.tree.Children_)
+}
+
+func (p *ExpandedIterator) Value() tree.IModel {
+	var res *ExpandedModel = (*ExpandedModel)(p.tree.Children_[p.pos-1])
+	return res
+}
+
+//======================================================================
+
 // Model is a struct model of the PDML proto or field element.
 type Model struct {
 	UiName         string            `xml:"-"`
@@ -77,6 +98,10 @@ type Model struct {
 
 var _ tree.IModel = (*Model)(nil)
 var _ tree.ICollapsible = (*Model)(nil)
+
+type ExpandedModel Model
+
+var _ tree.IModel = (*ExpandedModel)(nil)
 
 // This ignores the first child, "Frame 15", because its range covers the whole packet
 // which results in me always including that in the layers for any position.
@@ -196,7 +221,7 @@ func (p *Model) streamIndex(proto string) gwutil.IntOption {
 
 func (p *Model) ApplyExpandedPaths(exp *ExpandedPaths) {
 	if exp != nil {
-		p.makeParentLinks(exp) // TODO - fixup
+		p.MakeParentLinks(exp) // TODO - fixup
 		p.expandAllPaths(*exp)
 	}
 }
@@ -229,14 +254,32 @@ func (p *Model) expandByPath(path []string) {
 	}
 }
 
-func (p *Model) makeParentLinks(exp *ExpandedPaths) {
+func (p *Model) MakeParentLinks(exp *ExpandedPaths) {
 	if p != nil {
 		p.ExpandedFields = exp
 		for _, ch := range p.Children_ {
 			ch.Parent = p
-			ch.makeParentLinks(exp)
+			ch.MakeParentLinks(exp)
 		}
 	}
+}
+
+// Note that this expands every node along the way to the position cf
+// expandByPath which only expands the leaf node
+func (m *Model) ExpandByPosition(pos *tree.TreePos) {
+	posCopy := pos.Copy().(*tree.TreePos)
+	if len(posCopy.Pos) == 0 {
+		return
+	}
+
+	m.Expanded = true
+	if posCopy.Pos[0] >= len(m.Children_) {
+		return
+	}
+	mChild := m.Children_[posCopy.Pos[0]]
+
+	posChild := tree.NewPosExt(posCopy.Pos[1:])
+	mChild.ExpandByPosition(posChild)
 }
 
 func (p *Model) removeUnneeded() *Model {
@@ -270,6 +313,12 @@ func (p *Model) Children() tree.IIterator {
 	}
 }
 
+func (p *ExpandedModel) Children() tree.IIterator {
+	return &ExpandedIterator{
+		tree: p,
+	}
+}
+
 func (p *Model) HasChildren() bool {
 	return len(p.Children_) > 0
 }
@@ -278,7 +327,15 @@ func (p *Model) Leaf() string {
 	return p.UiName
 }
 
+func (p *ExpandedModel) Leaf() string {
+	return p.UiName
+}
+
 func (p *Model) String() string {
+	return p.stringAt(1)
+}
+
+func (p *ExpandedModel) String() string {
 	return p.stringAt(1)
 }
 
@@ -296,6 +353,10 @@ func (p *Model) stringAt(level int) string {
 	} else {
 		return fmt.Sprintf("[%s]\n%s", p.UiName, strings.Join(x, "\n"))
 	}
+}
+
+func (p *ExpandedModel) stringAt(level int) string {
+	return (*Model)(p).stringAt(level)
 }
 
 func (p *Model) PathToRoot() []string {
