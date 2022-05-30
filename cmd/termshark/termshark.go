@@ -962,6 +962,7 @@ func cmain() int {
 
 	inactiveDuration := 60 * time.Second
 	inactivityTimer := time.NewTimer(inactiveDuration)
+	currentlyInactive := false // True if the timer has fired and termshark is in "inactive" state
 
 	var progCancelTimer *time.Timer
 
@@ -1074,7 +1075,7 @@ Loop:
 			}
 		}
 
-		if ui.Loader.InterfaceLoader.IsLoading() {
+		if ui.Loader.InterfaceLoader.IsLoading() && !currentlyInactive {
 			inactivityChan = inactivityTimer.C
 		}
 
@@ -1118,8 +1119,10 @@ Loop:
 			checkedPcapCache = true
 
 		case <-inactivityChan:
-			ui.Fin.Activate()
-			app.Redraw()
+			if ui.Fin != nil {
+				ui.Fin.Activate()
+			}
+			currentlyInactive = true
 
 		case <-finChan:
 			ui.Fin.Advance()
@@ -1312,6 +1315,7 @@ Loop:
 		case ev := <-tcellEvents:
 			app.HandleTCellEvent(ev, gowid.IgnoreUnhandledInput)
 			inactivityTimer.Reset(inactiveDuration)
+			currentlyInactive = false
 			checkPcapCacheTimer.Reset(checkPcapCacheDuration)
 
 		case ev, ok := <-afterRenderEvents:
@@ -1321,7 +1325,10 @@ Loop:
 			if !ok {
 				break Loop
 			}
-			app.RunThenRenderEvent(ev)
+			ev.RunThenRenderEvent(app)
+			if ui.Running {
+				app.RedrawTerminal()
+			}
 
 		case <-watcher.ConfigChanged():
 			// Re-read so changes that can take effect immediately do so

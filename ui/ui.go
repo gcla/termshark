@@ -3887,9 +3887,9 @@ func Build() (*gowid.App, error) {
 	// For minibuffer
 	mbView = holder.New(appViewWithKeys)
 
-	Fin = rossshark.New(mbView)
-
 	if !termshark.ConfBool("main.disable-shark-fin", false) {
+		Fin = rossshark.New(mbView)
+
 		steerableFin := appkeys.NewMouse(
 			appkeys.New(
 				Fin,
