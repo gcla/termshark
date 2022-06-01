@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- You can now search for information in packets, in similar fashion to Wireshark's packet search. Hit `ctrl-f`
+  to open the search bar.
+
 ### Changed
 
 - Fixed a bug that caused mouse-clicks within the hex view to not function correctly if the viewport was not
