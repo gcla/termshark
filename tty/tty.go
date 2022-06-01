@@ -10,13 +10,14 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/pkg/term/termios"
+	"github.com/gcla/term/termios"
+	"golang.org/x/sys/unix"
 )
 
 //======================================================================
 
 type TerminalSignals struct {
-	tiosp syscall.Termios
+	tiosp *unix.Termios
 	out   *os.File
 	set   bool
 }
@@ -28,7 +29,7 @@ func (t *TerminalSignals) IsSet() bool {
 func (t *TerminalSignals) Restore() {
 	if t.out != nil {
 		fd := uintptr(t.out.Fd())
-		termios.Tcsetattr(fd, termios.TCSANOW, &t.tiosp)
+		termios.Tcsetattr(fd, termios.TCSANOW, t.tiosp)
 
 		t.out.Close()
 		t.out = nil
@@ -38,7 +39,7 @@ func (t *TerminalSignals) Restore() {
 
 func (t *TerminalSignals) Set() error {
 	var e error
-	var newtios syscall.Termios
+	var newtios unix.Termios
 	var fd uintptr
 
 	outtty := "/dev/tty"
@@ -54,11 +55,11 @@ func (t *TerminalSignals) Set() error {
 
 	fd = uintptr(t.out.Fd())
 
-	if e = termios.Tcgetattr(fd, &t.tiosp); e != nil {
+	if t.tiosp, e = termios.Tcgetattr(fd); e != nil {
 		goto failed
 	}
 
-	newtios = t.tiosp
+	newtios = *t.tiosp
 	newtios.Lflag |= syscall.ISIG
 
 	// Enable ctrl-z for suspending the foreground process group via the

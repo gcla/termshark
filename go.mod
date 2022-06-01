@@ -11,6 +11,7 @@ require (
 	github.com/gcla/deep v1.0.2
 	github.com/gcla/gowid v1.3.1-0.20220530181752-072f0882aae0
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
+	github.com/gcla/term v0.0.0-20220601234708-3e6af2ebff27
 	github.com/gdamore/tcell/v2 v2.5.0
 	github.com/gin-gonic/gin v1.7.0 // indirect
 	github.com/go-test/deep v1.0.2 // indirect
@@ -24,7 +25,6 @@ require (
 	github.com/mreiferson/go-snappystream v0.2.3
 	github.com/pelletier/go-toml v1.8.1 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/pkg/term v1.1.0
 	github.com/psanford/wormhole-william v1.0.6-0.20210402190004-049df45b8d5a
 	github.com/rakyll/statik v0.1.7
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
@@ -37,6 +37,7 @@ require (
 	github.com/tevino/abool v1.2.0
 	gitlab.com/jonas.jasas/condchan v0.0.0-20190210165812-36637ad2b5bc // indirect
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
+	golang.org/x/sys v0.0.0-20220318055525-2edf467146b5
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
@@ -45,8 +46,4 @@ require (
 	modernc.org/mathutil v1.4.1 // indirect
 )
 
-replace github.com/pkg/term => github.com/gcla/term v0.0.0-20191015020247-31cba2f9f402
-
-replace github.com/gcla/gowid => /home/gcla/go/src/github.com/gcla/gowid
-
-//replace github.com/gdamore/tcell/v2 => /home/gcla/source/tcell
+//replace github.com/gcla/gowid => /home/gcla/go/src/github.com/gcla/gowid
