@@ -4,6 +4,15 @@
 
 ### Changed
 
+- Fixed a bug that caused mouse-clicks within the hex view to not function correctly if the viewport was not
+  at the top of the data to be displayed.
+- When focus is in the packet hex view, the mouse wheel will no longer move the cursor - instead it will move
+  the scroll position.
+- If the display filter is empty, it is now displayed in cyan to indicate it is not yet either valid or
+  invalid. This can be changed via the `filter-empty` theme element.
+- In the conversations view, a column of IP addresses is now sorted numerically rather than lexicographically.
+- Various text input widgets now support "bracketed-paste" meaning they understand when content is pasted into
+  the terminal. The result is a smoother interface with fewer updates.
 - Fixed a bug that caused the "client pkts" and "server pkts" counts in the stream reassembly view not to be
   updated.
 
