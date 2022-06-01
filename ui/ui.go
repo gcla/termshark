@@ -3350,6 +3350,17 @@ func Build() (*gowid.App, error) {
 		},
 		menuutil.MakeMenuDivider(),
 		menuutil.SimpleMenuItem{
+			Txt: "Search Packets",
+			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlF, ' '),
+			CB: func(app gowid.IApp, w gowid.IWidget) {
+				multiMenu1Opener.CloseMenu(generalMenu, app)
+				if !searchOpen() {
+					filterHolder.SetSubWidget(filterWithSearch, app)
+				}
+				setFocusOnSearch(app)
+			},
+		},
+		menuutil.SimpleMenuItem{
 			Txt: "Clear Packets",
 			Key: gowid.MakeKeyExt2(0, tcell.KeyCtrlW, ' '),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
