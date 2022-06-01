@@ -276,6 +276,8 @@ If a match is found, termshark will navigate to the match location in the UI. Fo
 
 To terminate the search early, hit `ctrl-c`.  To set focus on the search bar's input, hit `ctrl-f` again. To close the search bar, hit `ctrl-f` one more time.
 
+![search1](/../gh-pages/images/search1.png?raw=true)
+
 
 ### Copy Mode
 
