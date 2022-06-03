@@ -661,6 +661,9 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `recent-files` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
 - `recent-filters` (string list) - recently used Wireshark display filters.
 - `respect-colorterm` (bool) - if termshark detects you are using base16-shell, it won't map any theme RGB color names (like #90FF32) to 0-21 in the 256-color space to avoid clashes with the active base16 theme. This shouldn't affect color reproduction if the terminal is 24-bit capable, but some terminal emulators (e.g. gnome-terminal) seem to use the 256-color space anyway. Termshark works around this by falling back to 256-color mode, interpolating RGB colors into the 256-color space and avoiding 0-21. If you really want termshark to run in 24-bit color mode anyway, set this to true.
+- `search-type` - (string) - how to interpret the user's packet search term; one of `filter`, `hex`, `string` or `regex`.
+- `search-target` - (string) - the type of packet data to search (unless `search-type` is `filter`); one of `list`, `details` or `bytes`.
+- `search-case-sensitive` - (bool) - true if the user's packet search should be sensitive to the case of the search term.
 - `stream-cache-size` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
 - `stream-view` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
 - `suppress-tshark-errors` (bool) - if `true`, hide from the UI any errors generated during parsing of tshark-generated XML.
