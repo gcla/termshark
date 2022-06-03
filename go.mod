@@ -9,7 +9,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.3.1-0.20220530181752-072f0882aae0
+	github.com/gcla/gowid v1.3.1-0.20220603022106-4d04cba8013a
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gcla/term v0.0.0-20220601234708-3e6af2ebff27
 	github.com/gdamore/tcell/v2 v2.5.0
