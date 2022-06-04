@@ -816,6 +816,9 @@ func cmain() int {
 		}
 	}
 
+	// the app variable is created here so I can bind it in the defer below
+	var app *gowid.App
+
 	// Do this before ui.Build. If ui.Build fails (e.g. bad TERM), then the filter will be left
 	// running, so we need the defer to be in effect here and not after the processing of ui.Build's
 	// error
@@ -823,9 +826,17 @@ func cmain() int {
 		if ui.FilterWidget != nil {
 			ui.FilterWidget.Close()
 		}
+		if ui.SearchWidget != nil {
+			ui.SearchWidget.Close(app)
+		}
+		if ui.CurrentWormholeWidget != nil {
+			ui.CurrentWormholeWidget.Close()
+		}
+		if ui.CurrentColsWidget != nil {
+			ui.CurrentColsWidget.Close()
+		}
 	}()
 
-	var app *gowid.App
 	if app, err = ui.Build(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		// Tcell returns ExitError now because if its internal terminfo DB does not have
@@ -1008,8 +1019,8 @@ Loop:
 				// loads/filters to that now.
 				ui.Loader.TurnOffPipe()
 				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					ui.ClearProgressWidget(app)
-					ui.SetProgressDeterminate(app) // always switch back - for pdml (partial) loads of later data.
+					ui.ClearProgressWidgetFor(app, ui.LoaderOwns)
+					ui.SetProgressDeterminateFor(app, ui.LoaderOwns) // always switch back - for pdml (partial) loads of later data.
 				}))
 
 				// When the progress bar is enabled, track the previous percentage reached. This is
@@ -1050,7 +1061,7 @@ Loop:
 				if progCancelTimer == nil {
 					progCancelTimer = time.AfterFunc(time.Duration(100000)*time.Hour, func() {
 						app.Run(gowid.RunFunction(func(app gowid.IApp) {
-							ui.ClearProgressWidget(app)
+							ui.ClearProgressWidgetFor(app, ui.LoaderOwns)
 							progCancelTimer = nil
 						}))
 					})
@@ -1234,12 +1245,6 @@ Loop:
 				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
 				// will happen next time round because the quitRequested flag is checked.
 				stopLoaders()
-			}
-			if ui.CurrentWormholeWidget != nil {
-				ui.CurrentWormholeWidget.Close()
-			}
-			if ui.CurrentColsWidget != nil {
-				ui.CurrentColsWidget.Close()
 			}
 
 		case sig := <-sigChan:

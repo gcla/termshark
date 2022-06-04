@@ -18,6 +18,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Packet Structure View](#packet-structure-view)
   - [Packet Hex View](#packet-hex-view)
   - [Marking Packets](#marking-packets)
+  - [Searching Packets](#searching-packets)
   - [Copy Mode](#copy-mode)
   - [Packet Capture Information](#packet-capture-information)
   - [Stream Reassembly](#stream-reassembly)
@@ -251,6 +252,32 @@ To make it easier to compare packets, you can mark a packet in the packet list v
 To jump back to that mark, hit `'` followed by the letter you selected. To jump back to the packet that was selected prior to your jump, hit `''`. When you exit termshark or load a new pcap, these marks are deleted; but termshark also supports cross-pcap marks which are saved in termshark's config file. To make a cross-pcap mark, hit `m` followed by a capital letter - `A` through `Z`. If you jump to a cross-pcap mark made in another pcap, termshark will load that pcap back up. To display your current marks, use the [command-line](#command-line) `marks` command:
 
 ![marks2](/../gh-pages/images/marks2.png?raw=true)
+
+### Searching Packets
+
+To search within packets, hit `ctrl-f` to open termshark's search bar. The options provided closely mirror those available with Wireshark. The first button displays a menu that lets you choose the type of data searched:
+
+- Packet List - the info shown in the packet list view (by default the top data pane)
+- Packet Struct - the info shown in the packet struct view (by default the middle data pane)
+- Packet Bytes - the info shown in the packet hex view (by default the bottom data pane)
+
+The second button lets you choose what to search for:
+
+- String (with or without case sensitivity)
+- Regex (with or without case sensitivity)
+- Hex
+- Display Filter
+
+The Hex syntax follows Wireshark and requires a sequence of 2 hex-digits, concatenated. For example, entering "AF054c" would mean to search for the following 3 bytes, consecutively - 175, 5, 76. 
+
+Display Filter search is a special case and does not search the packet data directly. Instead, termshark launches a tshark process on the current pcap source with flags to apply the user's search filter. Termshark parses the output and every packet that appears in the PSML data is a match for the search.
+
+If a match is found, termshark will navigate to the match location in the UI. For a Packet List search, the matching row and column are selected. For a Packet Struct search, the matching element in the packet structure view is expanded and the UI centered around it. For a Packet Bytes search, the cursor is moved to the start of the match in the packet hex view. 
+
+To terminate the search early, hit `ctrl-c`.  To set focus on the search bar's input, hit `ctrl-f` again. To close the search bar, hit `ctrl-f` one more time.
+
+![search1](/../gh-pages/images/search1.png?raw=true)
+
 
 ### Copy Mode
 
@@ -634,6 +661,9 @@ Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOM
 - `recent-files` (string list) - the pcap files shown when the user clicks the "recent" button in termshark. Newly viewed files are added to the beginning.
 - `recent-filters` (string list) - recently used Wireshark display filters.
 - `respect-colorterm` (bool) - if termshark detects you are using base16-shell, it won't map any theme RGB color names (like #90FF32) to 0-21 in the 256-color space to avoid clashes with the active base16 theme. This shouldn't affect color reproduction if the terminal is 24-bit capable, but some terminal emulators (e.g. gnome-terminal) seem to use the 256-color space anyway. Termshark works around this by falling back to 256-color mode, interpolating RGB colors into the 256-color space and avoiding 0-21. If you really want termshark to run in 24-bit color mode anyway, set this to true.
+- `search-type` - (string) - how to interpret the user's packet search term; one of `filter`, `hex`, `string` or `regex`.
+- `search-target` - (string) - the type of packet data to search (unless `search-type` is `filter`); one of `list`, `details` or `bytes`.
+- `search-case-sensitive` - (bool) - true if the user's packet search should be sensitive to the case of the search term.
 - `stream-cache-size` (int) - termshark caches the structures and UI used to display reassembled TCP and UDP streams. This allows for quickly redisplaying a stream that's been loaded before. This setting determines how many streams are cached. The default is 100.
 - `stream-view` (string - the default view when displaying a reassembled stream. Choose from "hex"/"ascii"/"raw".
 - `suppress-tshark-errors` (bool) - if `true`, hide from the UI any errors generated during parsing of tshark-generated XML.

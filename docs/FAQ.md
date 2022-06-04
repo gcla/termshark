@@ -209,7 +209,7 @@ Yes, via `~/.config/termshark/termshark.toml`. Here is an example I use:
 Termshark uses tshark to provide all the data it displays, and to validate display filter expressions. When you give termshark a pcap file, it will run
 
 ````bash
-tshark -T psml -r my.pcap -Y '<expression from ui>' -o gui.column.format:\"...\"```
+tshark -T psml -r my.pcap -Y '<expression from ui>' -o gui.column.format:"..."```
 ````
 
 The data provided to the `gui.column.format` tshark argument is stored in termshark's config file under the key `main.column-format`. Let's say the
@@ -235,7 +235,7 @@ tail -f -c +0 tmpfile
 The stdout of the `tail` command is connected to the stdin of the PSML reading command, which is adjusted to:
 
 ````bash
-tshark -T psml -i - -l -Y '<expression from ui>' -o gui.column.format:\"...\"```
+tshark -T psml -i - -l -Y '<expression from ui>' -o gui.column.format:"..."```
 ````
 
 The `-l` switch might push the data to the UI more quickly... The PDML and byte/hex generating commands read directly from `tmpfile`, since they don't need to provide continual updates (they load data in batches as the user moves around).
@@ -289,6 +289,18 @@ The information is displayed in a table by conversation type. If the user has a 
 ```bash
 tshark -r my.pcap -q -z conv,eth,http -z conv,ip,http -z conv,tcp,http
 ```
+
+If the user runs a packet search and chooses the Display Filter option, termshark will launch a tshark process to find packets that match the filter.
+
+````bash
+tshark -T psml -r my.pcap -Y '<search expression from ui>' -o gui.column.format:"No.","%m"```
+````
+
+If the user has an active display filter via the UI, it is combined with the search expression:
+
+````bash
+tshark -T psml -r my.pcap -Y '(<display filter from ui>) && (<search expression from ui>)' -o gui.column.format:"No.","%m"```
+````
 
 Termshark also uses tshark to generate the possible completions for prefixes of display filter terms. If you type `tcp.` in the filter widget, termshark will show a drop-down menu of possible completions. This is generated once at startup by running
 

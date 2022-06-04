@@ -71,6 +71,9 @@ func MakePacketViewUpdater() updatePacketViews {
 
 func (t updatePacketViews) OnClear(code pcap.HandlerCode, app gowid.IApp) {
 	clearPacketViews(app)
+	if packetListView != nil {
+		updatePacketListWithData(t.Ld, app)
+	}
 }
 
 func (t updatePacketViews) BeforeBegin(code pcap.HandlerCode, app gowid.IApp) {
@@ -252,6 +255,28 @@ func (t checkGlobalJumpAfterPsml) OnNewSource(code pcap.HandlerCode, app gowid.I
 
 func (t checkGlobalJumpAfterPsml) OnClear(code pcap.HandlerCode, app gowid.IApp) {
 	clearMarks()
+}
+
+//======================================================================
+
+func clearSearchData(app gowid.IApp) {
+	if SearchWidget != nil {
+		SearchWidget.Clear(app)
+	}
+}
+
+type ManageSearchData struct{}
+
+var _ pcap.INewSource = ManageSearchData{}
+var _ pcap.IClear = ManageSearchData{}
+
+// Make sure that existing stream widgets are discarded if the user loads a new pcap.
+func (t ManageSearchData) OnNewSource(c pcap.HandlerCode, app gowid.IApp) {
+	clearSearchData(app)
+}
+
+func (t ManageSearchData) OnClear(c pcap.HandlerCode, app gowid.IApp) {
+	clearSearchData(app)
 }
 
 //======================================================================
