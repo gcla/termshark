@@ -42,5 +42,3 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
-
-//replace github.com/gcla/gowid => /home/gcla/go/src/github.com/gcla/gowid
