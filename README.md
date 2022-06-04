@@ -27,13 +27,18 @@ Termshark is pre-packaged for the following platforms: [Arch Linux](docs/Package
 
 ## Building
 
-Termshark uses Go modules; compile with Go 1.13 or higher. Set `GO111MODULE=on` then run:
+Termshark uses Go modules. Set `GO111MODULE=on` then run:
 
 ```bash
-git clone https://github.com/gcla/termshark
-cd termshark
-go install ./...
+go install github.com/gcla/termshark/v2/cmd/termshark
 ```
+
+For versions of Go between 1.14 and 1.17, use
+
+```bash
+go get github.com/gcla/termshark/v2/cmd/termshark
+```
+
 Then add ```~/go/bin/``` to your ```PATH```.
 
 For all packet analysis, termshark depends on tshark from the Wireshark project. Make sure ```tshark``` is in your ```PATH```.
