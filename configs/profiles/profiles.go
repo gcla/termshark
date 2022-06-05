@@ -162,6 +162,14 @@ func confStringSlice(v *viper.Viper, name string, def []string) []string {
 	return res
 }
 
+func WriteConfigAs(name string) error {
+	return writeConfigAs(vDefault, name)
+}
+
+func writeConfigAs(v *viper.Viper, name string) error {
+	return v.WriteConfigAs(name)
+}
+
 //======================================================================
 // Local Variables:
 // mode: Go
