@@ -3390,14 +3390,14 @@ func Build() (*gowid.App, error) {
 			Txt: "Show Log",
 			Key: gowid.MakeKey('l'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				multiMenu1Opener.CloseMenu(analysisMenu, app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				openLogsUi(app)
 			},
 		})
 		generalMenuItems = append(generalMenuItems, menuutil.SimpleMenuItem{
 			Txt: "Show Config",
 			CB: func(app gowid.IApp, w gowid.IWidget) {
-				multiMenu1Opener.CloseMenu(analysisMenu, app)
+				multiMenu1Opener.CloseMenu(generalMenu, app)
 				openConfigUi(app)
 			},
 		})
