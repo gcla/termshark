@@ -16,6 +16,7 @@ import (
 	"github.com/gcla/gowid/widgets/holder"
 	"github.com/gcla/gowid/widgets/paragraph"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 )
 
 //======================================================================
@@ -39,7 +40,7 @@ func SuggestSwitchingTerm(app gowid.IApp) {
 	NoAsk := dialog.Button{
 		Msg: "No, don't ask",
 		Action: gowid.MakeWidgetCallback("exec", gowid.WidgetChangedFunction(func(app gowid.IApp, w gowid.IWidget) {
-			termshark.SetConf("main.disable-term-helper", true)
+			profiles.SetConf("main.disable-term-helper", true)
 			switchTerm.Close(app)
 		})),
 	}
@@ -75,7 +76,7 @@ func IsTerminalLegible(app gowid.IApp) {
 	YesSave := dialog.Button{
 		Msg: "Yes",
 		Action: gowid.MakeWidgetCallback("exec", gowid.WidgetChangedFunction(func(app gowid.IApp, w gowid.IWidget) {
-			termshark.SetConf("main.term", os.Getenv("TERM"))
+			profiles.SetConf("main.term", os.Getenv("TERM"))
 			saveTerm.Close(app)
 		})),
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/widgets/filter"
 	"github.com/gcla/termshark/v2/widgets/ifwidget"
@@ -298,7 +299,7 @@ func units(n int) gowid.RenderWithUnits {
 }
 
 func getSearchType() string {
-	res := termshark.ConfString("main.search-type", "filter")
+	res := profiles.ConfString("main.search-type", "filter")
 	if _, ok := searchTypeMap[res]; !ok {
 		res = "filter"
 	}
@@ -306,7 +307,7 @@ func getSearchType() string {
 }
 
 func getSearchTarget() string {
-	res := termshark.ConfString("main.search-target", "list")
+	res := profiles.ConfString("main.search-target", "list")
 	if _, ok := searchTargetMap[res]; !ok {
 		res = "list"
 	}
@@ -583,11 +584,11 @@ func (w *Widget) Value() string {
 }
 
 func (w *Widget) CaseSensitive() bool {
-	return termshark.ConfBool("main.search-case-sensitive", false)
+	return profiles.ConfBool("main.search-case-sensitive", false)
 }
 
 func (w *Widget) SetCaseSensitive(val bool) {
-	termshark.SetConf("main.search-case-sensitive", val)
+	profiles.SetConf("main.search-case-sensitive", val)
 }
 
 func (w *Widget) Open(app gowid.IApp) {
@@ -686,7 +687,7 @@ func buildSearchTypeMenu(btn *button.Widget, men menu.IOpener, res *Widget) *men
 					btn.SetSubWidget(text.New(searchTypeMap[stype]), app)
 
 					// Save the default search type
-					termshark.SetConf("main.search-type", stype)
+					profiles.SetConf("main.search-type", stype)
 
 					res.validator = getValidator()
 
@@ -703,7 +704,7 @@ func buildSearchTypeMenu(btn *button.Widget, men menu.IOpener, res *Widget) *men
 
 					switch stype {
 					case "hex":
-						termshark.SetConf("main.search-target", "bytes")
+						profiles.SetConf("main.search-target", "bytes")
 					}
 
 					// read main.search-type and adjust which search algorithm to use
@@ -729,9 +730,9 @@ func buildSearchTypeMenu(btn *button.Widget, men menu.IOpener, res *Widget) *men
 
 func (w *Widget) updateSearchTargetFromConf(app gowid.IApp) {
 
-	sAlg := termshark.ConfString("main.search-type", "filter")
+	sAlg := profiles.ConfString("main.search-type", "filter")
 	if sAlg != "filter" && sAlg != "hex" {
-		sAlg = termshark.ConfString("main.search-target", "list")
+		sAlg = profiles.ConfString("main.search-target", "list")
 	}
 
 	switch sAlg {
@@ -780,7 +781,7 @@ func buildSearchTargetMenu(btn *button.Widget, men menu.IOpener, res *Widget) *m
 				Key: gowid.MakeKey('1' + rune(i)),
 				CB: func(app gowid.IApp, _ gowid.IWidget) {
 
-					termshark.SetConf("main.search-target", target)
+					profiles.SetConf("main.search-target", target)
 
 					btn.SetSubWidget(text.New(searchTargetMap[target]), app)
 

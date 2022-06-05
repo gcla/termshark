@@ -16,6 +16,7 @@ import (
 	"github.com/gcla/gowid/widgets/holder"
 	"github.com/gcla/gowid/widgets/terminal"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/widgets/fileviewer"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -24,7 +25,7 @@ import (
 //======================================================================
 
 func pager() string {
-	res := termshark.ConfString("main.pager", "")
+	res := profiles.ConfString("main.pager", "")
 	if res == "" {
 		res = os.Getenv("PAGER")
 	}

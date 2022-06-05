@@ -18,6 +18,7 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/format"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/widgets/search"
@@ -384,8 +385,8 @@ func makePsmlCommand(filename string, displayFilter string) pcap.IPcapCommand {
 		args = append(args, "-Y", displayFilter)
 	}
 
-	psmlArgs := termshark.ConfStringSlice("main.psml-args", []string{})
-	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
+	psmlArgs := profiles.ConfStringSlice("main.psml-args", []string{})
+	tsharkArgs := profiles.ConfStringSlice("main.tshark-args", []string{})
 
 	args = append(args, psmlArgs...)
 	args = append(args, tsharkArgs...)

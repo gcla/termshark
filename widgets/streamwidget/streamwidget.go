@@ -36,6 +36,7 @@ import (
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/format"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/ui/menuutil"
@@ -416,7 +417,7 @@ func (w *Widget) construct() {
 			for i := 0; i < len(w.tblWidgets); i++ {
 				w.updateChunkModel(i, w.displayAs, app)
 			}
-			termshark.SetConf("main.stream-view", "hex")
+			profiles.SetConf("main.stream-view", "hex")
 		}
 	}})
 	rb2.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w2 gowid.IWidget) {
@@ -425,7 +426,7 @@ func (w *Widget) construct() {
 			for i := 0; i < len(w.tblWidgets); i++ {
 				w.updateChunkModel(i, w.displayAs, app)
 			}
-			termshark.SetConf("main.stream-view", "ascii")
+			profiles.SetConf("main.stream-view", "ascii")
 		}
 	}})
 	rb3.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w2 gowid.IWidget) {
@@ -434,7 +435,7 @@ func (w *Widget) construct() {
 			for i := 0; i < len(w.tblWidgets); i++ {
 				w.updateChunkModel(i, w.displayAs, app)
 			}
-			termshark.SetConf("main.stream-view", "raw")
+			profiles.SetConf("main.stream-view", "raw")
 		}
 	}})
 

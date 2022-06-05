@@ -16,6 +16,7 @@ import (
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/widgets/mapkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
@@ -184,7 +185,7 @@ func (s recentsArg) OfferCompletion() bool {
 
 func (s recentsArg) Completions() []string {
 	matches := make([]string, 0)
-	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
+	cfiles := profiles.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
 		for _, sc := range cfiles {
 			scopy := sc
@@ -212,7 +213,7 @@ func (s filterArg) OfferCompletion() bool {
 
 func (s filterArg) Completions() []string {
 	matches := make([]string, 0)
-	cfiles := termshark.ConfStringSlice(s.field, []string{})
+	cfiles := profiles.ConfStringSlice(s.field, []string{})
 	if cfiles != nil {
 		for _, sc := range cfiles {
 			scopy := sc
@@ -325,33 +326,33 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 		case "auto-scroll":
 			if b, err = parseOnOff(args[2]); err == nil {
 				AutoScroll = b
-				termshark.SetConf("main.auto-scroll", AutoScroll)
+				profiles.SetConf("main.auto-scroll", AutoScroll)
 				OpenMessage(fmt.Sprintf("Packet auto-scroll is now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
 		case "copy-timeout":
 			if i, err = strconv.ParseUint(args[2], 10, 32); err == nil {
-				termshark.SetConf("main.copy-command-timeout", i)
+				profiles.SetConf("main.copy-command-timeout", i)
 				OpenMessage(fmt.Sprintf("Copy timeout is now %ds", i), appView, app)
 			}
 		case "dark-mode":
 			if b, err = parseOnOff(args[2]); err == nil {
 				DarkMode = b
-				termshark.SetConf("main.dark-mode", DarkMode)
+				profiles.SetConf("main.dark-mode", DarkMode)
 			}
 		case "disable-shark-fin":
 			if b, err = strconv.ParseBool(args[2]); err == nil {
-				termshark.SetConf("main.disable-shark-fin", DarkMode)
+				profiles.SetConf("main.disable-shark-fin", DarkMode)
 				OpenMessage(fmt.Sprintf("Shark-saver is now %s", gwutil.If(b, "off", "on").(string)), appView, app)
 			}
 		case "packet-colors":
 			if b, err = parseOnOff(args[2]); err == nil {
 				PacketColors = b
-				termshark.SetConf("main.packet-colors", PacketColors)
+				profiles.SetConf("main.packet-colors", PacketColors)
 				OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
 		case "suppress-tshark-errors":
 			if b, err = parseOnOff(args[2]); err == nil {
-				termshark.SetConf("main.suppress-tshark-errors", b)
+				profiles.SetConf("main.suppress-tshark-errors", b)
 				if b {
 					OpenMessage("tshark errors will be suppressed.", appView, app)
 				} else {
@@ -360,11 +361,11 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 			}
 		case "term":
 			if err = termshark.ValidateTerm(args[2]); err == nil {
-				termshark.SetConf("main.term", args[2])
+				profiles.SetConf("main.term", args[2])
 				OpenMessage(fmt.Sprintf("Terminal type is now %s\n(Requires restart)", args[2]), appView, app)
 			}
 		case "pager":
-			termshark.SetConf("main.pager", args[2])
+			profiles.SetConf("main.pager", args[2])
 			OpenMessage(fmt.Sprintf("Pager is now %s", args[2]), appView, app)
 		default:
 			err = invalidSetCommandErr
@@ -372,10 +373,10 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 	case 2:
 		switch args[1] {
 		case "noterm":
-			termshark.DeleteConf("main.term")
+			profiles.DeleteConf("main.term")
 			OpenMessage("Terminal type is now unset\n(Requires restart)", appView, app)
 		case "nopager":
-			termshark.DeleteConf("main.pager")
+			profiles.DeleteConf("main.pager")
 			OpenMessage("Pager is now unset", appView, app)
 		default:
 			err = invalidSetCommandErr
@@ -546,7 +547,7 @@ func (d themeCommand) Run(app gowid.IApp, args ...string) error {
 		err = invalidThemeCommandErr
 	} else {
 		mode := theme.Mode(app.GetColorMode()).String() // more concise
-		termshark.SetConf(fmt.Sprintf("main.theme-%s", mode), args[1])
+		profiles.SetConf(fmt.Sprintf("main.theme-%s", mode), args[1])
 		theme.Load(args[1], app)
 		SetupColors()
 		OpenMessage(fmt.Sprintf("Set %s theme for terminal mode %v.", args[1], app.GetColorMode()), appView, app)
