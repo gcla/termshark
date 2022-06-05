@@ -732,7 +732,7 @@ func cmain() int {
 	}()
 
 	// Initialize application state for dark mode and auto-scroll
-	ui.DarkMode = termshark.ConfBool("main.dark-mode", false)
+	ui.DarkMode = termshark.ConfBool("main.dark-mode", true)
 	ui.AutoScroll = termshark.ConfBool("main.auto-scroll", true)
 	ui.PacketColors = termshark.ConfBool("main.packet-colors", true)
 
