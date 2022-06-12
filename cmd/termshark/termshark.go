@@ -27,7 +27,6 @@ import (
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/system"
-	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/tty"
 	"github.com/gcla/termshark/v2/ui"
 	"github.com/gcla/termshark/v2/widgets/filter"
@@ -149,15 +148,6 @@ func cmain() int {
 		fmt.Fprintf(os.Stderr, fmt.Sprintf("%s\n", err.Error()))
 	}
 
-	if os.Getenv("TERMSHARK_CAPTURE_MODE") == "1" {
-		err = system.DumpcapExt(termshark.DumpcapBin(), termshark.TSharkBin(), os.Args[1:]...)
-		if err != nil {
-			return 1
-		} else {
-			return 0
-		}
-	}
-
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
 	var tsopts cli.Tshark
 
@@ -187,6 +177,29 @@ func cmain() int {
 		err = termshark.TailFile(tsopts.TailFileValue())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v", err)
+			return 1
+		} else {
+			return 0
+		}
+	}
+
+	// From here, the current profile is referenced. So load it up prior to first use. If the user
+	// provides a non-existent profile name, it should be an error, just as for Wireshark.
+	if tsopts.Profile != "" {
+		if err = profiles.Use(tsopts.Profile); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return 1
+		}
+	}
+
+	// If this variable is set, it's set by termshark internally, and termshark is guaranteed to
+	// construct a valid command-line invocation. So it doesn't matter if I do this after the CLI
+	// parsing logic because there's no risk of an error causing a short-circuit and this command
+	// not being run. The reason to do it after the CLI parsing logic is so that I have the correct
+	// config profile loaded, needed for the tshark command.
+	if os.Getenv("TERMSHARK_CAPTURE_MODE") == "1" {
+		err = system.DumpcapExt(termshark.DumpcapBin(), termshark.TSharkBin(), os.Args[1:]...)
+		if err != nil {
 			return 1
 		} else {
 			return 0
@@ -1150,24 +1163,7 @@ Loop:
 			// Need to do that here because the app won't know how many colors the screen
 			// has (and therefore which variant of the theme to load) until the screen is
 			// activated.
-			mode := app.GetColorMode()
-			modeStr := theme.Mode(mode) // more concise
-			themeName := profiles.ConfString(fmt.Sprintf("main.theme-%s", modeStr), "default")
-			loaded := false
-			if themeName != "" {
-				err = theme.Load(themeName, app)
-				if err != nil {
-					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-				} else {
-					loaded = true
-				}
-			}
-			if !loaded && themeName != "default" {
-				err = theme.Load("default", app)
-				if err != nil {
-					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-				}
-			}
+			ui.ApplyCurrentTheme(app)
 
 			// This needs to run after the toml config file is loaded.
 			ui.SetupColors()
@@ -1186,7 +1182,7 @@ Loop:
 			ui.StartUIChan = nil // make sure it's not triggered again
 
 			if runtime.GOOS != "windows" {
-				if mode == gowid.Mode8Colors {
+				if app.GetColorMode() == gowid.Mode8Colors {
 					// If exists is true, it means we already tried and then reverted back, so
 					// just load up termshark normally with no further interruption.
 					if _, exists := os.LookupEnv("TERMSHARK_ORIGINAL_TERM"); !exists {

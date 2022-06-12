@@ -73,6 +73,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 //======================================================================
@@ -132,6 +133,7 @@ var view2idx int
 var generalMenu *menu.Widget
 var analysisMenu *menu.Widget
 var savedMenu *menu.Widget
+var profileMenu *menu.Widget
 var FilterWidget *filter.Widget
 var Fin *rossshark.Widget
 var CopyModeWidget gowid.IWidget
@@ -167,6 +169,11 @@ var multiMenu2Opener MultiMenuOpener
 
 var tabViewsForward map[gowid.IWidget]gowid.IWidget
 var tabViewsBackward map[gowid.IWidget]gowid.IWidget
+
+var currentProfile *text.Widget
+var currentProfileWidget *columns.Widget
+var currentProfileWidgetHolder *holder.Widget
+var openProfileSite *menu.SiteWidget
 
 var currentCapture *text.Widget
 var currentCaptureWidget *columns.Widget
@@ -1417,9 +1424,13 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("no-theme", minibufferFn(func(app gowid.IApp, s ...string) error {
 		mode := theme.Mode(app.GetColorMode()).String() // more concise
 		profiles.DeleteConf(fmt.Sprintf("main.theme-%s", mode))
-		theme.Load("default", app)
+		ApplyCurrentTheme(app)
 		SetupColors()
-		OpenMessage(fmt.Sprintf("Cleared theme for terminal mode %v.", app.GetColorMode()), appView, app)
+		var prof string
+		if profiles.Current() != profiles.Default() {
+			prof = fmt.Sprintf("in profile %s ", profiles.CurrentName())
+		}
+		OpenMessage(fmt.Sprintf("Cleared theme %sfor terminal mode %v.", prof, app.GetColorMode()), appView, app)
 		return nil
 	}))
 
@@ -1480,6 +1491,11 @@ func lastLineMode(app gowid.IApp) {
 		}))
 	}
 
+	MiniBuffer.Register("new-profile", minibufferFn(func(app gowid.IApp, s ...string) error {
+		openNewProfile(app)
+		return nil
+	}))
+
 	MiniBuffer.Register("set", setCommand{})
 
 	// read new pcap
@@ -1489,6 +1505,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("recents", recentsCommand{})
 	MiniBuffer.Register("filter", filterCommand{})
 	MiniBuffer.Register("theme", themeCommand{})
+	MiniBuffer.Register("profile", profileCommand{})
 	MiniBuffer.Register("map", mapCommand{w: keyMapper})
 	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
 	MiniBuffer.Register("help", helpCommand{})
@@ -3216,6 +3233,62 @@ func (w *prefixKeyWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 
 //======================================================================
 
+func SetDarkMode(mode bool) {
+	DarkMode = mode
+	profiles.SetConf("main.dark-mode", DarkMode)
+}
+
+func UpdateProfileWidget(name string, app gowid.IApp) {
+	currentProfile.SetText(name, app)
+	if name != "" && name != "default" {
+		currentProfileWidgetHolder.SetSubWidget(currentProfileWidget, app)
+	} else {
+		currentProfileWidgetHolder.SetSubWidget(nullw, app)
+	}
+}
+
+// vp and vc guaranteed to be non-nil
+func ApplyCurrentProfile(app gowid.IApp, vp *viper.Viper, vc *viper.Viper) error {
+	UpdateProfileWidget(profiles.CurrentName(), app)
+
+	SetDarkMode(profiles.ConfBool("main.dark-mode", true))
+
+	curcols := profiles.ConfStringSliceFrom(vp, profiles.Default(), "main.column-format", []string{})
+	newcols := profiles.ConfStringSliceFrom(vc, profiles.Default(), "main.column-format", []string{})
+	if !reflect.DeepEqual(newcols, curcols) {
+		RequestReload(app)
+	}
+
+	ApplyCurrentTheme(app)
+	SetupColors()
+
+	return nil
+}
+
+func ApplyCurrentTheme(app gowid.IApp) {
+	var err error
+	mode := app.GetColorMode()
+	modeStr := theme.Mode(mode) // more concise
+	themeName := profiles.ConfString(fmt.Sprintf("main.theme-%s", modeStr), "default")
+	loaded := false
+	if themeName != "" {
+		err = theme.Load(themeName, app)
+		if err != nil {
+			log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+		} else {
+			loaded = true
+		}
+	}
+	if !loaded && themeName != "default" {
+		err = theme.Load("default", app)
+		if err != nil {
+			log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+		}
+	}
+}
+
+//======================================================================
+
 func Build() (*gowid.App, error) {
 
 	var err error
@@ -3345,8 +3418,7 @@ func Build() (*gowid.App, error) {
 			Key: gowid.MakeKey('d'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				multiMenu1Opener.CloseMenu(generalMenu, app)
-				DarkMode = !DarkMode
-				profiles.SetConf("main.dark-mode", DarkMode)
+				SetDarkMode(!DarkMode)
 			},
 		},
 		menuutil.MakeMenuDivider(),
@@ -3607,6 +3679,24 @@ func Build() (*gowid.App, error) {
 		},
 	})
 
+	//======================================================================
+
+	currentProfile = text.New("default")
+	currentProfileWidget = columns.NewFixed(
+		text.New("Profile: "),
+		currentProfile,
+		sp,
+		&gowid.ContainerWidget{
+			IWidget: fill.New('|'),
+			D:       gowid.MakeRenderBox(1, 1),
+		},
+		sp,
+	)
+	currentProfileWidgetHolder = holder.New(currentProfileWidget)
+
+	// Update display to show the profile if it isn't the default
+	UpdateProfileWidget(profiles.CurrentName(), app)
+
 	var titleCols *columns.Widget
 
 	// If anything gets added or removed here, see [[generalmenu1]]
@@ -3622,6 +3712,10 @@ func Build() (*gowid.App, error) {
 			&gowid.ContainerWidget{
 				IWidget: fill.New(' '),
 				D:       weight(1),
+			},
+			&gowid.ContainerWidget{
+				IWidget: currentProfileWidgetHolder,
+				D:       fixed, // give it priority when the window isn't wide enough
 			},
 			openAnalysisSite,
 			openAnalysis2,
@@ -3646,7 +3740,7 @@ func Build() (*gowid.App, error) {
 	generalNext.Site = openAnalysisSite
 	generalNext.Container = titleCols
 	generalNext.MenuOpener = &multiMenu1Opener
-	generalNext.Focus = 4 // should really find by ID
+	generalNext.Focus = 5 // should really find by ID
 
 	// <<generalmenu2>>
 	analysisNext.Cur = analysisMenu
@@ -3654,7 +3748,7 @@ func Build() (*gowid.App, error) {
 	analysisNext.Site = openMenuSite
 	analysisNext.Container = titleCols
 	analysisNext.MenuOpener = &multiMenu1Opener
-	analysisNext.Focus = 6 // should really find by ID
+	analysisNext.Focus = 7 // should really find by ID
 
 	packetListViewHolder = holder.New(nullw)
 	packetStructureViewHolder = holder.New(nullw)
@@ -3714,6 +3808,9 @@ func Build() (*gowid.App, error) {
 	savedBtnSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
 	savedw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		multiMenu1Opener.OpenMenu(savedMenu, savedBtnSite, app)
+		// if !multiMenu1Opener.OpenMenu(savedMenu, savedBtnSite, app) {
+		// 	multiMenu1Opener.CloseMenu(savedMenu, app)
+		// }
 	}))
 
 	progWidgetIdx = 7 // adjust this if nullw moves position in filterCols
@@ -4132,9 +4229,9 @@ func Build() (*gowid.App, error) {
 	}
 
 	// <<generalmenu3>>
-	menuPathMain = []interface{}{0, 6}
-	menuPathAlt = []interface{}{0, 6}
-	menuPathMax = []interface{}{0, 6}
+	menuPathMain = []interface{}{0, 7}
+	menuPathAlt = []interface{}{0, 7}
+	menuPathMax = []interface{}{0, 7}
 
 	buildStreamUi()
 	buildFilterConvsMenu()

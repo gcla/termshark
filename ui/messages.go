@@ -122,6 +122,7 @@ logs____ - Show termshark's log file (Unix-only)
 map_____ - Map a keypress to a key sequence (see help map)
 marks___ - Show file-local and global packet marks
 no-theme - Clear theme for the current terminal color mode
+profile_ - Choose a termshark profile
 quit____ - Quit termshark
 recents_ - Load a pcap from those recently-used
 set_____ - Set various config properties (see help set)

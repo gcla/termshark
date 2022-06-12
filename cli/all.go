@@ -12,6 +12,7 @@ import "github.com/jessevdk/go-flags"
 // Used to determine if we should run tshark instead e.g. stdout is not a tty
 type Tshark struct {
 	PassThru    string `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"yes" choice:"no" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
+	Profile     string `long:"profile" short:"C" description:"Start with this configuration profile." value-name:"<profile>"`
 	PrintIfaces bool   `short:"D" optional:"true" optional-value:"true" description:"Print a list of the interfaces on which termshark can capture."`
 	TailSwitch
 }
@@ -27,6 +28,7 @@ type Termshark struct {
 	CaptureFilter   string         `short:"f" description:"Apply capture filter." value-name:"<capture filter>"`
 	TimestampFormat string         `short:"t" description:"Set the format of the packet timestamp printed in summary lines." choice:"a" choice:"ad" choice:"adoy" choice:"d" choice:"dd" choice:"e" choice:"r" choice:"u" choice:"ud" choice:"udoy" value-name:"<timestamp format>"`
 	PlatformSwitches
+	Profile  string   `long:"profile" short:"C" description:"Start with this configuration profile." value-name:"<profile>"`
 	PassThru string   `long:"pass-thru" default:"auto" optional:"true" optional-value:"true" choice:"auto" choice:"true" choice:"false" description:"Run tshark instead (auto => if stdout is not a tty)."`
 	LogTty   bool     `long:"log-tty" optional:"true" optional-value:"true" choice:"true" choice:"false" description:"Log to the terminal."`
 	Debug    TriState `long:"debug" default:"unset" hidden:"true" optional:"true" optional-value:"true" description:"Enable termshark debugging. See https://termshark.io/userguide."`
@@ -40,7 +42,7 @@ type Termshark struct {
 
 // If args are passed through to tshark (e.g. stdout not a tty), then
 // strip these out so tshark doesn't fail.
-var TermsharkOnly = []string{"--pass-thru", "--log-tty", "--debug", "--tail"}
+var TermsharkOnly = []string{"--pass-thru", "--profile", "--log-tty", "--debug", "--tail"}
 
 func FlagIsTrue(val string) bool {
 	return val == "true" || val == "yes"

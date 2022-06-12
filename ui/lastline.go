@@ -35,6 +35,7 @@ var invalidRecentsCommandErr = fmt.Errorf("Invalid recents command")
 var invalidMapCommandErr = fmt.Errorf("Invalid map command")
 var invalidFilterCommandErr = fmt.Errorf("Invalid filter command")
 var invalidThemeCommandErr = fmt.Errorf("Invalid theme command")
+var invalidProfileCommandErr = fmt.Errorf("Invalid profile command")
 
 type minibufferFn func(gowid.IApp, ...string) error
 
@@ -293,6 +294,30 @@ func (s themeArg) Completions() []string {
 
 //======================================================================
 
+type profileArg struct {
+	substr string
+}
+
+var _ minibuffer.IArg = profileArg{}
+
+func (s profileArg) OfferCompletion() bool {
+	return true
+}
+
+func (s profileArg) Completions() []string {
+	matches := make([]string, 0)
+	profs := profiles.AllNames()
+	for _, prof := range profs {
+		if strings.Contains(prof, s.substr) {
+			matches = append(matches, prof)
+		}
+	}
+
+	return matches
+}
+
+//======================================================================
+
 func stringIn(s string, a []string) bool {
 	for _, s2 := range a {
 		if s == s2 {
@@ -336,8 +361,7 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 			}
 		case "dark-mode":
 			if b, err = parseOnOff(args[2]); err == nil {
-				DarkMode = b
-				profiles.SetConf("main.dark-mode", DarkMode)
+				SetDarkMode(b)
 			}
 		case "disable-shark-fin":
 			if b, err = strconv.ParseBool(args[2]); err == nil {
@@ -580,6 +604,48 @@ func (d themeCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg
 		modes = append(modes, "16")
 	}
 	res = append(res, themeArg{substr: pref, modes: modes})
+	return res
+}
+
+//======================================================================
+
+type profileCommand struct{}
+
+var _ minibuffer.IAction = profileCommand{}
+
+func (d profileCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	if len(args) != 2 {
+		err = invalidProfileCommandErr
+	} else {
+		cur := profiles.Current()
+		err = profiles.Use(args[1])
+		if err == nil {
+			err = ApplyCurrentProfile(app, cur, profiles.Current())
+		}
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	} else {
+		OpenMessage(fmt.Sprintf("Now using profile %s.", args[1]), appView, app)
+	}
+
+	return err
+}
+
+func (d profileCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d profileCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	pref := ""
+	if len(toks) > 0 {
+		pref = toks[0]
+	}
+	res = append(res, profileArg{substr: pref})
 	return res
 }
 
