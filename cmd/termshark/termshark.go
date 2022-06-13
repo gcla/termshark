@@ -141,6 +141,10 @@ func cmain() int {
 	dirs = stdConf.QueryFolders(configdir.Global)
 	if err := dirs[0].CreateParentDir("dummy"); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not create config dir: %v\n", err)
+	} else {
+		if err = os.MkdirAll(filepath.Join(dirs[0].Path, "profiles"), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not create profiles dir: %v\n", err)
+		}
 	}
 
 	err := profiles.ReadDefaultConfig(dirs[0].Path)
