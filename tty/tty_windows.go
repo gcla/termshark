@@ -18,7 +18,7 @@ func (t *TerminalSignals) Restore() {
 	t.set = false
 }
 
-func (t *TerminalSignals) Set() error {
+func (t *TerminalSignals) Set(tty string) error {
 	t.set = true
 	return nil
 }
