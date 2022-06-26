@@ -307,7 +307,6 @@ func cmain() int {
 		// using the gcla fork of tcell for another application).
 		usetty = "/dev/tty"
 	}
-	os.Setenv("GOWID_TTY", usetty)
 
 	// Allow the user to override the shell's TERM variable this way. Perhaps the user runs
 	// under screen/tmux, and the TERM variable doesn't reflect the fact their preferred
@@ -837,7 +836,7 @@ func cmain() int {
 		}
 	}()
 
-	if app, err = ui.Build(); err != nil {
+	if app, err = ui.Build(usetty); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		// Tcell returns ExitError now because if its internal terminfo DB does not have
 		// a matching entry, it tries to build one with infocmp.
@@ -1184,7 +1183,7 @@ Loop:
 			appRunner.Start()
 
 			// Reinstate  our terminal overrides that allow ctrl-z
-			if err := ctrlzLineDisc.Set(); err != nil {
+			if err := ctrlzLineDisc.Set(usetty); err != nil {
 				ui.OpenError(fmt.Sprintf("Unexpected error setting Ctrl-z handler: %v\n", err), app)
 			}
 
@@ -1282,7 +1281,7 @@ Loop:
 					appRunner.Start()
 
 					// Reinstate  our terminal overrides that allow ctrl-z
-					if err := ctrlzLineDisc.Set(); err != nil {
+					if err := ctrlzLineDisc.Set(usetty); err != nil {
 						ui.OpenError(fmt.Sprintf("Unexpected error setting Ctrl-z handler: %v\n", err), app)
 					}
 

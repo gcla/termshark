@@ -3215,7 +3215,7 @@ func (w *prefixKeyWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 
 //======================================================================
 
-func Build() (*gowid.App, error) {
+func Build(tty string) (*gowid.App, error) {
 
 	var err error
 	var app *gowid.App
@@ -4260,6 +4260,7 @@ func Build() (*gowid.App, error) {
 		Log:                  log.StandardLogger(),
 		EnableBracketedPaste: true,
 		DontActivate:         true,
+		Tty:                  tty,
 	})
 
 	if err != nil {
