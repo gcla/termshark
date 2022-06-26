@@ -3289,7 +3289,7 @@ func ApplyCurrentTheme(app gowid.IApp) {
 
 //======================================================================
 
-func Build() (*gowid.App, error) {
+func Build(tty string) (*gowid.App, error) {
 
 	var err error
 	var app *gowid.App
@@ -4358,6 +4358,7 @@ func Build() (*gowid.App, error) {
 		Log:                  log.StandardLogger(),
 		EnableBracketedPaste: true,
 		DontActivate:         true,
+		Tty:                  tty,
 	})
 
 	if err != nil {

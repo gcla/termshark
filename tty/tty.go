@@ -37,17 +37,10 @@ func (t *TerminalSignals) Restore() {
 	t.set = false
 }
 
-func (t *TerminalSignals) Set() error {
+func (t *TerminalSignals) Set(outtty string) error {
 	var e error
 	var newtios unix.Termios
 	var fd uintptr
-
-	outtty := "/dev/tty"
-
-	gwtty := os.Getenv("GOWID_TTY")
-	if gwtty != "" {
-		outtty = gwtty
-	}
 
 	if t.out, e = os.OpenFile(outtty, os.O_WRONLY, 0); e != nil {
 		goto failed
