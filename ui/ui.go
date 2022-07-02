@@ -1491,11 +1491,6 @@ func lastLineMode(app gowid.IApp) {
 		}))
 	}
 
-	MiniBuffer.Register("new-profile", minibufferFn(func(app gowid.IApp, s ...string) error {
-		openNewProfile(app)
-		return nil
-	}))
-
 	MiniBuffer.Register("set", setCommand{})
 
 	// read new pcap
@@ -1505,7 +1500,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("recents", recentsCommand{})
 	MiniBuffer.Register("filter", filterCommand{})
 	MiniBuffer.Register("theme", themeCommand{})
-	MiniBuffer.Register("profile", profileCommand{})
+	MiniBuffer.Register("profile", newProfileCommand())
 	MiniBuffer.Register("map", mapCommand{w: keyMapper})
 	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
 	MiniBuffer.Register("help", helpCommand{})
@@ -3260,11 +3255,23 @@ func UpdateProfileWidget(name string, app gowid.IApp) {
 func ApplyCurrentProfile(app gowid.IApp, vp *viper.Viper, vc *viper.Viper) error {
 	UpdateProfileWidget(profiles.CurrentName(), app)
 
+	reload := false
+
 	SetDarkMode(profiles.ConfBool("main.dark-mode", true))
+
+	curWireshark := profiles.ConfStringFrom(vp, profiles.Default(), "main.wireshark-profile", "")
+	newWireshark := profiles.ConfStringFrom(vc, profiles.Default(), "main.wireshark-profile", "")
+	if curWireshark != newWireshark {
+		reload = true
+	}
 
 	curcols := profiles.ConfStringSliceFrom(vp, profiles.Default(), "main.column-format", []string{})
 	newcols := profiles.ConfStringSliceFrom(vc, profiles.Default(), "main.column-format", []string{})
 	if !reflect.DeepEqual(newcols, curcols) {
+		reload = true
+	}
+
+	if reload {
 		RequestReload(app)
 	}
 

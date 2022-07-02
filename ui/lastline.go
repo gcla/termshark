@@ -91,6 +91,13 @@ func (s substrArg) Completions() []string {
 
 //======================================================================
 
+func newCachedArg(sub string, comps []string) substrArg {
+	return substrArg{
+		sub:        sub,
+		candidates: comps,
+	}
+}
+
 func newBoolArg(sub string) substrArg {
 	return substrArg{
 		sub:        sub,
@@ -131,6 +138,19 @@ func newHelpArg(sub string) substrArg {
 			"map",
 			"set",
 			"vim",
+		},
+	}
+}
+
+func newProfileArg(sub string) substrArg {
+	return substrArg{
+		sub: sub,
+		candidates: []string{
+			"create",
+			"use",
+			"delete",
+			"link",
+			"unlink",
 		},
 	}
 }
@@ -609,27 +629,105 @@ func (d themeCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg
 
 //======================================================================
 
-type profileCommand struct{}
+type profileCommand struct {
+	termsharkProfiles []string
+	wiresharkProfiles []string
+}
 
 var _ minibuffer.IAction = profileCommand{}
+
+func newProfileCommand() *profileCommand {
+	return &profileCommand{
+		termsharkProfiles: profiles.AllNonDefaultNames(),
+		wiresharkProfiles: termshark.WiresharkProfileNames(),
+	}
+}
 
 func (d profileCommand) Run(app gowid.IApp, args ...string) error {
 	var err error
 
-	if len(args) != 2 {
-		err = invalidProfileCommandErr
-	} else {
-		cur := profiles.Current()
-		err = profiles.Use(args[1])
-		if err == nil {
-			err = ApplyCurrentProfile(app, cur, profiles.Current())
+	switch len(args) {
+	case 3:
+		switch args[1] {
+		case "use":
+			if !termshark.StringInSlice(args[2], append(d.termsharkProfiles, "default")) {
+				err = fmt.Errorf("%s is not a valid termshark profile", args[2])
+				break
+			}
+			cur := profiles.Current()
+			// gcla later todo - validate arg2 is in list
+			err = profiles.Use(args[2])
+			if err == nil {
+				err = ApplyCurrentProfile(app, cur, profiles.Current())
+			}
+			if err == nil {
+				OpenMessage(fmt.Sprintf("Now using profile %s.", args[2]), appView, app)
+			}
+		case "link":
+			// gcla later todo - need to validate it is in list!
+			if !termshark.StringInSlice(args[2], d.wiresharkProfiles) {
+				err = fmt.Errorf("%s is not a valid Wireshark profile", args[2])
+				break
+			}
+			curLink := profiles.ConfString("main.wireshark-profile", "")
+			profiles.SetConf("main.wireshark-profile", args[2])
+			if curLink != args[2] {
+				RequestReload(app)
+			}
+		case "delete":
+			if !termshark.StringInSlice(args[2], d.termsharkProfiles) {
+				err = fmt.Errorf("%s is not a valid termshark profile", args[2])
+				break
+			}
+
+			confirmAction(
+				fmt.Sprintf("Really delete profile %s?", args[2]),
+				func(app gowid.IApp) {
+					cur := profiles.Current()
+					curName := profiles.CurrentName()
+					if curName == args[2] {
+						err = profiles.Use("default")
+						if err == nil {
+							err = ApplyCurrentProfile(app, cur, profiles.Current())
+						}
+					}
+					if err == nil {
+						err = profiles.Delete(args[2])
+					}
+					if err == nil {
+						msg := fmt.Sprintf("Profile %s deleted.", args[2])
+						if curName == args[2] {
+							OpenMessage(fmt.Sprintf("%s Switched back to default profile.", msg), appView, app)
+						} else {
+							OpenMessage(msg, appView, app)
+						}
+					} else if err != nil {
+						OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+					}
+				},
+				app,
+			)
+
+		default:
+			err = invalidSetCommandErr
+		}
+	case 2:
+		switch args[1] {
+		case "create":
+			openNewProfile(app)
+		case "unlink":
+			curLink := profiles.ConfString("main.wireshark-profile", "")
+			profiles.SetConf("main.wireshark-profile", "")
+			if curLink != "" {
+				RequestReload(app)
+			}
+		default:
+			err = invalidProfileCommandErr
 		}
 	}
 
 	if err != nil {
 		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
-	} else {
-		OpenMessage(fmt.Sprintf("Now using profile %s.", args[1]), appView, app)
 	}
 
 	return err
@@ -641,11 +739,26 @@ func (d profileCommand) OfferCompletion() bool {
 
 func (d profileCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
 	res := make([]minibuffer.IArg, 0)
-	pref := ""
+	res = append(res, newProfileArg(toks[0]))
+
 	if len(toks) > 0 {
-		pref = toks[0]
+		pref := ""
+		if len(toks) > 1 {
+			pref = toks[1]
+		}
+
+		switch toks[0] {
+		case "create":
+		case "unlink":
+		case "use":
+			res = append(res, newCachedArg(pref, append(d.termsharkProfiles, "default")))
+		case "delete":
+			res = append(res, newCachedArg(pref, d.termsharkProfiles))
+		case "link":
+			res = append(res, newCachedArg(pref, d.wiresharkProfiles))
+		}
 	}
-	res = append(res, profileArg{substr: pref})
+
 	return res
 }
 

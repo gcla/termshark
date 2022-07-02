@@ -89,10 +89,10 @@ func ConfKeyExistsIn(v *viper.Viper, name string) bool {
 }
 
 func ConfString(name string, def string) string {
-	return confString(Current(), Default(), name, def)
+	return ConfStringFrom(Current(), Default(), name, def)
 }
 
-func confString(v *viper.Viper, vd *viper.Viper, name string, def string) string {
+func ConfStringFrom(v *viper.Viper, vd *viper.Viper, name string, def string) string {
 	confMutex.Lock()
 	defer confMutex.Unlock()
 	// Use GetString because viper will not allow deletion of keys; so I always
@@ -109,10 +109,10 @@ func confString(v *viper.Viper, vd *viper.Viper, name string, def string) string
 }
 
 func SetConf(name string, val interface{}) {
-	setConf(Current(), name, val)
+	SetConfIn(Current(), name, val)
 }
 
-func setConf(v *viper.Viper, name string, val interface{}) {
+func SetConfIn(v *viper.Viper, name string, val interface{}) {
 	confMutex.Lock()
 	defer confMutex.Unlock()
 	v.Set(name, val)
@@ -250,6 +250,11 @@ func CurrentName() string {
 }
 
 func AllNames() []string {
+	res := AllNonDefaultNames()
+	return append(res, "default")
+}
+
+func AllNonDefaultNames() []string {
 	matches := make([]string, 0)
 
 	profPath, err := profilesDir()
@@ -268,9 +273,22 @@ func AllNames() []string {
 		}
 	}
 
-	matches = append(matches, "default")
-
 	return matches
+}
+
+func Delete(name string) error {
+	dir, err := profilesDir()
+	if err != nil {
+		return err
+	}
+	dir = filepath.Join(dir, name)
+
+	err = os.RemoveAll(dir)
+	if err != nil {
+		return fmt.Errorf("Unexpected error deleting profile dir %s: %v", dir, err)
+	}
+
+	return nil
 }
 
 func Use(name string) error {
