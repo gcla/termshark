@@ -1547,7 +1547,28 @@ func getCurrentStructModelWith(row int, lock sync.Locker) *pdmltree.Model {
 //======================================================================
 
 func reallyClear(app gowid.IApp) {
-	msgt := "Do you want to clear current capture?"
+	confirmAction(
+		"Do you want to clear current capture?",
+		func(app gowid.IApp) {
+			Loader.ClearPcap(
+				pcap.HandlerList{
+					SimpleErrors{},
+					MakePacketViewUpdater(),
+					MakeUpdateCurrentCaptureInTitle(),
+					ManageStreamCache{},
+					ManageCapinfoCache{},
+					SetStructWidgets{Loader}, // for OnClear
+					ClearMarksHandler{},
+					ManageSearchData{},
+					CancelledMessage{},
+				},
+			)
+		},
+		app,
+	)
+}
+
+func confirmAction(msgt string, ok func(gowid.IApp), app gowid.IApp) {
 	msg := text.New(msgt)
 	YesNo = dialog.New(
 		framed.NewSpace(hpadding.New(msg, hmiddle, fixed)),
@@ -1558,19 +1579,7 @@ func reallyClear(app gowid.IApp) {
 					Action: gowid.MakeWidgetCallback("cb",
 						func(app gowid.IApp, w gowid.IWidget) {
 							YesNo.Close(app)
-							Loader.ClearPcap(
-								pcap.HandlerList{
-									SimpleErrors{},
-									MakePacketViewUpdater(),
-									MakeUpdateCurrentCaptureInTitle(),
-									ManageStreamCache{},
-									ManageCapinfoCache{},
-									SetStructWidgets{Loader}, // for OnClear
-									ClearMarksHandler{},
-									ManageSearchData{},
-									CancelledMessage{},
-								},
-							)
+							ok(app)
 						},
 					),
 				},
