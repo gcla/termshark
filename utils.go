@@ -1082,6 +1082,27 @@ func TsharkSetting(field string) (string, error) {
 	}
 
 	return "", fmt.Errorf("Field %s not found in output of tshark -G folders", field)
+//======================================================================
+
+func WiresharkProfileNames() []string {
+	res := make([]string, 0, 8)
+	folders, _ := TsharkSettings("Personal configuration", "Global configuration")
+	for _, folder := range folders {
+		profFolder := filepath.Join(folder, "profiles")
+
+		files, err := ioutil.ReadDir(profFolder)
+		if err != nil {
+			log.Warnf("Could not read wireshark config folder %s: %v", profFolder, err)
+			continue
+		}
+
+		for _, file := range files {
+			if file.IsDir() {
+				res = append(res, file.Name())
+			}
+		}
+	}
+	return res
 }
 
 //======================================================================
