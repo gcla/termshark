@@ -1067,21 +1067,41 @@ var foldersRE = regexp.MustCompile(`:\s*`)
 // Global configuration:   /usr/share/wireshark
 //
 func TsharkSetting(field string) (string, error) {
-	out, err := exec.Command(TSharkBin(), []string{"-G", "folders"}...).Output()
+	res, err := TsharkSettings(field)
 	if err != nil {
 		return "", err
 	}
+
+	val, ok := res[field]
+	if !ok {
+		return "", fmt.Errorf("Field %s not found in output of tshark -G folders", field)
+	}
+
+	return val, nil
+}
+
+func TsharkSettings(fields ...string) (map[string]string, error) {
+	out, err := exec.Command(TSharkBin(), []string{"-G", "folders"}...).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]string)
 
 	scanner := bufio.NewScanner(strings.NewReader(string(out)))
 	for scanner.Scan() {
 		line := scanner.Text()
 		pieces := foldersRE.Split(line, 2)
-		if len(pieces) == 2 && pieces[0] == field {
-			return pieces[1], nil
+		for _, field := range fields {
+			if len(pieces) == 2 && pieces[0] == field {
+				res[field] = pieces[1]
+			}
 		}
 	}
 
-	return "", fmt.Errorf("Field %s not found in output of tshark -G folders", field)
+	return res, nil
+}
+
 //======================================================================
 
 func WiresharkProfileNames() []string {
