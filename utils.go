@@ -674,6 +674,13 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 
 //======================================================================
 
+func ErrLogger(key string, val string) *io.PipeWriter {
+	l := log.StandardLogger()
+	return log.NewEntry(l).WithField(key, val).WriterLevel(log.ErrorLevel)
+}
+
+//======================================================================
+
 // Need to publish fields for template use
 type JumpPos struct {
 	Summary string `json:"summary"`

@@ -46,7 +46,7 @@ func (c *Command) String() string {
 func (c *Command) Start() error {
 	c.Lock()
 	defer c.Unlock()
-	c.Cmd.Stderr = log.StandardLogger().Writer()
+	c.Cmd.Stderr = termshark.ErrLogger("cmd", c.Path)
 	c.PutInNewGroupOnUnix()
 	res := c.Cmd.Start()
 	return res
