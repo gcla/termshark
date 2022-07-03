@@ -4,9 +4,8 @@ Here's how to install termshark on various OSes and with various package manager
 
 ## Arch Linux
 
-- [termshark-bin](https://aur.archlinux.org/packages/termshark-bin): binary
-  package which simply copies the released binary to install directory. Made by
-  [jerry73204](https://github.com/jerry73204)
+- [termshark](https://archlinux.org/packages/community/x86_64/termshark/): The
+   official package.
 - [termshark-git](https://aur.archlinux.org/packages/termshark-git): Compiles
   from source, made by [Thann](https://github.com/Thann)
 
