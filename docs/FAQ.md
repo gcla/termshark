@@ -92,7 +92,7 @@ If you start to page up quickly, you will likely approach a range of packets tha
 
 ## Termshark is too bright!
 
-Termshark v2 supports dark-mode! Hit Esc to bring up the main menu then "Toggle Dark Mode". See the [User Guide](UserGuide.md#dark-mode).
+Termshark v2 supports dark-mode! Hit Esc to bring up the main menu then "Toggle Dark Mode". See the [User Guide](UserGuide.md#dark-mode). As of termshark v2.4, dark-mode is the default.
 
 ## Termshark's colors are wrong!
 
@@ -309,6 +309,14 @@ tshark -G fields
 ```
 
 then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv3.gob.gz`.
+
+If the user creates a new termshark profile, an option is provided to link to a Wireshark profile. To gather a list of these profiles, termshark runs
+
+```bash
+tshark -G folders
+```
+
+and parses out the global and personal configuration directories.
 
 Finally, termshark runs tshark to generate the list of all valid columns and their names. These are used to populate a dropdown menu showing valid column choices when the user configures their column set. Termshark runs
 
