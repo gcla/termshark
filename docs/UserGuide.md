@@ -392,6 +392,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **clear-filter** - Clear the current display filter
 - **clear-packets** - Clear the current pcap
 - **columns** - Configure termshark's columns
+- **config** - Show termshark's config file (Unix-only)
 - **convs** - Open the conversations view
 - **filter** - Choose a display filter from those recently-used
 - **help** - Show one of several help dialogs
@@ -401,6 +402,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **marks** - Show file-local and global packet marks
 - **menu** - Open the UI menubar
 - **no-theme** - Clear theme for the current terminal color mode
+- **profile** - Profile actions - create, use, delete, etc
 - **quit** - Quit termshark
 - **recents** - Load a pcap from those recently-used
 - **set** - Set various config properties (see `help set`)
