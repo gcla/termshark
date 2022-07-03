@@ -8,7 +8,7 @@
   ],
   "imageSize": 72,
   "commit": false,
-  "contributorsPerLine": 8,
+  "contributorsPerLine": 10,
   "commitConvention": "none",
   "contributors": [
     {
@@ -480,6 +480,15 @@
       "name": "Aaron Bieber",
       "avatar_url": "https://avatars.githubusercontent.com/u/68368?v=4",
       "profile": "https://deftly.net",
+      "contributions": [
+        "ideas"
+      ]
+    },
+    {
+      "login": "elig0n",
+      "name": "elig0n",
+      "avatar_url": "https://avatars.githubusercontent.com/u/31196036?v=4",
+      "profile": "https://github.com/elig0n",
       "contributions": [
         "ideas"
       ]
