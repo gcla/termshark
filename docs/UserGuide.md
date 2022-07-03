@@ -28,6 +28,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Macros](#macros)
   - [Transfer a pcap File](#transfer-a-pcap-file)
 - [Configuration](#configuration)
+  - [Profiles](#profiles)
   - [Dark Mode](#dark-mode)
   - [Packet Colors](#packet-colors)
   - [Themes](#themes)
