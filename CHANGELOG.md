@@ -6,6 +6,9 @@
 
 - You can now search for information in packets, in similar fashion to Wireshark's packet search. Hit `ctrl-f`
   to open the search bar.
+- Termshark now supports Wireshark-like profiles. Access via the new minibuffer profile commands: create to
+  make a new profile; use to switch profile. A profile can be "linked" to a Wireshark profile to make use
+  of Wireshark color profiles in termshark.
 
 ### Changed
 
