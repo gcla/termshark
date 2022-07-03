@@ -41,7 +41,7 @@ Termshark is inspired by Wireshark, and depends on tshark for all its intelligen
 
 ```console
 $ termshark -h
-termshark v2.3.0
+termshark v2.4.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
@@ -59,6 +59,7 @@ Application Options:
   -f=<capture filter>                                        Apply capture filter.
   -t=<timestamp format>[a|ad|adoy|d|dd|e|r|u|ud|udoy]        Set the format of the packet timestamp printed in summary lines.
       --tty=<tty>                                            Display the UI on this terminal.
+  -C, --profile=<profile>                                    Start with this configuration profile.
       --pass-thru=[auto|true|false]                          Run tshark instead (auto => if stdout is not a tty). (default: auto)
       --log-tty                                              Log to the terminal.
   -h, --help                                                 Show this help message.
@@ -516,6 +517,13 @@ Once you have profiles configured, you can switch between them using the `profil
 determines it needs to regenerate parts of the UI e.g. if packet colors or columns may be different. Note that if you create a new profile "new" while
 currently using profile "old", the settings for "new" are initialized from "old" (the toml file is copied); but then further changes apply to profile
 "new" only.
+
+Note that some configuration settings are read only from the default profile. These include
+
+- `main.term` - termshark will launch on this tty (Unix-only)
+
+
+
 
 ### Dark Mode
 
