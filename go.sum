@@ -150,6 +150,8 @@ github.com/gcla/gowid v1.3.1-0.20220626203558-a594805196f2 h1:lTVa5VHxePP+1aMijX
 github.com/gcla/gowid v1.3.1-0.20220626203558-a594805196f2/go.mod h1:7T4Xzfznq31XvQyAOX+SZzQjvF7RX16mjXDXGB7R/44=
 github.com/gcla/gowid v1.3.1-0.20220626210608-5f3e0e82f1ad h1:3ST4tAhRrpAEU424Yr4uAKbMZ88JotTTuDViOLLVh/M=
 github.com/gcla/gowid v1.3.1-0.20220626210608-5f3e0e82f1ad/go.mod h1:7T4Xzfznq31XvQyAOX+SZzQjvF7RX16mjXDXGB7R/44=
+github.com/gcla/gowid v1.3.1-0.20220703181750-06abc4f10c26 h1:a1aC03ABo8O36DEmwPUHIcuIo1EFU8RDe+Rw0+M2fOc=
+github.com/gcla/gowid v1.3.1-0.20220703181750-06abc4f10c26/go.mod h1:7T4Xzfznq31XvQyAOX+SZzQjvF7RX16mjXDXGB7R/44=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359 h1:3xEhacR7pIJV8daurdBygptxhzTJeYFqJp1V6SDl+pE=
 github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359/go.mod h1:Wn+pZpM98JHSOYkPDtmdvlqmc0OzQGHWOsHB2d28WtQ=
 github.com/gcla/term v0.0.0-20220601234708-3e6af2ebff27 h1:OmzD2vZl1UeSblMmUo4mKjnrtsn+VLxhkkqnDOPHrXY=
