@@ -111,23 +111,28 @@ Activate cmdline mode with the : key.
 
 Hit tab to see and choose possible completions.
 
-capinfo_ - Capture file properties
-clear___ - Clear current pcap
-config__ - Show termshark's config file (Unix-only)
-convs___ - Open conversations view
-filter__ - Choose a display filter from recently-used
-help____ - Various help dialogs
-load____ - Load a pcap from the filesystem
-logs____ - Show termshark's log file (Unix-only)
-map_____ - Map a keypress to a key sequence (see help map)
-marks___ - Show file-local and global packet marks
-no-theme - Clear theme for the current terminal color mode
-quit____ - Quit termshark
-recents_ - Load a pcap from those recently-used
-set_____ - Set various config properties (see help set)
-streams_ - Open stream reassembly view
-theme___ - Choose a theme for the current terminal color mode
-unmap___ - Remove a keypress mapping{{end}}
+capinfo______ - Capture file properties
+clear-filter_ - Clear the display filter and apply
+clear-packets - Clear the current pcap
+columns______ - Choose the columns to display
+config_______ - Show termshark's config file (Unix-only)
+convs________ - Open conversations view
+filter_______ - Choose a display filter from recently-used
+help_________ - Various help dialogs
+load_________ - Load a pcap from the filesystem
+logs_________ - Show termshark's log file (Unix-only)
+map__________ - Map a keypress to a key sequence (see help map)
+marks________ - Show file-local and global packet marks
+menu_________ - Open the UI Misc menu
+no-theme_____ - Clear theme for the current terminal color mode
+profile______ - Profile actions - create, use, delete, etc
+quit_________ - Quit termshark
+recents______ - Load a pcap from those recently-used
+set__________ - Set various config properties (see help set)
+streams______ - Open stream reassembly view
+theme________ - Choose a theme for the current terminal color mode
+unmap________ - Remove a keypress mapping
+wormhole_____ - Prepare to transfer the current pcap{{end}}
 
 {{define "SetHelp"}}{{template "NameVer" .}}
 

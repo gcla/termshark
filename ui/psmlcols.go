@@ -25,7 +25,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/shark/wiresharkcfg"
 	"github.com/gcla/termshark/v2/ui/menuutil"
@@ -224,7 +224,7 @@ func openEditColumns(app gowid.IApp) {
 		}
 	}
 
-	bakCols := termshark.ConfStringSlice("main.column-format-bak", []string{})
+	bakCols := profiles.ConfStringSlice("main.column-format-bak", []string{})
 	if len(bakCols) != 0 {
 		btn := button.New(text.New("Restore"))
 		btn.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, widget gowid.IWidget) {
@@ -299,12 +299,12 @@ func openEditColumns(app gowid.IApp) {
 				}
 
 				newcols := pcols.ToConfigList()
-				curcols := termshark.ConfStringSlice("main.column-format", []string{})
+				curcols := profiles.ConfStringSlice("main.column-format", []string{})
 
 				updated := false
 				if !reflect.DeepEqual(newcols, curcols) {
-					termshark.SetConf("main.column-format-bak", curcols)
-					termshark.SetConf("main.column-format", newcols)
+					profiles.SetConf("main.column-format-bak", curcols)
+					profiles.SetConf("main.column-format", newcols)
 					updated = true
 				}
 

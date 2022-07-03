@@ -31,6 +31,7 @@ import (
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/convs"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/psmlmodel"
@@ -326,19 +327,19 @@ type ConvsUiWidget struct {
 }
 
 func (w *ConvsUiWidget) AbsoluteTime() bool {
-	return termshark.ConfBool("main.conv-absolute-time", false)
+	return profiles.ConfBool("main.conv-absolute-time", false)
 }
 
 func (w *ConvsUiWidget) SetAbsoluteTime(val bool) {
-	termshark.SetConf("main.conv-absolute-time", val)
+	profiles.SetConf("main.conv-absolute-time", val)
 }
 
 func (w *ConvsUiWidget) ResolveNames() bool {
-	return termshark.ConfBool("main.conv-resolve-names", false)
+	return profiles.ConfBool("main.conv-resolve-names", false)
 }
 
 func (w *ConvsUiWidget) SetResolveNames(val bool) {
-	termshark.SetConf("main.conv-resolve-names", val)
+	profiles.SetConf("main.conv-resolve-names", val)
 }
 
 func (w *ConvsUiWidget) Context() context.Context {
@@ -350,11 +351,11 @@ func (w *ConvsUiWidget) FilterValue() string {
 }
 
 func (w *ConvsUiWidget) UseFilter() bool {
-	return termshark.ConfBool("main.conv-use-filter", false)
+	return profiles.ConfBool("main.conv-use-filter", false)
 }
 
 func (w *ConvsUiWidget) SetUseFilter(val bool) {
-	termshark.SetConf("main.conv-use-filter", val)
+	profiles.SetConf("main.conv-use-filter", val)
 }
 
 func (w *ConvsUiWidget) construct() {

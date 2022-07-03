@@ -15,6 +15,7 @@ import (
 
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
@@ -295,7 +296,7 @@ func GetPsmlColumnFormatFrom(colKey string) []PsmlColumnSpec {
 
 func getPsmlColumnFormatWithoutLock(colKey string) []PsmlColumnSpec {
 	res := make([]PsmlColumnSpec, 0)
-	widths := termshark.ConfStringSlice(colKey, []string{})
+	widths := profiles.ConfStringSlice(colKey, []string{})
 	if len(widths) == 0 || (len(widths)/3)*3 != len(widths) {
 		logrus.Warnf("Unexpected %s structure - using defaults", colKey)
 		res = DefaultPsmlColumnSpec

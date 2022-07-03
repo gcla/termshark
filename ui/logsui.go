@@ -16,15 +16,15 @@ import (
 	"github.com/gcla/gowid/widgets/holder"
 	"github.com/gcla/gowid/widgets/terminal"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/widgets/fileviewer"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 )
 
 //======================================================================
 
 func pager() string {
-	res := termshark.ConfString("main.pager", "")
+	res := profiles.ConfString("main.pager", "")
 	if res == "" {
 		res = os.Getenv("PAGER")
 	}
@@ -42,7 +42,6 @@ func openLogsUi(app gowid.IApp) {
 }
 
 func openConfigUi(app gowid.IApp) {
-	viper.SetConfigName("termshark") // no need to include file extension - looks for file called termshark.ini for example
 	tmp, err := ioutil.TempFile("", "termshark-*.toml")
 	if err != nil {
 		OpenError(fmt.Sprintf("Could not create temp file: %v", err), app)
@@ -50,7 +49,7 @@ func openConfigUi(app gowid.IApp) {
 	}
 	tmp.Close()
 
-	err = viper.WriteConfigAs(tmp.Name())
+	err = profiles.WriteConfigAs(tmp.Name())
 	if err != nil {
 		OpenError(fmt.Sprintf("Could not run config viewer\n\n%v", err), app)
 	} else {

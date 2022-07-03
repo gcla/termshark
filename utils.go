@@ -37,6 +37,7 @@ import (
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/gowid/widgets/table"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gdamore/tcell/v2"
@@ -46,7 +47,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"github.com/tevino/abool"
 )
 
@@ -140,81 +140,6 @@ func ReverseStringSlice(s []string) {
 
 //======================================================================
 
-// The config is accessed by the main goroutine and pcap loading goroutines. So this
-// is an attempt to prevent warnings with the -race flag (though they are very likely
-// harmless)
-var confMutex sync.Mutex
-
-func ConfKeyExists(name string) bool {
-	return viper.Get(name) != nil
-}
-
-func ConfString(name string, def string) string {
-	confMutex.Lock()
-	defer confMutex.Unlock()
-	if viper.Get(name) != nil {
-		return viper.GetString(name)
-	} else {
-		return def
-	}
-}
-
-func SetConf(name string, val interface{}) {
-	confMutex.Lock()
-	defer confMutex.Unlock()
-	viper.Set(name, val)
-	viper.WriteConfig()
-}
-
-func ConfStrings(name string) []string {
-	confMutex.Lock()
-	defer confMutex.Unlock()
-	return viper.GetStringSlice(name)
-}
-
-func DeleteConf(name string) {
-	confMutex.Lock()
-	defer confMutex.Unlock()
-	viper.Set(name, "")
-	viper.WriteConfig()
-}
-
-func ConfInt(name string, def int) int {
-	confMutex.Lock()
-	defer confMutex.Unlock()
-	if viper.Get(name) != nil {
-		return viper.GetInt(name)
-	} else {
-		return def
-	}
-}
-
-func ConfBool(name string, def ...bool) bool {
-	confMutex.Lock()
-	defer confMutex.Unlock()
-	if viper.Get(name) != nil {
-		return viper.GetBool(name)
-	} else {
-		if len(def) > 0 {
-			return def[0]
-		} else {
-			return false
-		}
-	}
-}
-
-func ConfStringSlice(name string, def []string) []string {
-	confMutex.Lock()
-	defer confMutex.Unlock()
-	res := viper.GetStringSlice(name)
-	if res == nil {
-		res = def
-	}
-	return res
-}
-
-//======================================================================
-
 var TSharkVersionUnknown = fmt.Errorf("Could not determine version of tshark")
 
 func TSharkVersionFromOutput(output string) (semver.Version, error) {
@@ -254,7 +179,7 @@ func TSharkSupportsColor(tshark string) (bool, error) {
 
 // TSharkPath will return the full path of the tshark binary, if it's found in the path, otherwise an error
 func TSharkPath() (string, *gowid.KeyValueError) {
-	tsharkBin := ConfString("main.tshark", "")
+	tsharkBin := profiles.ConfString("main.tshark", "")
 	if tsharkBin != "" {
 		confirmedTshark := false
 		if _, err := os.Stat(tsharkBin); err == nil {
@@ -343,7 +268,7 @@ func CacheDir() string {
 func PcapDir() string {
 	var res string
 	// If use-tshark-temp-for-cache is set, use that
-	if ConfBool("main.use-tshark-temp-for-pcap-cache", false) {
+	if profiles.ConfBool("main.use-tshark-temp-for-pcap-cache", false) {
 		tmp, err := TsharkSetting("Temp")
 		if err == nil {
 			res = tmp
@@ -351,7 +276,7 @@ func PcapDir() string {
 	}
 	// Otherwise try the user's preference
 	if res == "" {
-		res = ConfString("main.pcap-cache-dir", "")
+		res = profiles.ConfString("main.pcap-cache-dir", "")
 	}
 	if res == "" {
 		res = DefaultPcapDir()
@@ -366,15 +291,15 @@ func DefaultPcapDir() string {
 }
 
 func TSharkBin() string {
-	return ConfString("main.tshark", "tshark")
+	return profiles.ConfString("main.tshark", "tshark")
 }
 
 func DumpcapBin() string {
-	return ConfString("main.dumpcap", "dumpcap")
+	return profiles.ConfString("main.dumpcap", "dumpcap")
 }
 
 func CapinfosBin() string {
-	return ConfString("main.capinfos", "capinfos")
+	return profiles.ConfString("main.capinfos", "capinfos")
 }
 
 // CaptureBin is the binary the user intends to use to capture
@@ -391,9 +316,9 @@ func CapinfosBin() string {
 // it switches to capture mode.
 func CaptureBin() string {
 	if runtime.GOOS == "windows" {
-		return ConfString("main.capture-command", DumpcapBin())
+		return profiles.ConfString("main.capture-command", DumpcapBin())
 	} else {
-		return ConfString("main.capture-command", os.Args[0])
+		return profiles.ConfString("main.capture-command", os.Args[0])
 	}
 }
 
@@ -420,7 +345,7 @@ func TailCommand() []string {
 	if runtime.GOOS == "windows" {
 		def = []string{os.Args[0], "--tail"}
 	}
-	return ConfStringSlice("main.tail-command", def)
+	return profiles.ConfStringSlice("main.tail-command", def)
 }
 
 func KeyPressIsPrintable(key gowid.IKey) bool {
@@ -456,7 +381,7 @@ func RemoveKeyMapping(kp vim.KeyPress) {
 }
 
 func LoadKeyMappings() []KeyMapping {
-	mappings := ConfStringSlice("main.key-mappings", []string{})
+	mappings := profiles.ConfStringSlice("main.key-mappings", []string{})
 	res := make([]KeyMapping, 0)
 	for _, mapping := range mappings {
 		pair := strings.Split(mapping, " ")
@@ -484,7 +409,7 @@ func SaveKeyMappings(mappings []KeyMapping) {
 	for _, mapping := range mappings {
 		ser = append(ser, fmt.Sprintf("%v %v", mapping.From, vim.KeySequence(mapping.To)))
 	}
-	SetConf("main.key-mappings", ser)
+	profiles.SetConf("main.key-mappings", ser)
 }
 
 func RemoveFromStringSlice(pcap string, comps []string) []string {
@@ -664,12 +589,12 @@ func SafePid(p IProcess) int {
 }
 
 func SetConvTypes(convs []string) {
-	SetConf("main.conv-types", convs)
+	profiles.SetConf("main.conv-types", convs)
 }
 
 func ConvTypes() []string {
 	defs := []string{"eth", "ip", "ipv6", "tcp", "udp"}
-	ctypes := ConfStrings("main.conv-types")
+	ctypes := profiles.ConfStrings("main.conv-types")
 	if len(ctypes) > 0 {
 		z, ok := arrayOperations.Intersect(defs, ctypes)
 		if ok {
@@ -683,13 +608,13 @@ func ConvTypes() []string {
 }
 
 func AddToRecentFiles(pcap string) {
-	comps := ConfStrings("main.recent-files")
+	comps := profiles.ConfStrings("main.recent-files")
 	if len(comps) == 0 || comps[0] != pcap {
 		comps = RemoveFromStringSlice(pcap, comps)
 		if len(comps) > 16 {
 			comps = comps[0 : 16-1]
 		}
-		SetConf("main.recent-files", comps)
+		profiles.SetConf("main.recent-files", comps)
 	}
 }
 
@@ -698,18 +623,18 @@ func AddToRecentFilters(val string) {
 }
 
 func addToRecent(field string, val string) {
-	comps := ConfStrings(field)
+	comps := profiles.ConfStrings(field)
 	if (len(comps) == 0 || comps[0] != val) && strings.TrimSpace(val) != "" {
 		comps = RemoveFromStringSlice(val, comps)
 		if len(comps) > 64 {
 			comps = comps[0 : 64-1]
 		}
-		SetConf(field, comps)
+		profiles.SetConf(field, comps)
 	}
 }
 
 func LoadOffsetFromConfig(name string) ([]resizable.Offset, error) {
-	offsStr := ConfString("main."+name, "")
+	offsStr := profiles.ConfString("main."+name, "")
 	if offsStr == "" {
 		return nil, errors.WithStack(gowid.WithKVs(ConfigErr, map[string]interface{}{
 			"name": name,
@@ -735,16 +660,23 @@ func SaveOffsetToConfig(name string, offsets2 []resizable.Offset) {
 		}
 	}
 	if len(offsets) == 0 {
-		DeleteConf("main." + name)
+		profiles.DeleteConf("main." + name)
 	} else {
 		offs, err := json.Marshal(offsets)
 		if err != nil {
 			log.Fatal(err)
 		}
-		SetConf("main."+name, string(offs))
+		profiles.SetConf("main."+name, string(offs))
 	}
 	// Hack to make viper save if I only deleted from the map
-	SetConf("main.lastupdate", time.Now().String())
+	profiles.SetConf("main.lastupdate", time.Now().String())
+}
+
+//======================================================================
+
+func ErrLogger(key string, val string) *io.PipeWriter {
+	l := log.StandardLogger()
+	return log.NewEntry(l).WithField(key, val).WriterLevel(log.ErrorLevel)
 }
 
 //======================================================================
@@ -771,7 +703,7 @@ type globalJumpPosMapping struct {
 }
 
 func LoadGlobalMarks(m map[rune]GlobalJumpPos) error {
-	marksStr := ConfString("main.marks", "")
+	marksStr := profiles.ConfString("main.marks", "")
 	if marksStr == "" {
 		return nil
 	}
@@ -798,16 +730,16 @@ func SaveGlobalMarks(m map[rune]GlobalJumpPos) {
 		marks = append(marks, globalJumpPosMapping{Key: k, GlobalJumpPos: v})
 	}
 	if len(marks) == 0 {
-		DeleteConf("main.marks")
+		profiles.DeleteConf("main.marks")
 	} else {
 		marksJ, err := json.Marshal(marks)
 		if err != nil {
 			log.Fatal(err)
 		}
-		SetConf("main.marks", string(marksJ))
+		profiles.SetConf("main.marks", string(marksJ))
 	}
 	// Hack to make viper save if I only deleted from the map
-	SetConf("main.lastupdate", time.Now().String())
+	profiles.SetConf("main.lastupdate", time.Now().String())
 }
 
 //======================================================================
@@ -922,7 +854,7 @@ func PrunePcapCache() error {
 	// assume the cache can grow indefinitely - in case users are now relying on this
 	// to keep old pcaps around. I don't want to delete any files without the user's
 	// explicit permission.
-	var diskCacheSize int64 = int64(ConfInt("main.disk-cache-size-mb", -1))
+	var diskCacheSize int64 = int64(profiles.ConfInt("main.disk-cache-size-mb", -1))
 
 	if diskCacheSize == -1 {
 		log.Infof("No pcap disk cache size set. Skipping cache pruning.")
@@ -1135,21 +1067,62 @@ var foldersRE = regexp.MustCompile(`:\s*`)
 // Global configuration:   /usr/share/wireshark
 //
 func TsharkSetting(field string) (string, error) {
-	out, err := exec.Command(TSharkBin(), []string{"-G", "folders"}...).Output()
+	res, err := TsharkSettings(field)
 	if err != nil {
 		return "", err
 	}
+
+	val, ok := res[field]
+	if !ok {
+		return "", fmt.Errorf("Field %s not found in output of tshark -G folders", field)
+	}
+
+	return val, nil
+}
+
+func TsharkSettings(fields ...string) (map[string]string, error) {
+	out, err := exec.Command(TSharkBin(), []string{"-G", "folders"}...).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]string)
 
 	scanner := bufio.NewScanner(strings.NewReader(string(out)))
 	for scanner.Scan() {
 		line := scanner.Text()
 		pieces := foldersRE.Split(line, 2)
-		if len(pieces) == 2 && pieces[0] == field {
-			return pieces[1], nil
+		for _, field := range fields {
+			if len(pieces) == 2 && pieces[0] == field {
+				res[field] = pieces[1]
+			}
 		}
 	}
 
-	return "", fmt.Errorf("Field %s not found in output of tshark -G folders", field)
+	return res, nil
+}
+
+//======================================================================
+
+func WiresharkProfileNames() []string {
+	res := make([]string, 0, 8)
+	folders, _ := TsharkSettings("Personal configuration", "Global configuration")
+	for _, folder := range folders {
+		profFolder := filepath.Join(folder, "profiles")
+
+		files, err := ioutil.ReadDir(profFolder)
+		if err != nil {
+			log.Warnf("Could not read wireshark config folder %s: %v", profFolder, err)
+			continue
+		}
+
+		for _, file := range files {
+			if file.IsDir() {
+				res = append(res, file.Name())
+			}
+		}
+	}
+	return res
 }
 
 //======================================================================
@@ -1245,7 +1218,7 @@ func ApplyArguments(cmd []string, args []string) ([]string, int) {
 }
 
 func BrowseUrl(url string) error {
-	urlCmd := ConfStringSlice(
+	urlCmd := profiles.ConfStringSlice(
 		"main.browse-command",
 		system.OpenURL,
 	)
@@ -1304,7 +1277,7 @@ type ICommandWaitTicker interface {
 func CopyCommand(input io.Reader, cb interface{}) error {
 	var err error
 
-	copyCmd := ConfStringSlice(
+	copyCmd := profiles.ConfStringSlice(
 		"main.copy-command",
 		system.CopyToClipboard,
 	)
@@ -1318,7 +1291,7 @@ func CopyCommand(input io.Reader, cb interface{}) error {
 	outBuf := bytes.Buffer{}
 	cmd.Stdout = &outBuf
 
-	cmdTimeout := ConfInt("main.copy-command-timeout", 5)
+	cmdTimeout := profiles.ConfInt("main.copy-command-timeout", 5)
 	if err := cmd.Start(); err != nil {
 		return errors.WithStack(gowid.WithKVs(BadCommand, map[string]interface{}{"err": err}))
 	}
