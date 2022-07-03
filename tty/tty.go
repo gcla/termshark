@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Graham Clark. All rights reserved.  Use of this source
+// Copyright 2019-2022 Graham Clark. All rights reserved.  Use of this source
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 //
@@ -37,17 +37,10 @@ func (t *TerminalSignals) Restore() {
 	t.set = false
 }
 
-func (t *TerminalSignals) Set() error {
+func (t *TerminalSignals) Set(outtty string) error {
 	var e error
 	var newtios unix.Termios
 	var fd uintptr
-
-	outtty := "/dev/tty"
-
-	gwtty := os.Getenv("GOWID_TTY")
-	if gwtty != "" {
-		outtty = gwtty
-	}
 
 	if t.out, e = os.OpenFile(outtty, os.O_WRONLY, 0); e != nil {
 		goto failed
