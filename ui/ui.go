@@ -2715,10 +2715,15 @@ func getHexWidgetToDisplay(row int) *hexdumper2.Widget {
 					// the alt view too because the user can click with the mouse and in one view have
 					// struct selected but in the other view have hex selected.
 
-					expandStructWidgetAtPosition(row, res2.Position(), app)
+					// Propagate the adjustments to pane positions if:
+					// - this was initiated from a non-struct pane e.g. the hex pane. Then we update struct
+					// - this was via an override e.g. search for packet bytes. Then hex is updated on match
+					//   which should then update the struct view
+					if currentlyFocusedViewNotStruct() || allowHexToStructRepositioning {
+						expandStructWidgetAtPosition(row, res2.Position(), app)
+					}
 
 					// Ensure the behavior is reset after this callback runs. Just do it once.
-
 					allowHexToStructRepositioning = false
 				}))
 
@@ -2822,20 +2827,14 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 					// the struct view - which then causes a callback to update the hex layer - the cursor can move in
 					// such a way it stays inside a valid layer and can't get outside. This boolean controls that
 					if doCursor {
-						if !allowHexToStructRepositioning || true {
-							curhexpos := newhex.Position()
-							smallestlayer := newLayers[len(newLayers)-1]
+						curhexpos := newhex.Position()
+						smallestlayer := newLayers[len(newLayers)-1]
 
-							if !(smallestlayer.Start <= curhexpos && curhexpos < smallestlayer.End) {
-								// This might trigger a callback from the hex layer since the position is set. Which will call
-								// back into here. But then this logic should not be triggered because the new pos will be
-								// inside the smallest layer
-
-								// The reason for this is to ensure the hex cursor moves according to the current struct
-								// layer - otherwise when you tab to the hex layer, you immediately lose your struct layer
-								// when you move the cursor - because it's outside of your struct context.
-								newhex.SetPosition(smallestlayer.Start, app)
-							}
+						if !(smallestlayer.Start <= curhexpos && curhexpos < smallestlayer.End) {
+							// The reason for this is to ensure the hex cursor moves according to the current struct
+							// layer - otherwise when you tab to the hex layer, you immediately lose your struct layer
+							// when you move the cursor - because it's outside of your struct context.
+							newhex.SetPosition(smallestlayer.Start, app)
 						}
 					}
 				}
@@ -2906,7 +2905,7 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 		})))
 
 		walker.OnFocusChanged(tree.MakeCallback("cb", func(app gowid.IApp, twalker tree.ITreeWalker) {
-			updateHex(app, currentlyFocusedViewNotHex() && !allowHexToStructRepositioning, twalker)
+			updateHex(app, currentlyFocusedViewNotHex(), twalker)
 
 			// need to save the position, so it can be applied to the next struct widget
 			// if brought into focus by packet list navigation
