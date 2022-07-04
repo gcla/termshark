@@ -8,11 +8,10 @@
 package system
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
-
-	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
@@ -26,7 +25,8 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 	var err error
 
 	dumpcapCmd := exec.Command(dumpcapBin, args...)
-	log.Infof("Starting dumpcap command %v", dumpcapCmd)
+	fmt.Fprintf(os.Stderr, "Starting termshark's custom live capture procedure.\n")
+	fmt.Fprintf(os.Stderr, "Trying dumpcap command %v\n", dumpcapCmd)
 	dumpcapCmd.Stdin = os.Stdin
 	dumpcapCmd.Stdout = os.Stdout
 	dumpcapCmd.Stderr = os.Stderr
@@ -34,7 +34,7 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 		var tshark string
 		tshark, err = exec.LookPath(tsharkBin)
 		if err == nil {
-			log.Infof("Retrying with dumpcap command %v", append([]string{tshark}, args...))
+			fmt.Fprintf(os.Stderr, "Retrying with dumpcap command %v\n", append([]string{tshark}, args...))
 			err = syscall.Exec(tshark, append([]string{tshark}, args...), os.Environ())
 		}
 	}

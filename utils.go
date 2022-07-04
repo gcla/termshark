@@ -224,6 +224,10 @@ func TSharkPath() (string, *gowid.KeyValueError) {
 }
 
 func RunForExitCode(prog string, args []string, env []string) (int, error) {
+	return RunForStderr(prog, args, env, ioutil.Discard)
+}
+
+func RunForStderr(prog string, args []string, env []string, stderr io.Writer) (int, error) {
 	var err error
 	exitCode := -1 // default bad
 	cmd := exec.Command(prog, args...)
@@ -231,7 +235,7 @@ func RunForExitCode(prog string, args []string, env []string) (int, error) {
 		cmd.Env = env
 	}
 	cmd.Stdout = ioutil.Discard
-	cmd.Stderr = ioutil.Discard
+	cmd.Stderr = stderr
 	err = cmd.Run()
 	if err != nil {
 		if exerr, ok := err.(*exec.ExitError); ok {

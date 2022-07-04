@@ -5,10 +5,9 @@
 package system
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
-
-	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
@@ -20,7 +19,8 @@ import (
 // tshark supports extcap interfaces.
 func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 	dumpcapCmd := exec.Command(dumpcapBin, args...)
-	log.Infof("Starting dumpcap command %v", dumpcapCmd)
+	fmt.Fprintf(os.Stderr, "Starting termshark's custom live capture procedure.\n")
+	fmt.Fprintf(os.Stderr, "Trying dumpcap command %v\n", dumpcapCmd)
 	dumpcapCmd.Stdin = os.Stdin
 	dumpcapCmd.Stdout = os.Stdout
 	dumpcapCmd.Stderr = os.Stderr
@@ -29,7 +29,7 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 	}
 
 	tsharkCmd := exec.Command(tsharkBin, args...)
-	log.Infof("Retrying with dumpcap command %v", tsharkCmd)
+	fmt.Fprintf(os.Stderr, "Retrying with dumpcap command %v\n", tsharkCmd)
 	tsharkCmd.Stdin = os.Stdin
 	tsharkCmd.Stdout = os.Stdout
 	tsharkCmd.Stderr = os.Stderr

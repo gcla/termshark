@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -720,6 +721,7 @@ func cmain() int {
 	//======================================================================
 
 	ifaceExitCode := 0
+	stderr := &bytes.Buffer{}
 	var ifaceErr error
 
 	// This is deferred until after the app is Closed - otherwise messages written to stdout/stderr are
@@ -731,6 +733,20 @@ func cmain() int {
 				fmt.Fprintf(os.Stderr, ": %v", ifaceErr)
 			}
 			fmt.Fprintf(os.Stderr, " (exit code %d)\n", ifaceExitCode)
+			if stderr.Len() != 0 {
+				// The default capture bin is termshark itself, with a special environment
+				// variable set that causes it to try dumpcap, then tshark, in that order (for
+				// efficiency of capture, but falling back to tshark for extcap interfaces).
+				// But telling the user the capture process is "termshark" is misleading.
+				cbin, err1 := filepath.Abs(filepath.FromSlash(termshark.CaptureBin()))
+				def, err2 := filepath.Abs("termshark")
+				if err1 == nil && err2 == nil && cbin == def {
+					cbin = "the capture process"
+				}
+
+				fmt.Fprintf(os.Stderr, "Standard error stream from %s:\n", cbin)
+				fmt.Fprintf(os.Stderr, "------\n%s\n------\n", stderr.String())
+			}
 			if runtime.GOOS == "linux" && os.Geteuid() != 0 {
 				fmt.Fprintf(os.Stderr, "You might need: sudo setcap cap_net_raw,cap_net_admin+eip %s\n", termshark.PrivilegedBin())
 				fmt.Fprintf(os.Stderr, "Or try running with sudo or as root.\n")
@@ -931,10 +947,11 @@ func cmain() int {
 		ifaceExitCode = 0
 		for _, psrc := range psrcs {
 			if psrc.IsInterface() {
-				if ifaceExitCode, ifaceErr = termshark.RunForExitCode(
+				if ifaceExitCode, ifaceErr = termshark.RunForStderr(
 					termshark.CaptureBin(),
 					[]string{"-i", psrc.Name(), "-a", "duration:1"},
 					append(os.Environ(), "TERMSHARK_CAPTURE_MODE=1"),
+					stderr,
 				); ifaceExitCode != 0 {
 					return 1
 				}
