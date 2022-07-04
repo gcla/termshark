@@ -19,6 +19,7 @@ import (
 	"github.com/gcla/gowid/widgets/null"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/streams"
@@ -339,7 +340,7 @@ func (t *streamParseHandler) OnError(code pcap.HandlerCode, app gowid.IApp, err 
 	if !Running {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		RequestQuit()
-	} else if !termshark.ConfBool("main.suppress-tshark-errors", false) {
+	} else if !profiles.ConfBool("main.suppress-tshark-errors", false) {
 		var errstr string
 		if kverr, ok := err.(gowid.KeyValueError); ok {
 			errstr = fmt.Sprintf("%v\n\n", kverr.Cause())
@@ -359,7 +360,7 @@ func (t *streamParseHandler) OnError(code pcap.HandlerCode, app gowid.IApp, err 
 }
 
 func initStreamWidgetCache() {
-	widgetCacheSize := termshark.ConfInt("main.stream-cache-size", 100)
+	widgetCacheSize := profiles.ConfInt("main.stream-cache-size", 100)
 
 	var err error
 	streamWidgets, err = lru.New(widgetCacheSize)
@@ -441,7 +442,7 @@ func makeStreamWidget(previousFilter string, filter string, cap string, proto st
 			MenuOpener: &multiMenu1Opener,
 			DefaultDisplay: func() streamwidget.DisplayFormat {
 				view := streamwidget.Hex
-				choice := termshark.ConfString("main.stream-view", "hex")
+				choice := profiles.ConfString("main.stream-view", "hex")
 				switch choice {
 				case "raw":
 					view = streamwidget.Raw

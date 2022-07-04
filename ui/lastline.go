@@ -16,6 +16,7 @@ import (
 	"github.com/gcla/gowid/gwutil"
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/widgets/mapkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
@@ -34,6 +35,7 @@ var invalidRecentsCommandErr = fmt.Errorf("Invalid recents command")
 var invalidMapCommandErr = fmt.Errorf("Invalid map command")
 var invalidFilterCommandErr = fmt.Errorf("Invalid filter command")
 var invalidThemeCommandErr = fmt.Errorf("Invalid theme command")
+var invalidProfileCommandErr = fmt.Errorf("Invalid profile command")
 
 type minibufferFn func(gowid.IApp, ...string) error
 
@@ -89,6 +91,13 @@ func (s substrArg) Completions() []string {
 
 //======================================================================
 
+func newCachedArg(sub string, comps []string) substrArg {
+	return substrArg{
+		sub:        sub,
+		candidates: comps,
+	}
+}
+
 func newBoolArg(sub string) substrArg {
 	return substrArg{
 		sub:        sub,
@@ -129,6 +138,19 @@ func newHelpArg(sub string) substrArg {
 			"map",
 			"set",
 			"vim",
+		},
+	}
+}
+
+func newProfileArg(sub string) substrArg {
+	return substrArg{
+		sub: sub,
+		candidates: []string{
+			"create",
+			"use",
+			"delete",
+			"link",
+			"unlink",
 		},
 	}
 }
@@ -184,7 +206,7 @@ func (s recentsArg) OfferCompletion() bool {
 
 func (s recentsArg) Completions() []string {
 	matches := make([]string, 0)
-	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
+	cfiles := profiles.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
 		for _, sc := range cfiles {
 			scopy := sc
@@ -212,7 +234,7 @@ func (s filterArg) OfferCompletion() bool {
 
 func (s filterArg) Completions() []string {
 	matches := make([]string, 0)
-	cfiles := termshark.ConfStringSlice(s.field, []string{})
+	cfiles := profiles.ConfStringSlice(s.field, []string{})
 	if cfiles != nil {
 		for _, sc := range cfiles {
 			scopy := sc
@@ -292,6 +314,30 @@ func (s themeArg) Completions() []string {
 
 //======================================================================
 
+type profileArg struct {
+	substr string
+}
+
+var _ minibuffer.IArg = profileArg{}
+
+func (s profileArg) OfferCompletion() bool {
+	return true
+}
+
+func (s profileArg) Completions() []string {
+	matches := make([]string, 0)
+	profs := profiles.AllNames()
+	for _, prof := range profs {
+		if strings.Contains(prof, s.substr) {
+			matches = append(matches, prof)
+		}
+	}
+
+	return matches
+}
+
+//======================================================================
+
 func stringIn(s string, a []string) bool {
 	for _, s2 := range a {
 		if s == s2 {
@@ -325,33 +371,32 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 		case "auto-scroll":
 			if b, err = parseOnOff(args[2]); err == nil {
 				AutoScroll = b
-				termshark.SetConf("main.auto-scroll", AutoScroll)
+				profiles.SetConf("main.auto-scroll", AutoScroll)
 				OpenMessage(fmt.Sprintf("Packet auto-scroll is now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
 		case "copy-timeout":
 			if i, err = strconv.ParseUint(args[2], 10, 32); err == nil {
-				termshark.SetConf("main.copy-command-timeout", i)
+				profiles.SetConf("main.copy-command-timeout", i)
 				OpenMessage(fmt.Sprintf("Copy timeout is now %ds", i), appView, app)
 			}
 		case "dark-mode":
 			if b, err = parseOnOff(args[2]); err == nil {
-				DarkMode = b
-				termshark.SetConf("main.dark-mode", DarkMode)
+				SetDarkMode(b)
 			}
 		case "disable-shark-fin":
 			if b, err = strconv.ParseBool(args[2]); err == nil {
-				termshark.SetConf("main.disable-shark-fin", DarkMode)
+				profiles.SetConf("main.disable-shark-fin", DarkMode)
 				OpenMessage(fmt.Sprintf("Shark-saver is now %s", gwutil.If(b, "off", "on").(string)), appView, app)
 			}
 		case "packet-colors":
 			if b, err = parseOnOff(args[2]); err == nil {
 				PacketColors = b
-				termshark.SetConf("main.packet-colors", PacketColors)
+				profiles.SetConf("main.packet-colors", PacketColors)
 				OpenMessage(fmt.Sprintf("Packet colors are now %s", gwutil.If(b, "on", "off").(string)), appView, app)
 			}
 		case "suppress-tshark-errors":
 			if b, err = parseOnOff(args[2]); err == nil {
-				termshark.SetConf("main.suppress-tshark-errors", b)
+				profiles.SetConf("main.suppress-tshark-errors", b)
 				if b {
 					OpenMessage("tshark errors will be suppressed.", appView, app)
 				} else {
@@ -360,11 +405,11 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 			}
 		case "term":
 			if err = termshark.ValidateTerm(args[2]); err == nil {
-				termshark.SetConf("main.term", args[2])
+				profiles.SetConf("main.term", args[2])
 				OpenMessage(fmt.Sprintf("Terminal type is now %s\n(Requires restart)", args[2]), appView, app)
 			}
 		case "pager":
-			termshark.SetConf("main.pager", args[2])
+			profiles.SetConf("main.pager", args[2])
 			OpenMessage(fmt.Sprintf("Pager is now %s", args[2]), appView, app)
 		default:
 			err = invalidSetCommandErr
@@ -372,10 +417,10 @@ func (d setCommand) Run(app gowid.IApp, args ...string) error {
 	case 2:
 		switch args[1] {
 		case "noterm":
-			termshark.DeleteConf("main.term")
+			profiles.DeleteConf("main.term")
 			OpenMessage("Terminal type is now unset\n(Requires restart)", appView, app)
 		case "nopager":
-			termshark.DeleteConf("main.pager")
+			profiles.DeleteConf("main.pager")
 			OpenMessage("Pager is now unset", appView, app)
 		default:
 			err = invalidSetCommandErr
@@ -546,7 +591,7 @@ func (d themeCommand) Run(app gowid.IApp, args ...string) error {
 		err = invalidThemeCommandErr
 	} else {
 		mode := theme.Mode(app.GetColorMode()).String() // more concise
-		termshark.SetConf(fmt.Sprintf("main.theme-%s", mode), args[1])
+		profiles.SetConf(fmt.Sprintf("main.theme-%s", mode), args[1])
 		theme.Load(args[1], app)
 		SetupColors()
 		OpenMessage(fmt.Sprintf("Set %s theme for terminal mode %v.", args[1], app.GetColorMode()), appView, app)
@@ -579,6 +624,141 @@ func (d themeCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg
 		modes = append(modes, "16")
 	}
 	res = append(res, themeArg{substr: pref, modes: modes})
+	return res
+}
+
+//======================================================================
+
+type profileCommand struct {
+	termsharkProfiles []string
+	wiresharkProfiles []string
+}
+
+var _ minibuffer.IAction = profileCommand{}
+
+func newProfileCommand() *profileCommand {
+	return &profileCommand{
+		termsharkProfiles: profiles.AllNonDefaultNames(),
+		wiresharkProfiles: termshark.WiresharkProfileNames(),
+	}
+}
+
+func (d profileCommand) Run(app gowid.IApp, args ...string) error {
+	var err error
+
+	switch len(args) {
+	case 3:
+		switch args[1] {
+		case "use":
+			if !termshark.StringInSlice(args[2], append(d.termsharkProfiles, "default")) {
+				err = fmt.Errorf("%s is not a valid termshark profile", args[2])
+				break
+			}
+			cur := profiles.Current()
+			// gcla later todo - validate arg2 is in list
+			err = profiles.Use(args[2])
+			if err == nil {
+				err = ApplyCurrentProfile(app, cur, profiles.Current())
+			}
+			if err == nil {
+				OpenMessage(fmt.Sprintf("Now using profile %s.", args[2]), appView, app)
+			}
+		case "link":
+			// gcla later todo - need to validate it is in list!
+			if !termshark.StringInSlice(args[2], d.wiresharkProfiles) {
+				err = fmt.Errorf("%s is not a valid Wireshark profile", args[2])
+				break
+			}
+			curLink := profiles.ConfString("main.wireshark-profile", "")
+			profiles.SetConf("main.wireshark-profile", args[2])
+			if curLink != args[2] {
+				RequestReload(app)
+			}
+		case "delete":
+			if !termshark.StringInSlice(args[2], d.termsharkProfiles) {
+				err = fmt.Errorf("%s is not a valid termshark profile", args[2])
+				break
+			}
+
+			confirmAction(
+				fmt.Sprintf("Really delete profile %s?", args[2]),
+				func(app gowid.IApp) {
+					cur := profiles.Current()
+					curName := profiles.CurrentName()
+					if curName == args[2] {
+						err = profiles.Use("default")
+						if err == nil {
+							err = ApplyCurrentProfile(app, cur, profiles.Current())
+						}
+					}
+					if err == nil {
+						err = profiles.Delete(args[2])
+					}
+					if err == nil {
+						msg := fmt.Sprintf("Profile %s deleted.", args[2])
+						if curName == args[2] {
+							OpenMessage(fmt.Sprintf("%s Switched back to default profile.", msg), appView, app)
+						} else {
+							OpenMessage(msg, appView, app)
+						}
+					} else if err != nil {
+						OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+					}
+				},
+				app,
+			)
+
+		default:
+			err = invalidSetCommandErr
+		}
+	case 2:
+		switch args[1] {
+		case "create":
+			openNewProfile(app)
+		case "unlink":
+			curLink := profiles.ConfString("main.wireshark-profile", "")
+			profiles.SetConf("main.wireshark-profile", "")
+			if curLink != "" {
+				RequestReload(app)
+			}
+		default:
+			err = invalidProfileCommandErr
+		}
+	}
+
+	if err != nil {
+		OpenMessage(fmt.Sprintf("Error: %s", err), appView, app)
+	}
+
+	return err
+}
+
+func (d profileCommand) OfferCompletion() bool {
+	return true
+}
+
+func (d profileCommand) Arguments(toks []string, app gowid.IApp) []minibuffer.IArg {
+	res := make([]minibuffer.IArg, 0)
+	res = append(res, newProfileArg(toks[0]))
+
+	if len(toks) > 0 {
+		pref := ""
+		if len(toks) > 1 {
+			pref = toks[1]
+		}
+
+		switch toks[0] {
+		case "create":
+		case "unlink":
+		case "use":
+			res = append(res, newCachedArg(pref, append(d.termsharkProfiles, "default")))
+		case "delete":
+			res = append(res, newCachedArg(pref, d.termsharkProfiles))
+		case "link":
+			res = append(res, newCachedArg(pref, d.wiresharkProfiles))
+		}
+	}
+
 	return res
 }
 

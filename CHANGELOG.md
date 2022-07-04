@@ -6,9 +6,13 @@
 
 - You can now search for information in packets, in similar fashion to Wireshark's packet search. Hit `ctrl-f`
   to open the search bar.
+- Termshark now supports Wireshark-like profiles. Access via the new minibuffer profile commands: create to
+  make a new profile; use to switch profile. A profile can be "linked" to a Wireshark profile to make use
+  of Wireshark color profiles in termshark.
 
 ### Changed
 
+- Dark-mode is now the default in the absence of a specific user-setting.
 - Fixed a bug that caused mouse-clicks within the hex view to not function correctly if the viewport was not
   at the top of the data to be displayed.
 - When focus is in the packet hex view, the mouse wheel will no longer move the cursor - instead it will move

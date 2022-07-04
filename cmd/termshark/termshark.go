@@ -22,12 +22,12 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/capinfo"
 	"github.com/gcla/termshark/v2/cli"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/convs"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/system"
-	"github.com/gcla/termshark/v2/theme"
 	"github.com/gcla/termshark/v2/tty"
 	"github.com/gcla/termshark/v2/ui"
 	"github.com/gcla/termshark/v2/widgets/filter"
@@ -134,8 +134,6 @@ func cmain() int {
 	// processes start running, they use the same tty line discipline.
 	system.RegisterForSignals(sigChan)
 
-	viper.SetConfigName("termshark") // no need to include file extension - looks for file called termshark.ini for example
-
 	stdConf := configdir.New("", "termshark")
 	dirs := stdConf.QueryFolders(configdir.Cache)
 	if err := dirs[0].CreateParentDir("dummy"); err != nil {
@@ -144,27 +142,15 @@ func cmain() int {
 	dirs = stdConf.QueryFolders(configdir.Global)
 	if err := dirs[0].CreateParentDir("dummy"); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not create config dir: %v\n", err)
-	}
-	viper.AddConfigPath(dirs[0].Path)
-
-	if f, err := os.OpenFile(filepath.Join(dirs[0].Path, "termshark.toml"), os.O_RDONLY|os.O_CREATE, 0666); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not create initial config file: %v\n", err)
 	} else {
-		f.Close()
-	}
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		fmt.Println("Config file not found...")
-	}
-
-	if os.Getenv("TERMSHARK_CAPTURE_MODE") == "1" {
-		err = system.DumpcapExt(termshark.DumpcapBin(), termshark.TSharkBin(), os.Args[1:]...)
-		if err != nil {
-			return 1
-		} else {
-			return 0
+		if err = os.MkdirAll(filepath.Join(dirs[0].Path, "profiles"), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not create profiles dir: %v\n", err)
 		}
+	}
+
+	err := profiles.ReadDefaultConfig(dirs[0].Path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("%s\n", err.Error()))
 	}
 
 	// Used to determine if we should run tshark instead e.g. stdout is not a tty
@@ -196,6 +182,29 @@ func cmain() int {
 		err = termshark.TailFile(tsopts.TailFileValue())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v", err)
+			return 1
+		} else {
+			return 0
+		}
+	}
+
+	// From here, the current profile is referenced. So load it up prior to first use. If the user
+	// provides a non-existent profile name, it should be an error, just as for Wireshark.
+	if tsopts.Profile != "" {
+		if err = profiles.Use(tsopts.Profile); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return 1
+		}
+	}
+
+	// If this variable is set, it's set by termshark internally, and termshark is guaranteed to
+	// construct a valid command-line invocation. So it doesn't matter if I do this after the CLI
+	// parsing logic because there's no risk of an error causing a short-circuit and this command
+	// not being run. The reason to do it after the CLI parsing logic is so that I have the correct
+	// config profile loaded, needed for the tshark command.
+	if os.Getenv("TERMSHARK_CAPTURE_MODE") == "1" {
+		err = system.DumpcapExt(termshark.DumpcapBin(), termshark.TSharkBin(), os.Args[1:]...)
+		if err != nil {
 			return 1
 		} else {
 			return 0
@@ -312,7 +321,7 @@ func cmain() int {
 	// Allow the user to override the shell's TERM variable this way. Perhaps the user runs
 	// under screen/tmux, and the TERM variable doesn't reflect the fact their preferred
 	// terminal emumlator supports 256 colors.
-	termVar := termshark.ConfString("main.term", "")
+	termVar := profiles.ConfString("main.term", "")
 	if termVar != "" {
 		fmt.Fprintf(os.Stderr, "Configuration file overrides TERM setting, using TERM=%s\n", termVar)
 		os.Setenv("TERM", termVar)
@@ -533,7 +542,7 @@ func cmain() int {
 	}
 
 	debug := false
-	if (opts.Debug.Set && opts.Debug.Val == true) || (!opts.Debug.Set && termshark.ConfBool("main.debug", false)) {
+	if (opts.Debug.Set && opts.Debug.Val == true) || (!opts.Debug.Set && profiles.ConfBool("main.debug", false)) {
 		debug = true
 	}
 
@@ -575,7 +584,7 @@ func cmain() int {
 	// Here, tsharkBin is a fully-qualified tshark binary that exists on the fs (absent race
 	// conditions...)
 
-	valids := termshark.ConfStrings("main.validated-tsharks")
+	valids := profiles.ConfStrings("main.validated-tsharks")
 
 	if !termshark.StringInSlice(tsharkBin, valids) {
 		tver, err := termshark.TSharkVersion(tsharkBin)
@@ -592,24 +601,24 @@ func cmain() int {
 		}
 
 		valids = append(valids, tsharkBin)
-		termshark.SetConf("main.validated-tsharks", valids)
+		profiles.SetConf("main.validated-tsharks", valids)
 	}
 
 	// If the last tshark we used isn't the same as the current one, then remove the cached fields
 	// data structure so it can be regenerated.
-	if tsharkBin != termshark.ConfString("main.last-used-tshark", "") {
+	if tsharkBin != profiles.ConfString("main.last-used-tshark", "") {
 		termshark.DeleteCachedFields()
 	}
 
 	// Write out the last-used tshark path. We do this to make the above fields cache be consistent
 	// with the tshark binary we're using.
-	termshark.SetConf("main.last-used-tshark", tsharkBin)
+	profiles.SetConf("main.last-used-tshark", tsharkBin)
 
 	// Determine if the current binary supports color. Tshark will fail with an error if it's too old
 	// and you supply the --color flag. Assume true, and check if our current binary is not in the
 	// validate list.
 	ui.PacketColorsSupported = true
-	colorTsharks := termshark.ConfStrings("main.color-tsharks")
+	colorTsharks := profiles.ConfStrings("main.color-tsharks")
 
 	if !termshark.StringInSlice(tsharkBin, colorTsharks) {
 		ui.PacketColorsSupported, err = termshark.TSharkSupportsColor(tsharkBin)
@@ -617,7 +626,7 @@ func cmain() int {
 			ui.PacketColorsSupported = false
 		} else {
 			colorTsharks = append(colorTsharks, tsharkBin)
-			termshark.SetConf("main.color-tsharks", colorTsharks)
+			profiles.SetConf("main.color-tsharks", colorTsharks)
 		}
 	}
 
@@ -746,24 +755,24 @@ func cmain() int {
 	}()
 
 	// Initialize application state for dark mode and auto-scroll
-	ui.DarkMode = termshark.ConfBool("main.dark-mode", false)
-	ui.AutoScroll = termshark.ConfBool("main.auto-scroll", true)
-	ui.PacketColors = termshark.ConfBool("main.packet-colors", true)
+	ui.DarkMode = profiles.ConfBool("main.dark-mode", true)
+	ui.AutoScroll = profiles.ConfBool("main.auto-scroll", true)
+	ui.PacketColors = profiles.ConfBool("main.packet-colors", true)
 
 	// Set them up here so they have access to any command-line flags that
 	// need to be passed to the tshark commands used
-	pdmlArgs := termshark.ConfStringSlice("main.pdml-args", []string{})
-	psmlArgs := termshark.ConfStringSlice("main.psml-args", []string{})
+	pdmlArgs := profiles.ConfStringSlice("main.pdml-args", []string{})
+	psmlArgs := profiles.ConfStringSlice("main.psml-args", []string{})
 	if opts.TimestampFormat != "" {
 		psmlArgs = append(psmlArgs, "-t", opts.TimestampFormat)
 	}
-	tsharkArgs := termshark.ConfStringSlice("main.tshark-args", []string{})
+	tsharkArgs := profiles.ConfStringSlice("main.tshark-args", []string{})
 	if ui.PacketColors && !ui.PacketColorsSupported {
 		log.Warnf("Packet coloring is enabled, but %s does not support --color", tsharkBin)
 		ui.PacketColors = false
 	}
-	cacheSize := termshark.ConfInt("main.pcap-cache-size", 64)
-	bundleSize := termshark.ConfInt("main.pcap-bundle-size", 1000)
+	cacheSize := profiles.ConfInt("main.pcap-cache-size", 64)
+	bundleSize := profiles.ConfInt("main.pcap-bundle-size", 1000)
 	if bundleSize <= 0 {
 		maxBundleSize := 100000
 		log.Infof("Config specifies pcap-bundle-size as %d - setting to max (%d)", bundleSize, maxBundleSize)
@@ -809,8 +818,8 @@ func cmain() int {
 	// 0-21 are set up normally, and not remapped. If the closest match is one of those
 	// colors, then the theme won't look as expected. A workaround is to tell
 	// gowid not to use colors 0-21 when finding the closest match.
-	if termshark.ConfKeyExists("main.ignore-base16-colors") {
-		gowid.IgnoreBase16 = termshark.ConfBool("main.ignore-base16-colors", false)
+	if profiles.ConfKeyExists("main.ignore-base16-colors") {
+		gowid.IgnoreBase16 = profiles.ConfBool("main.ignore-base16-colors", false)
 	} else {
 		// Try to auto-detect whether or not base16-shell is installed and in-use
 		gowid.IgnoreBase16 = (os.Getenv("BASE16_SHELL") != "")
@@ -824,7 +833,7 @@ func cmain() int {
 		// just an implementation snafu, or if something else is going on... In any case,
 		// termshark will fall back to 256-colors if base16 is detected because I can
 		// programmatically avoid choosing colors 0-21 for anything termshark needs.
-		if os.Getenv("COLORTERM") != "" && !termshark.ConfBool("main.respect-colorterm", false) {
+		if os.Getenv("COLORTERM") != "" && !profiles.ConfBool("main.respect-colorterm", false) {
 			log.Infof("Pessimistically disabling 24-bit color to avoid conflicts with base16")
 			os.Unsetenv("COLORTERM")
 		}
@@ -1144,7 +1153,7 @@ Loop:
 		case <-checkPcapCacheChan:
 			// Only check the cache dir if we own it; don't want to delete pcap files
 			// that might be shared with wireshark
-			if termshark.ConfBool("main.use-tshark-temp-for-pcap-cache", false) {
+			if profiles.ConfBool("main.use-tshark-temp-for-pcap-cache", false) {
 				log.Infof("Termshark does not own the pcap temp dir %s; skipping size check", termshark.PcapDir())
 			} else {
 				termshark.PrunePcapCache()
@@ -1173,24 +1182,7 @@ Loop:
 			// Need to do that here because the app won't know how many colors the screen
 			// has (and therefore which variant of the theme to load) until the screen is
 			// activated.
-			mode := app.GetColorMode()
-			modeStr := theme.Mode(mode) // more concise
-			themeName := termshark.ConfString(fmt.Sprintf("main.theme-%s", modeStr), "default")
-			loaded := false
-			if themeName != "" {
-				err = theme.Load(themeName, app)
-				if err != nil {
-					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-				} else {
-					loaded = true
-				}
-			}
-			if !loaded && themeName != "default" {
-				err = theme.Load("default", app)
-				if err != nil {
-					log.Warnf("Theme %s could not be loaded: %v", themeName, err)
-				}
-			}
+			ui.ApplyCurrentTheme(app)
 
 			// This needs to run after the toml config file is loaded.
 			ui.SetupColors()
@@ -1209,11 +1201,11 @@ Loop:
 			ui.StartUIChan = nil // make sure it's not triggered again
 
 			if runtime.GOOS != "windows" {
-				if mode == gowid.Mode8Colors {
+				if app.GetColorMode() == gowid.Mode8Colors {
 					// If exists is true, it means we already tried and then reverted back, so
 					// just load up termshark normally with no further interruption.
 					if _, exists := os.LookupEnv("TERMSHARK_ORIGINAL_TERM"); !exists {
-						if !termshark.ConfBool("main.disable-term-helper", false) {
+						if !profiles.ConfBool("main.disable-term-helper", false) {
 							err = termshark.Does256ColorTermExist()
 							if err != nil {
 								log.Infof("Must use 8-color mode because 256-color version of TERM=%s unavailable - %v.", os.Getenv("TERM"), err)

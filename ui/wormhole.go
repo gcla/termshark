@@ -11,7 +11,7 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/dialog"
 	"github.com/gcla/gowid/widgets/framed"
-	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/widgets/wormhole"
 	log "github.com/sirupsen/logrus"
 )
@@ -24,7 +24,7 @@ func openWormhole(app gowid.IApp) {
 
 	var numWords int
 	if CurrentWormholeWidget == nil {
-		numWords = termshark.ConfInt("main.wormhole-length", 2)
+		numWords = profiles.ConfInt("main.wormhole-length", 2)
 	} else {
 		numWords = CurrentWormholeWidget.CodeLength()
 	}
@@ -38,8 +38,8 @@ func openWormhole(app gowid.IApp) {
 				OpenError(msg, app)
 			},
 			CodeLength:          numWords,
-			TransitRelayAddress: termshark.ConfString("main.wormhole-transit-relay", ""),
-			RendezvousURL:       termshark.ConfString("main.wormhole-rendezvous-url", ""),
+			TransitRelayAddress: profiles.ConfString("main.wormhole-transit-relay", ""),
+			RendezvousURL:       profiles.ConfString("main.wormhole-rendezvous-url", ""),
 		})
 		if err != nil {
 			msg := fmt.Sprintf("%v", err)

@@ -13,9 +13,9 @@ import (
 	"sync"
 
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/kballard/go-shellquote"
-	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
@@ -46,7 +46,7 @@ func (c *Command) String() string {
 func (c *Command) Start() error {
 	c.Lock()
 	defer c.Unlock()
-	c.Cmd.Stderr = log.StandardLogger().Writer()
+	c.Cmd.Stderr = termshark.ErrLogger("cmd", c.Path)
 	c.PutInNewGroupOnUnix()
 	res := c.Cmd.Start()
 	return res
@@ -118,6 +118,10 @@ func (c Commands) Iface(ifaces []string, captureFilter string, tmpfile string) I
 	args = append(args, "-w", tmpfile)
 	if captureFilter != "" {
 		args = append(args, "-f", captureFilter)
+	}
+	prof := profiles.ConfString("main.wireshark-profile", "")
+	if prof != "" {
+		args = append(args, "-C", prof)
 	}
 	res := &Command{
 		Cmd: exec.Command(termshark.CaptureBin(), args...),
@@ -194,6 +198,11 @@ func (c Commands) Psml(pcap interface{}, displayFilter string) IPcapCommand {
 	args = append(args, c.PsmlArgs...)
 	args = append(args, c.Args...)
 
+	prof := profiles.ConfString("main.wireshark-profile", "")
+	if prof != "" {
+		args = append(args, "-C", prof)
+	}
+
 	//cmd := exec.Command("strace", args...)
 	cmd := exec.Command(termshark.TSharkBin(), args...)
 	//cmd := exec.Command("stdbuf", args...)
@@ -226,6 +235,12 @@ func (c Commands) Pdml(pcap string, displayFilter string) IPcapCommand {
 	}
 	args = append(args, c.PdmlArgs...)
 	args = append(args, c.Args...)
+
+	prof := profiles.ConfString("main.wireshark-profile", "")
+	if prof != "" {
+		args = append(args, "-C", prof)
+	}
+
 	return &Command{Cmd: exec.Command(termshark.TSharkBin(), args...)}
 }
 

@@ -46,6 +46,7 @@ import (
 	"github.com/gcla/gowid/widgets/tree"
 	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/pcap"
 	"github.com/gcla/termshark/v2/pdmltree"
 	"github.com/gcla/termshark/v2/psmlmodel"
@@ -72,6 +73,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 //======================================================================
@@ -131,6 +133,7 @@ var view2idx int
 var generalMenu *menu.Widget
 var analysisMenu *menu.Widget
 var savedMenu *menu.Widget
+var profileMenu *menu.Widget
 var FilterWidget *filter.Widget
 var Fin *rossshark.Widget
 var CopyModeWidget gowid.IWidget
@@ -166,6 +169,11 @@ var multiMenu2Opener MultiMenuOpener
 
 var tabViewsForward map[gowid.IWidget]gowid.IWidget
 var tabViewsBackward map[gowid.IWidget]gowid.IWidget
+
+var currentProfile *text.Widget
+var currentProfileWidget *columns.Widget
+var currentProfileWidgetHolder *holder.Widget
+var openProfileSite *menu.SiteWidget
 
 var currentCapture *text.Widget
 var currentCaptureWidget *columns.Widget
@@ -328,7 +336,7 @@ func columnNameFromShowname(showname string) string {
 }
 
 func useAsColumn(filter string, name string, app gowid.IApp) {
-	newCols := termshark.ConfStringSlice("main.column-format", []string{})
+	newCols := profiles.ConfStringSlice("main.column-format", []string{})
 	colsBak := make([]string, len(newCols))
 	for i, col := range newCols {
 		colsBak[i] = col
@@ -340,8 +348,8 @@ func useAsColumn(filter string, name string, app gowid.IApp) {
 		"true",
 	)
 
-	termshark.SetConf("main.column-format-bak", colsBak)
-	termshark.SetConf("main.column-format", newCols)
+	profiles.SetConf("main.column-format-bak", colsBak)
+	profiles.SetConf("main.column-format", newCols)
 
 	RequestReload(app)
 }
@@ -1222,7 +1230,7 @@ func openResultsAfterCopy(tmplName string, tocopy string, app gowid.IApp) {
 func processCopyChoices(copyLen int, app gowid.IApp) {
 	var cc *dialog.Widget
 
-	copyCmd := termshark.ConfStringSlice(
+	copyCmd := profiles.ConfStringSlice(
 		"main.copy-command",
 		system.CopyToClipboard,
 	)
@@ -1377,7 +1385,7 @@ func reallyQuit(app gowid.IApp) {
 							// (a) Loader is in interface mode (b) User did not set -w flag
 							// (c) always-keep-pcap setting is unset (def false) or false
 							if Loader.InterfaceFile() != "" && !WriteToSelected &&
-								!termshark.ConfBool("main.always-keep-pcap", false) {
+								!profiles.ConfBool("main.always-keep-pcap", false) {
 								askToSave(app, func(app gowid.IApp) {
 									RequestQuit()
 								})
@@ -1415,10 +1423,14 @@ func lastLineMode(app gowid.IApp) {
 
 	MiniBuffer.Register("no-theme", minibufferFn(func(app gowid.IApp, s ...string) error {
 		mode := theme.Mode(app.GetColorMode()).String() // more concise
-		termshark.DeleteConf(fmt.Sprintf("main.theme-%s", mode))
-		theme.Load("default", app)
+		profiles.DeleteConf(fmt.Sprintf("main.theme-%s", mode))
+		ApplyCurrentTheme(app)
 		SetupColors()
-		OpenMessage(fmt.Sprintf("Cleared theme for terminal mode %v.", app.GetColorMode()), appView, app)
+		var prof string
+		if profiles.Current() != profiles.Default() {
+			prof = fmt.Sprintf("in profile %s ", profiles.CurrentName())
+		}
+		OpenMessage(fmt.Sprintf("Cleared theme %sfor terminal mode %v.", prof, app.GetColorMode()), appView, app)
 		return nil
 	}))
 
@@ -1488,6 +1500,7 @@ func lastLineMode(app gowid.IApp) {
 	MiniBuffer.Register("recents", recentsCommand{})
 	MiniBuffer.Register("filter", filterCommand{})
 	MiniBuffer.Register("theme", themeCommand{})
+	MiniBuffer.Register("profile", newProfileCommand())
 	MiniBuffer.Register("map", mapCommand{w: keyMapper})
 	MiniBuffer.Register("unmap", unmapCommand{w: keyMapper})
 	MiniBuffer.Register("help", helpCommand{})
@@ -1529,7 +1542,28 @@ func getCurrentStructModelWith(row int, lock sync.Locker) *pdmltree.Model {
 //======================================================================
 
 func reallyClear(app gowid.IApp) {
-	msgt := "Do you want to clear current capture?"
+	confirmAction(
+		"Do you want to clear current capture?",
+		func(app gowid.IApp) {
+			Loader.ClearPcap(
+				pcap.HandlerList{
+					SimpleErrors{},
+					MakePacketViewUpdater(),
+					MakeUpdateCurrentCaptureInTitle(),
+					ManageStreamCache{},
+					ManageCapinfoCache{},
+					SetStructWidgets{Loader}, // for OnClear
+					ClearMarksHandler{},
+					ManageSearchData{},
+					CancelledMessage{},
+				},
+			)
+		},
+		app,
+	)
+}
+
+func confirmAction(msgt string, ok func(gowid.IApp), app gowid.IApp) {
 	msg := text.New(msgt)
 	YesNo = dialog.New(
 		framed.NewSpace(hpadding.New(msg, hmiddle, fixed)),
@@ -1540,19 +1574,7 @@ func reallyClear(app gowid.IApp) {
 					Action: gowid.MakeWidgetCallback("cb",
 						func(app gowid.IApp, w gowid.IWidget) {
 							YesNo.Close(app)
-							Loader.ClearPcap(
-								pcap.HandlerList{
-									SimpleErrors{},
-									MakePacketViewUpdater(),
-									MakeUpdateCurrentCaptureInTitle(),
-									ManageStreamCache{},
-									ManageCapinfoCache{},
-									SetStructWidgets{Loader}, // for OnClear
-									ClearMarksHandler{},
-									ManageSearchData{},
-									CancelledMessage{},
-								},
-							)
+							ok(app)
 						},
 					),
 				},
@@ -2076,19 +2098,19 @@ func mainKeyPress(evk *tcell.EventKey, app gowid.IApp) bool {
 	} else if isrune && evk.Rune() == '|' {
 		if mainViewNoKeys.SubWidget() == mainview {
 			mainViewNoKeys.SetSubWidget(altview1, app)
-			termshark.SetConf("main.layout", "altview1")
+			profiles.SetConf("main.layout", "altview1")
 		} else if mainViewNoKeys.SubWidget() == altview1 {
 			mainViewNoKeys.SetSubWidget(altview2, app)
-			termshark.SetConf("main.layout", "altview2")
+			profiles.SetConf("main.layout", "altview2")
 		} else {
 			mainViewNoKeys.SetSubWidget(mainview, app)
-			termshark.SetConf("main.layout", "mainview")
+			profiles.SetConf("main.layout", "mainview")
 		}
 	} else if isrune && evk.Rune() == '\\' {
 		w := mainViewNoKeys.SubWidget()
 		fp := gowid.FocusPath(w)
 		if w == viewOnlyPacketList || w == viewOnlyPacketStructure || w == viewOnlyPacketHex {
-			switch termshark.ConfString("main.layout", "mainview") {
+			switch profiles.ConfString("main.layout", "mainview") {
 			case "altview1":
 				mainViewNoKeys.SetSubWidget(altview1, app)
 			case "altview2":
@@ -2505,7 +2527,7 @@ func ApplyAutoScroll(ev *tcell.EventKey, app gowid.IApp) bool {
 		doit = true
 	}
 	if doit {
-		if termshark.ConfBool("main.auto-scroll", true) {
+		if profiles.ConfBool("main.auto-scroll", true) {
 			AutoScroll = true
 			reenableAutoScroll = true // when packet updates come, helps
 			// understand that AutoScroll should not be disabled again
@@ -2959,7 +2981,7 @@ func RequestLoadInterfaces(psrcs []pcap.IPacketSource, captureFilter string, dis
 // MaybeKeepThenRequestLoadPcap loads a pcap after first checking to see whether
 // the current load is a live load and the packets need to be kept.
 func MaybeKeepThenRequestLoadPcap(pcapf string, displayFilter string, jump termshark.GlobalJumpPos, app gowid.IApp) {
-	if Loader.InterfaceFile() != "" && !WriteToSelected && !termshark.ConfBool("main.always-keep-pcap", false) {
+	if Loader.InterfaceFile() != "" && !WriteToSelected && !profiles.ConfBool("main.always-keep-pcap", false) {
 		askToSave(app, func(app gowid.IApp) {
 			RequestLoadPcap(pcapf, displayFilter, jump, app)
 		})
@@ -3084,7 +3106,7 @@ func progMax(x, y Prog) Prog {
 
 func makeRecentMenuWidget() (gowid.IWidget, int) {
 	savedItems := make([]menuutil.SimpleMenuItem, 0)
-	cfiles := termshark.ConfStringSlice("main.recent-files", []string{})
+	cfiles := profiles.ConfStringSlice("main.recent-files", []string{})
 	if cfiles != nil {
 		for i, s := range cfiles {
 			scopy := s
@@ -3120,7 +3142,7 @@ var _ termshark.IPrefixCompleterCallback = (*savedCompleterCallback)(nil)
 
 func (s *savedCompleterCallback) Call(orig []string) {
 	if s.prefix == "" {
-		comps := termshark.ConfStrings("main.recent-filters")
+		comps := profiles.ConfStrings("main.recent-filters")
 		if len(comps) == 0 {
 			comps = orig
 		}
@@ -3214,12 +3236,80 @@ func (w *prefixKeyWidget) UserInput(ev interface{}, size gowid.IRenderSize, focu
 
 //======================================================================
 
+func SetDarkMode(mode bool) {
+	DarkMode = mode
+	profiles.SetConf("main.dark-mode", DarkMode)
+}
+
+func UpdateProfileWidget(name string, app gowid.IApp) {
+	currentProfile.SetText(name, app)
+	if name != "" && name != "default" {
+		currentProfileWidgetHolder.SetSubWidget(currentProfileWidget, app)
+	} else {
+		currentProfileWidgetHolder.SetSubWidget(nullw, app)
+	}
+}
+
+// vp and vc guaranteed to be non-nil
+func ApplyCurrentProfile(app gowid.IApp, vp *viper.Viper, vc *viper.Viper) error {
+	UpdateProfileWidget(profiles.CurrentName(), app)
+
+	reload := false
+
+	SetDarkMode(profiles.ConfBool("main.dark-mode", true))
+
+	curWireshark := profiles.ConfStringFrom(vp, profiles.Default(), "main.wireshark-profile", "")
+	newWireshark := profiles.ConfStringFrom(vc, profiles.Default(), "main.wireshark-profile", "")
+	if curWireshark != newWireshark {
+		reload = true
+	}
+
+	curcols := profiles.ConfStringSliceFrom(vp, profiles.Default(), "main.column-format", []string{})
+	newcols := profiles.ConfStringSliceFrom(vc, profiles.Default(), "main.column-format", []string{})
+	if !reflect.DeepEqual(newcols, curcols) {
+		reload = true
+	}
+
+	if reload {
+		RequestReload(app)
+	}
+
+	ApplyCurrentTheme(app)
+	SetupColors()
+
+	return nil
+}
+
+func ApplyCurrentTheme(app gowid.IApp) {
+	var err error
+	mode := app.GetColorMode()
+	modeStr := theme.Mode(mode) // more concise
+	themeName := profiles.ConfString(fmt.Sprintf("main.theme-%s", modeStr), "default")
+	loaded := false
+	if themeName != "" {
+		err = theme.Load(themeName, app)
+		if err != nil {
+			log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+		} else {
+			loaded = true
+		}
+	}
+	if !loaded && themeName != "default" {
+		err = theme.Load("default", app)
+		if err != nil {
+			log.Warnf("Theme %s could not be loaded: %v", themeName, err)
+		}
+	}
+}
+
+//======================================================================
+
 func Build(tty string) (*gowid.App, error) {
 
 	var err error
 	var app *gowid.App
 
-	widgetCacheSize := termshark.ConfInt("main.ui-cache-size", 1000)
+	widgetCacheSize := profiles.ConfInt("main.ui-cache-size", 1000)
 	if widgetCacheSize < 64 {
 		widgetCacheSize = 64
 	}
@@ -3343,8 +3433,7 @@ func Build(tty string) (*gowid.App, error) {
 			Key: gowid.MakeKey('d'),
 			CB: func(app gowid.IApp, w gowid.IWidget) {
 				multiMenu1Opener.CloseMenu(generalMenu, app)
-				DarkMode = !DarkMode
-				termshark.SetConf("main.dark-mode", DarkMode)
+				SetDarkMode(!DarkMode)
 			},
 		},
 		menuutil.MakeMenuDivider(),
@@ -3479,7 +3568,7 @@ func Build(tty string) (*gowid.App, error) {
 						CB: func(app gowid.IApp, w gowid.IWidget) {
 							multiMenu1Opener.CloseMenu(generalMenu, app)
 							PacketColors = !PacketColors
-							termshark.SetConf("main.packet-colors", PacketColors)
+							profiles.SetConf("main.packet-colors", PacketColors)
 						},
 					},
 				},
@@ -3605,6 +3694,24 @@ func Build(tty string) (*gowid.App, error) {
 		},
 	})
 
+	//======================================================================
+
+	currentProfile = text.New("default")
+	currentProfileWidget = columns.NewFixed(
+		text.New("Profile: "),
+		currentProfile,
+		sp,
+		&gowid.ContainerWidget{
+			IWidget: fill.New('|'),
+			D:       gowid.MakeRenderBox(1, 1),
+		},
+		sp,
+	)
+	currentProfileWidgetHolder = holder.New(currentProfileWidget)
+
+	// Update display to show the profile if it isn't the default
+	UpdateProfileWidget(profiles.CurrentName(), app)
+
 	var titleCols *columns.Widget
 
 	// If anything gets added or removed here, see [[generalmenu1]]
@@ -3620,6 +3727,10 @@ func Build(tty string) (*gowid.App, error) {
 			&gowid.ContainerWidget{
 				IWidget: fill.New(' '),
 				D:       weight(1),
+			},
+			&gowid.ContainerWidget{
+				IWidget: currentProfileWidgetHolder,
+				D:       fixed, // give it priority when the window isn't wide enough
 			},
 			openAnalysisSite,
 			openAnalysis2,
@@ -3644,7 +3755,7 @@ func Build(tty string) (*gowid.App, error) {
 	generalNext.Site = openAnalysisSite
 	generalNext.Container = titleCols
 	generalNext.MenuOpener = &multiMenu1Opener
-	generalNext.Focus = 4 // should really find by ID
+	generalNext.Focus = 5 // should really find by ID
 
 	// <<generalmenu2>>
 	analysisNext.Cur = analysisMenu
@@ -3652,7 +3763,7 @@ func Build(tty string) (*gowid.App, error) {
 	analysisNext.Site = openMenuSite
 	analysisNext.Container = titleCols
 	analysisNext.MenuOpener = &multiMenu1Opener
-	analysisNext.Focus = 6 // should really find by ID
+	analysisNext.Focus = 7 // should really find by ID
 
 	packetListViewHolder = holder.New(nullw)
 	packetStructureViewHolder = holder.New(nullw)
@@ -3712,6 +3823,9 @@ func Build(tty string) (*gowid.App, error) {
 	savedBtnSite := menu.NewSite(menu.SiteOptions{YOffset: 1})
 	savedw.OnClick(gowid.MakeWidgetCallback("cb", func(app gowid.IApp, w gowid.IWidget) {
 		multiMenu1Opener.OpenMenu(savedMenu, savedBtnSite, app)
+		// if !multiMenu1Opener.OpenMenu(savedMenu, savedBtnSite, app) {
+		// 	multiMenu1Opener.CloseMenu(savedMenu, app)
+		// }
 	}))
 
 	progWidgetIdx = 7 // adjust this if nullw moves position in filterCols
@@ -4121,7 +4235,7 @@ func Build(tty string) (*gowid.App, error) {
 	altview2 = altview2OuterRows
 
 	mainViewNoKeys = holder.New(mainview)
-	defaultLayout := termshark.ConfString("main.layout", "")
+	defaultLayout := profiles.ConfString("main.layout", "")
 	switch defaultLayout {
 	case "altview1":
 		mainViewNoKeys = holder.New(altview1)
@@ -4130,9 +4244,9 @@ func Build(tty string) (*gowid.App, error) {
 	}
 
 	// <<generalmenu3>>
-	menuPathMain = []interface{}{0, 6}
-	menuPathAlt = []interface{}{0, 6}
-	menuPathMax = []interface{}{0, 6}
+	menuPathMain = []interface{}{0, 7}
+	menuPathAlt = []interface{}{0, 7}
+	menuPathMax = []interface{}{0, 7}
 
 	buildStreamUi()
 	buildFilterConvsMenu()
@@ -4174,7 +4288,7 @@ func Build(tty string) (*gowid.App, error) {
 	// For minibuffer
 	mbView = holder.New(appViewWithKeys)
 
-	if !termshark.ConfBool("main.disable-shark-fin", false) {
+	if !profiles.ConfBool("main.disable-shark-fin", false) {
 		Fin = rossshark.New(mbView)
 
 		steerableFin := appkeys.NewMouse(
