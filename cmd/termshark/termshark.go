@@ -738,8 +738,9 @@ func cmain() int {
 				// variable set that causes it to try dumpcap, then tshark, in that order (for
 				// efficiency of capture, but falling back to tshark for extcap interfaces).
 				// But telling the user the capture process is "termshark" is misleading.
-				cbin := termshark.CaptureBin()
-				if cbin == "termshark" {
+				cbin, err1 := filepath.Abs(filepath.FromSlash(termshark.CaptureBin()))
+				def, err2 := filepath.Abs("termshark")
+				if err1 == nil && err2 == nil && cbin == def {
 					cbin = "the capture process"
 				}
 
