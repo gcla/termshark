@@ -61,7 +61,7 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 
 	fmt.Fprintf(os.Stderr, "Starting termshark's custom live capture procedure.\n")
 	dumpcapCmd := exec.Command(dumpcapBin, args...)
-	fmt.Fprintf(os.Stderr, "First, trying dumpcap command %v\n", dumpcapCmd)
+	fmt.Fprintf(os.Stderr, "Trying dumpcap command %v\n", dumpcapCmd)
 	dumpcapCmd.Stdin = os.Stdin
 	dumpcapCmd.Stdout = os.Stdout
 	dumpcapCmd.Stderr = os.Stderr

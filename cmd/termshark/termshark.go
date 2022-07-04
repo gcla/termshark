@@ -744,7 +744,7 @@ func cmain() int {
 				}
 
 				fmt.Fprintf(os.Stderr, "Standard error stream from %s:\n", cbin)
-				fmt.Fprintf(os.Stderr, "\n%s\n", stderr.String())
+				fmt.Fprintf(os.Stderr, "------\n%s\n------\n", stderr.String())
 			}
 			if runtime.GOOS == "linux" && os.Geteuid() != 0 {
 				fmt.Fprintf(os.Stderr, "You might need: sudo setcap cap_net_raw,cap_net_admin+eip %s\n", termshark.PrivilegedBin())
