@@ -8,13 +8,12 @@
 package system
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"syscall"
-
-	log "github.com/sirupsen/logrus"
 )
 
 //======================================================================
@@ -45,14 +44,14 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 			if len(fdnum) == 2 {
 				fd, err := strconv.Atoi(fdnum[1])
 				if err != nil {
-					log.Warnf("Unexpected error parsing %s: %v", args[1], err)
+					fmt.Fprintf(os.Stderr, "Unexpected error parsing %s: %v\n", args[1], err)
 				} else {
 					err = Dup2(fd, 0)
 					if err != nil {
-						log.Warnf("Problem duplicating fd %d to 0: %v", fd, err)
-						log.Warnf("Will not try to replace argument %s to tshark", args[1])
+						fmt.Fprintf(os.Stderr, "Problem duplicating fd %d to 0: %v\n", fd, err)
+						fmt.Fprintf(os.Stderr, "Will not try to replace argument %s to tshark\n", args[1])
 					} else {
-						log.Infof("Replacing argument %s with - for tshark compatibility", args[1])
+						fmt.Fprintf(os.Stderr, "Replacing argument %s with - for tshark compatibility\n", args[1])
 						args[1] = "-"
 					}
 				}
@@ -60,8 +59,9 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 		}
 	}
 
+	fmt.Fprintf(os.Stderr, "Starting termshark's custom live capture procedure.\n")
 	dumpcapCmd := exec.Command(dumpcapBin, args...)
-	log.Infof("Starting dumpcap command %v", dumpcapCmd)
+	fmt.Fprintf(os.Stderr, "First, trying dumpcap command %v\n", dumpcapCmd)
 	dumpcapCmd.Stdin = os.Stdin
 	dumpcapCmd.Stdout = os.Stdout
 	dumpcapCmd.Stderr = os.Stderr
@@ -69,7 +69,7 @@ func DumpcapExt(dumpcapBin string, tsharkBin string, args ...string) error {
 		var tshark string
 		tshark, err = exec.LookPath(tsharkBin)
 		if err == nil {
-			log.Infof("Retrying with dumpcap command %v", append([]string{tshark}, args...))
+			fmt.Fprintf(os.Stderr, "Retrying with capture command %v\n", append([]string{tshark}, args...))
 			err = syscall.Exec(tshark, append([]string{tshark}, args...), os.Environ())
 		}
 	}
