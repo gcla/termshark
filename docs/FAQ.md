@@ -445,9 +445,10 @@ As much as possible, I want termshark to work "right out of the box", and to me 
 
 ## What's next?
 
-Termshark v2 implemented stream reassembly, a "What's next" feature from v1. For Termshark v3, some possibilities are:
+As I write this, I'm about to release termshark v2.4. Here's what might come in v2.5 and beyond:
 
+- Built-in support for editing packet color profiles
 - Expose many more of tshark's `-z` options
 - HTTP statistics and Wireshark's I/O graph
 - Allow the user to start reading from available interfaces once the UI has started
-- And since tshark can be customized via the TOML config file, don't be so trusting of its output - there are surely bugs lurking here
+- Anything you raise on Github issues - let me know what features you'd like!
