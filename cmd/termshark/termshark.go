@@ -20,14 +20,15 @@ import (
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/pkg/capinfo"
 	"github.com/gcla/termshark/v2/cli"
 	"github.com/gcla/termshark/v2/configs/profiles"
+	"github.com/gcla/termshark/v2/pkg/capinfo"
+	"github.com/gcla/termshark/v2/pkg/confwatcher"
 	"github.com/gcla/termshark/v2/pkg/convs"
 	"github.com/gcla/termshark/v2/pkg/pcap"
-	"github.com/gcla/termshark/v2/pkg/summary"
 	"github.com/gcla/termshark/v2/pkg/shark"
 	"github.com/gcla/termshark/v2/pkg/streams"
+	"github.com/gcla/termshark/v2/pkg/summary"
 	"github.com/gcla/termshark/v2/pkg/system"
 	"github.com/gcla/termshark/v2/pkg/tty"
 	"github.com/gcla/termshark/v2/ui"
@@ -56,7 +57,6 @@ func main() {
 	// stopped. Any exception is a bug.
 	var ensureGoroutinesStopWG sync.WaitGroup
 	filter.Goroutinewg = &ensureGoroutinesStopWG
-	termshark.Goroutinewg = &ensureGoroutinesStopWG
 	pcap.Goroutinewg = &ensureGoroutinesStopWG
 	streams.Goroutinewg = &ensureGoroutinesStopWG
 	capinfo.Goroutinewg = &ensureGoroutinesStopWG
@@ -64,6 +64,7 @@ func main() {
 	ui.Goroutinewg = &ensureGoroutinesStopWG
 	wormhole.Goroutinewg = &ensureGoroutinesStopWG
 	summary.Goroutinewg = &ensureGoroutinesStopWG
+	confwatcher.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
 	ensureGoroutinesStopWG.Wait()
@@ -695,7 +696,7 @@ func cmain() int {
 		}
 	}
 
-	watcher, err := termshark.NewConfigWatcher()
+	watcher, err := confwatcher.New()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Problem constructing config file watcher: %v", err)
 		return 1
