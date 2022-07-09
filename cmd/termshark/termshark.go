@@ -20,7 +20,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/capinfo"
+	"github.com/gcla/termshark/v2/pkg/capinfo"
 	"github.com/gcla/termshark/v2/cli"
 	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/convs"
