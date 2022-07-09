@@ -93,6 +93,15 @@ type IBasicCommand interface {
 	Wait() error
 	Pid() int
 	Kill() error
+	StderrSummary() []string
+}
+
+func MakeUsefulError(cmd IBasicCommand, err error) gowid.KeyValueError {
+	return gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
+		"command": cmd.String(),
+		"error":   err,
+		"stderr":  strings.Join(cmd.StderrSummary(), "\n"),
+	})
 }
 
 type ITailCommand interface {
@@ -1548,11 +1557,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 					if !p.psmlStoppedDeliberately_ {
 						if err != nil {
 							if _, ok := err.(*exec.ExitError); ok {
-								cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-									"command": psmlCmd.String(),
-									"error":   err,
-								})
-								HandleError(PsmlCode, app, cerr, cb)
+								HandleError(PsmlCode, app, MakeUsefulError(psmlCmd, err), cb)
 							}
 						}
 					}
@@ -1676,11 +1681,7 @@ func (p *PsmlLoader) loadPsmlSync(iloader *InterfaceLoader, e iPsmlLoaderEnv, cb
 						if !p.psmlStoppedDeliberately_ && !e.TailStoppedDeliberately() {
 							if err != nil {
 								if _, ok := err.(*exec.ExitError); ok {
-									cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-										"command": tailCmd.String(),
-										"error":   err,
-									})
-									HandleError(PsmlCode, app, cerr, cb)
+									HandleError(PsmlCode, app, MakeUsefulError(tailCmd, err), cb)
 								}
 							}
 						}
@@ -2144,11 +2145,7 @@ func (i *InterfaceLoader) loadIfacesSync(e iIfaceLoaderEnv, cb interface{}, app 
 						// This could be if termshark is started like this: cat nosuchfile.pcap | termshark -i -
 						// Then dumpcap will be started with /dev/fd/3 as its stdin, but will fail with EOF and
 						// exit status 1.
-						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-							"command": ifaceCmd.String(),
-							"error":   err,
-						})
-						HandleError(IfaceCode, app, cerr, cb)
+						HandleError(IfaceCode, app, MakeUsefulError(ifaceCmd, err), cb)
 					}
 				}
 

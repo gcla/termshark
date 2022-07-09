@@ -25,6 +25,7 @@ import (
 	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/convs"
 	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/pkg/summary"
 	"github.com/gcla/termshark/v2/shark"
 	"github.com/gcla/termshark/v2/streams"
 	"github.com/gcla/termshark/v2/system"
@@ -62,6 +63,7 @@ func main() {
 	convs.Goroutinewg = &ensureGoroutinesStopWG
 	ui.Goroutinewg = &ensureGoroutinesStopWG
 	wormhole.Goroutinewg = &ensureGoroutinesStopWG
+	summary.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
 	ensureGoroutinesStopWG.Wait()

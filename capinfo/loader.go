@@ -122,11 +122,7 @@ func (c *Loader) loadCapinfoAsync(pcapf string, app gowid.IApp, cb ICapinfoCallb
 				state = pcap.Terminated
 				if !c.SuppressErrors && err != nil {
 					if _, ok := err.(*exec.ExitError); ok {
-						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-							"command": c.capinfoCmd.String(),
-							"error":   err,
-						})
-						pcap.HandleError(pcap.CapinfoCode, app, cerr, cb)
+						pcap.HandleError(pcap.CapinfoCode, app, pcap.MakeUsefulError(c.capinfoCmd, err), cb)
 					}
 				}
 
