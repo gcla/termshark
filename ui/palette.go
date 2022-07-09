@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/gcla/gowid"
-	"github.com/gcla/termshark/v2/theme"
+	"github.com/gcla/termshark/v2/pkg/theme"
 	log "github.com/sirupsen/logrus"
 )
 

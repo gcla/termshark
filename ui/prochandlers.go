@@ -16,7 +16,7 @@ import (
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/configs/profiles"
-	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/pkg/pcap"
 	log "github.com/sirupsen/logrus"
 )
 

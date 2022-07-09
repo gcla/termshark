@@ -17,7 +17,7 @@ import (
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/configs/profiles"
-	"github.com/gcla/termshark/v2/theme"
+	"github.com/gcla/termshark/v2/pkg/theme"
 	"github.com/gcla/termshark/v2/widgets/mapkeys"
 	"github.com/gcla/termshark/v2/widgets/minibuffer"
 	"github.com/rakyll/statik/fs"

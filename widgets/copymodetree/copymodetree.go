@@ -16,7 +16,7 @@ import (
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/tree"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/pdmltree"
+	"github.com/gcla/termshark/v2/pkg/pdmltree"
 )
 
 //======================================================================
