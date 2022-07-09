@@ -26,8 +26,8 @@ import (
 	"github.com/gcla/gowid/widgets/null"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
-	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/configs/profiles"
+	"github.com/gcla/termshark/v2/pkg/fields"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/widgets/filter"
 	"github.com/gcla/termshark/v2/widgets/ifwidget"
@@ -247,7 +247,7 @@ type Widget struct {
 	filterHolder    *holder.Widget
 	filt            *filter.Widget
 	menuOpener      menu.IOpener
-	completer       termshark.IPrefixCompleter
+	completer       fields.IPrefixCompleter
 	cols            *columns.Widget
 	findBtn         *disable.Widget
 	searchTargetBtn *button.Widget
@@ -338,7 +338,7 @@ func New(alg IAlgorithm,
 	searchPktDetails func() ICallbacks,
 	searchByFilter func() ICallbacks,
 	men menu.IOpener,
-	comp termshark.IPrefixCompleter,
+	comp fields.IPrefixCompleter,
 	errHandler IErrorHandler) *Widget {
 
 	res := &Widget{
@@ -535,8 +535,8 @@ func (w *Widget) invokeSearch(app gowid.IApp) {
 	w.alg.SearchPackets(searchTerm, w.currentAlg, app)
 }
 
-func (w *Widget) getCompleter() termshark.IPrefixCompleter {
-	var completer termshark.IPrefixCompleter
+func (w *Widget) getCompleter() fields.IPrefixCompleter {
+	var completer fields.IPrefixCompleter
 	s2 := getSearchType()
 	switch s2 {
 	case "filter":
@@ -550,7 +550,7 @@ func (w *Widget) focusOnFilter(app gowid.IApp) {
 	w.cols.SetFocus(app, 6)
 }
 
-func (w *Widget) setFilter(validator filter.IValidator, completer termshark.IPrefixCompleter, app gowid.IApp) {
+func (w *Widget) setFilter(validator filter.IValidator, completer fields.IPrefixCompleter, app gowid.IApp) {
 	filt := filter.New("searchfilter", filter.Options{
 		MenuOpener: w.menuOpener,
 		Completer:  completer,

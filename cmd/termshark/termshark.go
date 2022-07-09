@@ -25,6 +25,7 @@ import (
 	"github.com/gcla/termshark/v2/pkg/capinfo"
 	"github.com/gcla/termshark/v2/pkg/confwatcher"
 	"github.com/gcla/termshark/v2/pkg/convs"
+	"github.com/gcla/termshark/v2/pkg/fields"
 	"github.com/gcla/termshark/v2/pkg/pcap"
 	"github.com/gcla/termshark/v2/pkg/shark"
 	"github.com/gcla/termshark/v2/pkg/streams"
@@ -611,7 +612,7 @@ func cmain() int {
 	// If the last tshark we used isn't the same as the current one, then remove the cached fields
 	// data structure so it can be regenerated.
 	if tsharkBin != profiles.ConfString("main.last-used-tshark", "") {
-		termshark.DeleteCachedFields()
+		fields.DeleteCachedFields()
 	}
 
 	// Write out the last-used tshark path. We do this to make the above fields cache be consistent
