@@ -48,6 +48,7 @@ import (
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/pkg/fields"
+	"github.com/gcla/termshark/v2/pkg/noroot"
 	"github.com/gcla/termshark/v2/pkg/pcap"
 	"github.com/gcla/termshark/v2/pkg/pdmltree"
 	"github.com/gcla/termshark/v2/pkg/psmlmodel"
@@ -2630,7 +2631,7 @@ func setPacketListWidgets(psml iPsmlInfo, app gowid.IApp) {
 
 func expandStructWidgetAtPosition(row int, pos int, app gowid.IApp) {
 	if curPacketStructWidget != nil {
-		walker := curPacketStructWidget.Walker().(*termshark.NoRootWalker)
+		walker := curPacketStructWidget.Walker().(*noroot.Walker)
 		curTree := walker.Tree().(*pdmltree.Model)
 
 		finalPos := make([]int, 0)
@@ -2812,7 +2813,7 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 			tree.NewCachingMaker(tree.WidgetMakerFunction(makeStructNodeWidget)),
 			tree.NewCachingDecorator(tree.DecoratorFunction(makeStructNodeDecoration)))
 		// Without the caching layer, clicking on a button has no effect
-		walker := termshark.NewNoRootWalker(rwalker)
+		walker := noroot.NewWalker(rwalker)
 
 		// Send the layers represents the tree expansion to hex.
 		// This could be the user clicking inside the tree. Or it might be the position changing
