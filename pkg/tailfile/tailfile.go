@@ -2,31 +2,21 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-package termshark
+//+build !windows
+
+package tailfile
 
 import (
 	"os"
-
-	"github.com/gcla/tail"
+	"os/exec"
 )
 
 //======================================================================
 
-func TailFile(file string) error {
-	t, err := tail.TailFile(file, tail.Config{
-		Follow: true,
-		ReOpen: true,
-		Poll:   true,
-		Logger: tail.DiscardingLogger,
-	})
-	if err != nil {
-		return err
-	}
-
-	for chunk := range t.Bytes {
-		os.Stdout.Write([]byte(chunk.Text))
-	}
-	return nil
+func Tail(file string) error {
+	cmd := exec.Command("tail", "-f", file)
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
 }
 
 //======================================================================
