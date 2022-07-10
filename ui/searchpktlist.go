@@ -155,7 +155,7 @@ Loop:
 		// 32, 44, 45, 134, 209,...
 		curPacketNumber, ok = Loader.PacketNumberOrder[curPacketNumber]
 		if !ok {
-			curPacketNumber = 1
+			curPacketNumber = Loader.PacketNumberOrder[0]
 		}
 		Loader.PsmlLoader.Unlock()
 
