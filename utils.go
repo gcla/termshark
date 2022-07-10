@@ -683,6 +683,24 @@ func ErrLogger(key string, val string) *io.PipeWriter {
 	return log.NewEntry(l).WithField(key, val).WriterLevel(log.ErrorLevel)
 }
 
+// KeyValueErrorString returns a string representation of
+// a gowid KeyValueError intended to be suitable for displaying in
+// a termshark error dialog.
+func KeyValueErrorString(err gowid.KeyValueError) string {
+	res := fmt.Sprintf("%v\n\n", err.Cause())
+	kvs := make([]string, 0, len(err.KeyVals))
+	ks := make([]string, 0, len(err.KeyVals))
+	for k := range err.KeyVals {
+		ks = append(ks, k)
+	}
+	sort.Sort(sort.StringSlice(ks))
+	for _, k := range ks {
+		kvs = append(kvs, fmt.Sprintf("%v: %v", k, err.KeyVals[k]))
+	}
+	res = res + strings.Join(kvs, "\n\n")
+	return res
+}
+
 //======================================================================
 
 // Need to publish fields for template use

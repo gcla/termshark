@@ -8,7 +8,6 @@ package ui
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -343,18 +342,13 @@ func (t *streamParseHandler) OnError(code pcap.HandlerCode, app gowid.IApp, err 
 	} else if !profiles.ConfBool("main.suppress-tshark-errors", true) {
 		var errstr string
 		if kverr, ok := err.(gowid.KeyValueError); ok {
-			errstr = fmt.Sprintf("%v\n\n", kverr.Cause())
-			kvs := make([]string, 0, len(kverr.KeyVals))
-			for k, v := range kverr.KeyVals {
-				kvs = append(kvs, fmt.Sprintf("%v: %v", k, v))
-			}
-			errstr = errstr + strings.Join(kvs, "\n")
+			errstr = termshark.KeyValueErrorString(kverr)
 		} else {
 			errstr = fmt.Sprintf("%v", err)
 		}
 
 		app.Run(gowid.RunFunction(func(app gowid.IApp) {
-			OpenError(errstr, app)
+			OpenLongError(errstr, app)
 		}))
 	}
 }
