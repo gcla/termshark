@@ -117,6 +117,7 @@ Loop:
 			resumeAt = &ListResult{
 				PacketNum: curPacketNumber,
 			}
+			Loader.PsmlLoader.Unlock()
 			break
 		}
 
