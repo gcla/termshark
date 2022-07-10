@@ -126,6 +126,7 @@ Loop:
 			resumeAt = &StructResult{
 				PacketNum: curPacketNumber,
 			}
+			Loader.PsmlLoader.Unlock()
 			break
 		}
 
@@ -175,7 +176,7 @@ Loop:
 		if !ok {
 			// PacketNumberOrder is set up by the PSML loader, so if there is no next
 			// value, it means we're at the end of the packets and we should loop back.
-			curPacketNumber = 1
+			curPacketNumber = Loader.PacketNumberOrder[0]
 		}
 		Loader.PsmlLoader.Unlock()
 
