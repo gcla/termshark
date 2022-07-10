@@ -38,7 +38,7 @@ import (
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2/configs/profiles"
-	"github.com/gcla/termshark/v2/system"
+	"github.com/gcla/termshark/v2/pkg/system"
 	"github.com/gcla/termshark/v2/widgets/resizable"
 	"github.com/gdamore/tcell/v2"
 	"github.com/gdamore/tcell/v2/terminfo"

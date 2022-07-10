@@ -33,6 +33,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
+	"github.com/gcla/termshark/v2/pkg/fields"
 	"github.com/gcla/termshark/v2/widgets/appkeys"
 	"github.com/gdamore/tcell/v2"
 )
@@ -64,10 +65,10 @@ type Widget struct {
 	edCtx                context.Context
 	edCancelFn           context.CancelFunc
 	edCtxLock            sync.Mutex
-	fields               termshark.IPrefixCompleter // provides completions, given a prefix
-	completionsList      *list.Widget               // the filter widget replaces the list walker when new completions are generated
-	completionsActivator *activatorWidget           // used to disable focus going to drop down
-	completions          []string                   // the current set of completions, used when rendering
+	fields               fields.IPrefixCompleter // provides completions, given a prefix
+	completionsList      *list.Widget            // the filter widget replaces the list walker when new completions are generated
+	completionsActivator *activatorWidget        // used to disable focus going to drop down
+	completions          []string                // the current set of completions, used when rendering
 	runthisfilterchan    chan *filtStruct
 	filterchangedchan    chan *filtStruct
 	quitchan             chan struct{}
@@ -95,7 +96,7 @@ const (
 )
 
 type Options struct {
-	Completer      termshark.IPrefixCompleter
+	Completer      fields.IPrefixCompleter
 	MenuOpener     menu.IOpener
 	Position       Pos
 	Validator      IValidator
@@ -451,13 +452,13 @@ type fnCallback struct {
 	fn  func([]string, gowid.IApp)
 }
 
-var _ termshark.IPrefixCompleterCallback = fnCallback{}
+var _ fields.IPrefixCompleterCallback = fnCallback{}
 
 func (f fnCallback) Call(res []string) {
 	f.fn(res, f.app)
 }
 
-func makeCompletions(comp termshark.IPrefixCompleter, txt string, max int, app gowid.IApp, fn func([]string, gowid.IApp)) {
+func makeCompletions(comp fields.IPrefixCompleter, txt string, max int, app gowid.IApp, fn func([]string, gowid.IApp)) {
 	if comp != nil {
 		cb := fnCallback{
 			app: app,

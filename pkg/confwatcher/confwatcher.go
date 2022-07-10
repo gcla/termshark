@@ -2,19 +2,18 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-package termshark
+package confwatcher
 
 import (
 	"os"
 	"sync"
 
+	"github.com/gcla/termshark/v2"
 	log "github.com/sirupsen/logrus"
 	fsnotify "gopkg.in/fsnotify/fsnotify.v1"
 )
 
 //======================================================================
-
-var Goroutinewg *sync.WaitGroup
 
 type ConfigWatcher struct {
 	watcher   *fsnotify.Watcher
@@ -23,7 +22,7 @@ type ConfigWatcher struct {
 	closeWait sync.WaitGroup
 }
 
-func NewConfigWatcher() (*ConfigWatcher, error) {
+func New() (*ConfigWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		panic(err)
@@ -39,7 +38,7 @@ func NewConfigWatcher() (*ConfigWatcher, error) {
 
 	res.closeWait.Add(1)
 
-	TrackedGo(func() {
+	termshark.TrackedGo(func() {
 		defer func() {
 			res.watcher.Close()
 			close(change)
@@ -60,7 +59,7 @@ func NewConfigWatcher() (*ConfigWatcher, error) {
 		}
 	}, Goroutinewg)
 
-	if err := watcher.Add(ConfFile("termshark.toml")); err != nil && !os.IsNotExist(err) {
+	if err := watcher.Add(termshark.ConfFile("termshark.toml")); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
@@ -73,7 +72,7 @@ func (c *ConfigWatcher) Close() {
 	// drain the change channel to ensure the goroutine above can process the close. This
 	// is safe because I know, at this point, there are no other readers because termshark
 	// has exited its select loop.
-	TrackedGo(func() {
+	termshark.TrackedGo(func() {
 		// This might block because the goroutine above might not be blocked sending
 		// to c.change. But then that means the goroutine's for loop above will terminate,
 		// c.change will be closed, and then this goroutine will end. If the above
@@ -89,6 +88,10 @@ func (c *ConfigWatcher) Close() {
 func (c *ConfigWatcher) ConfigChanged() <-chan struct{} {
 	return c.change
 }
+
+//======================================================================
+
+var Goroutinewg *sync.WaitGroup
 
 //======================================================================
 // Local Variables:

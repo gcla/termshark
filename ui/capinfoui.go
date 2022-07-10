@@ -12,8 +12,8 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/capinfo"
-	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/pkg/capinfo"
+	"github.com/gcla/termshark/v2/pkg/pcap"
 	log "github.com/sirupsen/logrus"
 )
 

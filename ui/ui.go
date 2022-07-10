@@ -47,12 +47,14 @@ import (
 	"github.com/gcla/gowid/widgets/vpadding"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/configs/profiles"
-	"github.com/gcla/termshark/v2/pcap"
-	"github.com/gcla/termshark/v2/pdmltree"
-	"github.com/gcla/termshark/v2/psmlmodel"
-	"github.com/gcla/termshark/v2/shark"
-	"github.com/gcla/termshark/v2/system"
-	"github.com/gcla/termshark/v2/theme"
+	"github.com/gcla/termshark/v2/pkg/fields"
+	"github.com/gcla/termshark/v2/pkg/noroot"
+	"github.com/gcla/termshark/v2/pkg/pcap"
+	"github.com/gcla/termshark/v2/pkg/pdmltree"
+	"github.com/gcla/termshark/v2/pkg/psmlmodel"
+	"github.com/gcla/termshark/v2/pkg/shark"
+	"github.com/gcla/termshark/v2/pkg/system"
+	"github.com/gcla/termshark/v2/pkg/theme"
 	"github.com/gcla/termshark/v2/ui/menuutil"
 	"github.com/gcla/termshark/v2/ui/tableutil"
 	"github.com/gcla/termshark/v2/widgets"
@@ -239,7 +241,7 @@ var lastJumpPos int
 var NoGlobalJump termshark.GlobalJumpPos // leave as default, like a placeholder
 
 var Loader *pcap.PacketLoader
-var FieldCompleter *termshark.TSharkFields // share this - safe once constructed
+var FieldCompleter *fields.TSharkFields // share this - safe once constructed
 
 var WriteToSelected bool       // true if the user provided the -w flag
 var WriteToDeleted bool        // true if the user deleted the temporary pcap before quitting
@@ -366,11 +368,11 @@ func makePdmlFilterMenu(filter string, val string) *menu.Widget {
 	// are needed.
 	if ok {
 		switch field.Type {
-		case termshark.FT_STRING:
+		case fields.FT_STRING:
 			needQuotes = true
-		case termshark.FT_STRINGZ:
+		case fields.FT_STRINGZ:
 			needQuotes = true
-		case termshark.FT_STRINGZPAD:
+		case fields.FT_STRINGZPAD:
 			needQuotes = true
 		}
 	}
@@ -2629,7 +2631,7 @@ func setPacketListWidgets(psml iPsmlInfo, app gowid.IApp) {
 
 func expandStructWidgetAtPosition(row int, pos int, app gowid.IApp) {
 	if curPacketStructWidget != nil {
-		walker := curPacketStructWidget.Walker().(*termshark.NoRootWalker)
+		walker := curPacketStructWidget.Walker().(*noroot.Walker)
 		curTree := walker.Tree().(*pdmltree.Model)
 
 		finalPos := make([]int, 0)
@@ -2811,7 +2813,7 @@ func getStructWidgetToDisplay(row int, app gowid.IApp) gowid.IWidget {
 			tree.NewCachingMaker(tree.WidgetMakerFunction(makeStructNodeWidget)),
 			tree.NewCachingDecorator(tree.DecoratorFunction(makeStructNodeDecoration)))
 		// Without the caching layer, clicking on a button has no effect
-		walker := termshark.NewNoRootWalker(rwalker)
+		walker := noroot.NewWalker(rwalker)
 
 		// Send the layers represents the tree expansion to hex.
 		// This could be the user clicking inside the tree. Or it might be the position changing
@@ -3135,10 +3137,10 @@ func UpdateRecentMenu(app gowid.IApp) {
 
 type savedCompleterCallback struct {
 	prefix string
-	comp   termshark.IPrefixCompleterCallback
+	comp   fields.IPrefixCompleterCallback
 }
 
-var _ termshark.IPrefixCompleterCallback = (*savedCompleterCallback)(nil)
+var _ fields.IPrefixCompleterCallback = (*savedCompleterCallback)(nil)
 
 func (s *savedCompleterCallback) Call(orig []string) {
 	if s.prefix == "" {
@@ -3153,12 +3155,12 @@ func (s *savedCompleterCallback) Call(orig []string) {
 }
 
 type savedCompleter struct {
-	def termshark.IPrefixCompleter
+	def fields.IPrefixCompleter
 }
 
-var _ termshark.IPrefixCompleter = (*savedCompleter)(nil)
+var _ fields.IPrefixCompleter = (*savedCompleter)(nil)
 
-func (s savedCompleter) Completions(prefix string, cb termshark.IPrefixCompleterCallback) {
+func (s savedCompleter) Completions(prefix string, cb fields.IPrefixCompleterCallback) {
 	ncomp := &savedCompleterCallback{
 		prefix: prefix,
 		comp:   cb,
@@ -3783,7 +3785,7 @@ func Build(tty string) (*gowid.App, error) {
 	)
 
 	// For completing filter expressions
-	FieldCompleter = termshark.NewFields()
+	FieldCompleter = fields.New()
 	FieldCompleter.Init()
 
 	FilterWidget = filter.New("filter", filter.Options{

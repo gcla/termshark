@@ -2,7 +2,7 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-package termshark
+package fields
 
 import (
 	"bufio"
@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gcla/termshark/v2"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -160,25 +161,25 @@ type IPrefixCompleter interface {
 	Completions(prefix string, cb IPrefixCompleterCallback)
 }
 
-func NewFields() *TSharkFields {
+func New() *TSharkFields {
 	return &TSharkFields{}
 }
 
 func DeleteCachedFields() error {
-	return os.Remove(CacheFile("tsharkfieldsv3.gob.gz"))
+	return os.Remove(termshark.CacheFile("tsharkfieldsv3.gob.gz"))
 }
 
 // Can be run asynchronously.
 // This ought to use interfaces to make it testable.
 func (w *TSharkFields) Init() error {
-	newer, err := FileNewerThan(CacheFile("tsharkfieldsv3.gob.gz"), DirOfPathCommandUnsafe(TSharkBin()))
+	newer, err := termshark.FileNewerThan(termshark.CacheFile("tsharkfieldsv3.gob.gz"), termshark.DirOfPathCommandUnsafe(termshark.TSharkBin()))
 	if err == nil && newer {
 		f := &FieldsAndProtos{
 			Fields:    make(map[string]interface{}),
 			Protocols: make(map[string]struct{}),
 		}
 
-		err = ReadGob(CacheFile("tsharkfieldsv3.gob.gz"), f)
+		err = termshark.ReadGob(termshark.CacheFile("tsharkfieldsv3.gob.gz"), f)
 		if err == nil {
 			w.ser = f
 			log.Infof("Read cached tshark fields.")
@@ -193,7 +194,7 @@ func (w *TSharkFields) Init() error {
 		return err
 	}
 
-	err = WriteGob(CacheFile("tsharkfieldsv3.gob.gz"), w.ser)
+	err = termshark.WriteGob(termshark.CacheFile("tsharkfieldsv3.gob.gz"), w.ser)
 	if err != nil {
 		return err
 	}
@@ -202,7 +203,7 @@ func (w *TSharkFields) Init() error {
 }
 
 func (w *TSharkFields) InitNoCache() error {
-	cmd := exec.Command(TSharkBin(), []string{"-G", "fields"}...)
+	cmd := exec.Command(termshark.TSharkBin(), []string{"-G", "fields"}...)
 
 	out, err := cmd.StdoutPipe()
 	if err != nil {

@@ -15,7 +15,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/pkg/pcap"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -155,11 +155,7 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 				state = pcap.Terminated
 				if !c.SuppressErrors && err != nil {
 					if _, ok := err.(*exec.ExitError); ok {
-						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-							"command": c.streamCmd.String(),
-							"error":   err,
-						})
-						pcap.HandleError(pcap.StreamCode, app, cerr, cb)
+						pcap.HandleError(pcap.StreamCode, app, pcap.MakeUsefulError(c.streamCmd, err), cb)
 					}
 				}
 
@@ -274,11 +270,7 @@ func (c *Loader) startStreamIndexerAsync(pcapf string, proto string, idx int, ap
 				state = pcap.Terminated
 				if !c.SuppressErrors && err != nil {
 					if _, ok := err.(*exec.ExitError); ok {
-						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-							"command": c.indexerCmd.String(),
-							"error":   err,
-						})
-						pcap.HandleError(pcap.StreamCode, app, cerr, cb)
+						pcap.HandleError(pcap.StreamCode, app, pcap.MakeUsefulError(c.indexerCmd, err), cb)
 					}
 				}
 				streamOut.Close()

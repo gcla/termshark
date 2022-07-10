@@ -13,6 +13,8 @@
 ### Changed
 
 - Now you can build and install termshark with one command: `go install github.com/gcla/termshark/v2/cmd/termshark`
+- Added a summary of standard error to the error dialogs displayed when a tshark process fails to run
+  correctly (has a non-zero exit code).
 - Fixed a race condition that caused extcap captures (e.g. randpkt) to sporadically fail.
 - Dark-mode is now the default in the absence of a specific user-setting.
 - Fixed a bug that caused mouse-clicks within the hex view to not function correctly if the viewport was not

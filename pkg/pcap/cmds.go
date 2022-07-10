@@ -14,7 +14,8 @@ import (
 
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/configs/profiles"
-	"github.com/gcla/termshark/v2/shark"
+	"github.com/gcla/termshark/v2/pkg/summary"
+	"github.com/gcla/termshark/v2/pkg/shark"
 	"github.com/kballard/go-shellquote"
 )
 
@@ -35,6 +36,8 @@ func (e ProcessNotStarted) Error() string {
 type Command struct {
 	sync.Mutex
 	*exec.Cmd
+	summaryReader *summary.Reader
+	summaryWriter io.Closer
 }
 
 func (c *Command) String() string {
@@ -46,20 +49,34 @@ func (c *Command) String() string {
 func (c *Command) Start() error {
 	c.Lock()
 	defer c.Unlock()
-	c.Cmd.Stderr = termshark.ErrLogger("cmd", c.Path)
+	pr, pw := io.Pipe()
+	c.summaryWriter = pw
+	c.summaryReader = summary.New(pr)
+	c.Cmd.Stderr = io.MultiWriter(pw, termshark.ErrLogger("cmd", c.Path))
 	c.PutInNewGroupOnUnix()
 	res := c.Cmd.Start()
 	return res
 }
 
 func (c *Command) Wait() error {
-	return c.Cmd.Wait()
+	err := c.Cmd.Wait()
+	c.Lock()
+	c.summaryWriter.Close()
+	c.Unlock()
+	return err
 }
 
 func (c *Command) StdoutReader() (io.ReadCloser, error) {
 	c.Lock()
 	defer c.Unlock()
 	return c.Cmd.StdoutPipe()
+}
+
+func (c *Command) StderrSummary() []string {
+	c.Lock()
+	defer c.Unlock()
+
+	return c.summaryReader.Summary()
 }
 
 func (c *Command) SetStdout(w io.Writer) {

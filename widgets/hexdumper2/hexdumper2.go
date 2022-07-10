@@ -18,7 +18,7 @@ import (
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/styled"
-	"github.com/gcla/termshark/v2/format"
+	"github.com/gcla/termshark/v2/pkg/format"
 	"github.com/gdamore/tcell/v2"
 )
 

@@ -8,6 +8,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/configs/profiles"
-	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/pkg/pcap"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -126,10 +127,15 @@ func (t updatePacketViews) OnError(code pcap.HandlerCode, app gowid.IApp, err er
 			if kverr, ok := err.(gowid.KeyValueError); ok {
 				errstr = fmt.Sprintf("%v\n\n", kverr.Cause())
 				kvs := make([]string, 0, len(kverr.KeyVals))
-				for k, v := range kverr.KeyVals {
-					kvs = append(kvs, fmt.Sprintf("%v: %v", k, v))
+				ks := make([]string, 0, len(kverr.KeyVals))
+				for k := range kverr.KeyVals {
+					ks = append(ks, k)
 				}
-				errstr = errstr + strings.Join(kvs, "\n")
+				sort.Sort(sort.StringSlice(ks))
+				for _, k := range ks {
+					kvs = append(kvs, fmt.Sprintf("%v: %v", k, kverr.KeyVals[k]))
+				}
+				errstr = errstr + strings.Join(kvs, "\n\n")
 			} else {
 				errstr = fmt.Sprintf("%v", err)
 			}

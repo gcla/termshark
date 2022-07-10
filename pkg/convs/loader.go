@@ -13,7 +13,7 @@ import (
 
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/pcap"
+	"github.com/gcla/termshark/v2/pkg/pcap"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -134,11 +134,7 @@ func (c *Loader) loadConvAsync(pcapf string, convs []string, filter string, abs 
 				state = pcap.Terminated
 				if !c.SuppressErrors && err != nil {
 					if _, ok := err.(*exec.ExitError); ok {
-						cerr := gowid.WithKVs(termshark.BadCommand, map[string]interface{}{
-							"command": c.convsCmd.String(),
-							"error":   err,
-						})
-						pcap.HandleError(pcap.ConvCode, app, cerr, cb)
+						pcap.HandleError(pcap.ConvCode, app, pcap.MakeUsefulError(c.convsCmd, err), cb)
 					}
 				}
 

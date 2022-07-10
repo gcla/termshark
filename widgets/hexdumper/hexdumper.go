@@ -21,7 +21,7 @@ import (
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/format"
+	"github.com/gcla/termshark/v2/pkg/format"
 	"github.com/gcla/termshark/v2/widgets/renderfocused"
 	"github.com/gdamore/tcell/v2"
 	"github.com/pkg/errors"

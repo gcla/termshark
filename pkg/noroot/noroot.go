@@ -2,7 +2,7 @@
 // code is governed by the MIT license that can be found in the LICENSE
 // file.
 
-package termshark
+package noroot
 
 import (
 	"github.com/gcla/gowid/widgets/list"
@@ -11,22 +11,22 @@ import (
 
 //======================================================================
 
-type NoRootWalker struct {
+type Walker struct {
 	*tree.TreeWalker
 }
 
-func NewNoRootWalker(w *tree.TreeWalker) *NoRootWalker {
-	return &NoRootWalker{
+func NewWalker(w *tree.TreeWalker) *Walker {
+	return &Walker{
 		TreeWalker: w,
 	}
 }
 
 // for omitting top level node
-func (f *NoRootWalker) Next(pos list.IWalkerPosition) list.IWalkerPosition {
+func (f *Walker) Next(pos list.IWalkerPosition) list.IWalkerPosition {
 	return tree.WalkerNext(f, pos)
 }
 
-func (f *NoRootWalker) Previous(pos list.IWalkerPosition) list.IWalkerPosition {
+func (f *Walker) Previous(pos list.IWalkerPosition) list.IWalkerPosition {
 	fc := pos.(tree.IPos)
 	pp := tree.PreviousPosition(fc, f.Tree())
 	if pp.Equal(tree.NewPos()) {
