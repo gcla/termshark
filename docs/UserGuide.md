@@ -28,6 +28,7 @@ Termshark provides a terminal-based user interface for analyzing packet captures
   - [Macros](#macros)
   - [Transfer a pcap File](#transfer-a-pcap-file)
 - [Configuration](#configuration)
+  - [Profiles](#profiles)
   - [Dark Mode](#dark-mode)
   - [Packet Colors](#packet-colors)
   - [Themes](#themes)
@@ -40,7 +41,7 @@ Termshark is inspired by Wireshark, and depends on tshark for all its intelligen
 
 ```console
 $ termshark -h
-termshark v2.3.0
+termshark v2.4.0
 
 A wireshark-inspired terminal user interface for tshark. Analyze network traffic interactively from your terminal.
 See https://termshark.io for more information.
@@ -58,6 +59,7 @@ Application Options:
   -f=<capture filter>                                        Apply capture filter.
   -t=<timestamp format>[a|ad|adoy|d|dd|e|r|u|ud|udoy]        Set the format of the packet timestamp printed in summary lines.
       --tty=<tty>                                            Display the UI on this terminal.
+  -C, --profile=<profile>                                    Start with this configuration profile.
       --pass-thru=[auto|true|false]                          Run tshark instead (auto => if stdout is not a tty). (default: auto)
       --log-tty                                              Log to the terminal.
   -h, --help                                                 Show this help message.
@@ -392,6 +394,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **clear-filter** - Clear the current display filter
 - **clear-packets** - Clear the current pcap
 - **columns** - Configure termshark's columns
+- **config** - Show termshark's config file (Unix-only)
 - **convs** - Open the conversations view
 - **filter** - Choose a display filter from those recently-used
 - **help** - Show one of several help dialogs
@@ -401,6 +404,7 @@ Many of termshark's operations can be initiated from the command-line. After ope
 - **marks** - Show file-local and global packet marks
 - **menu** - Open the UI menubar
 - **no-theme** - Clear theme for the current terminal color mode
+- **profile** - Profile actions - create, use, delete, etc
 - **quit** - Quit termshark
 - **recents** - Load a pcap from those recently-used
 - **set** - Set various config properties (see `help set`)
@@ -492,17 +496,51 @@ https://user-images.githubusercontent.com/45680/122692277-0de7e180-d202-11eb-964
 
 ## Configuration
 
+### Profiles
+
+Termshark v2.4 introduces support for Wireshark-like profiles. A simple mental model for a profile called "work" is a separate toml file, stored as
+`$XDG_CONFIG_HOME/termshark/profiles/work/termshark.toml`, whose settings take precedence over the default `termshark.toml` file. When a non-default
+profile is active, termshark will display its name at the top of the user-interface. Configuration changes are saved to the currently-active
+profile. These include typical termshark settings like dark-mode, columns and theme.
+
+To create a profile, open the command line and type `profile create`. Termshark will open a dialog that lets you name your profile and, optionally,
+"link" it to a Wireshark-profile.
+
+![profilecreate](/../gh-pages/images/profilecreate.png?raw=true)
+
+The effect of linking to a Wireshark profile "wshark" is that termshark will run tshark with the flags `-C wshark`. One useful effect of this is that
+tshark will generate packet colors according to those configured for the "wshark" Wireshark profile. This allows Wireshark packet coloring rules to be
+used flexibly in termshark; create a new termshark profile and link to the Wireshark profile with the colors configured the way you want. Once a
+profile is created, you can unlink and re-link to a different Wireshark profile using the `profile unlink` and `profile link` commands respectively.
+
+Once you have profiles configured, you can switch between them using the `profile use` command. Termshark may reload your current packet source if it
+determines it needs to regenerate parts of the UI e.g. if packet colors or columns may be different. Note that if you create a new profile "new" while
+currently using profile "old", the settings for "new" are initialized from "old" (the toml file is copied); but then further changes apply to profile
+"new" only.
+
+Note that some configuration settings are read only from the default profile. These include
+
+- `main.term` - termshark will launch on this tty (Unix-only)
+
+
+
+
 ### Dark Mode
 
 If termshark is too bright for your taste, try dark-mode. To enable, hit Esc to open the main menu and select "Toggle Dark Mode".
 
 ![darkmode](/../gh-pages/images/darkmode.png?raw=true)
 
-Your choice is stored in the termshark [config file](UserGuide.md#config-file). Dark-mode is supported throughout the termshark user-interface.
+Your choice is stored in the termshark [config file](UserGuide.md#config-file) for the currently active profile. Dark-mode is supported throughout the
+termshark user-interface.
 
 ### Packet Colors
 
-By default, termshark will now display packets in the packet list view colored according to Wireshark's color rules. With recent installations of Wireshark, you can find this file at `$XDG_CONFIG_HOME/wireshark/colorfilters`. Termshark doesn't provide a way to edit the colors - the colors are provided by `tshark`. You can read about Wireshark's support [here](https://www.wireshark.org/docs/wsug_html_chunked/ChCustColorizationSection.html). If you don't like the way this looks in termshark, you can turn it off using termshark's main menu.
+By default, termshark will now display packets in the packet list view colored according to Wireshark's default color rules. With recent installations
+of Wireshark, you can find this file at `$XDG_CONFIG_HOME/wireshark/colorfilters`. Termshark doesn't provide a way to edit the colors - the colors are
+provided by `tshark`. You can read about Wireshark's support
+[here](https://www.wireshark.org/docs/wsug_html_chunked/ChCustColorizationSection.html). If you don't like the way this looks in termshark, you can
+turn it off using termshark's main menu.
 
 ### Themes
 
@@ -547,7 +585,7 @@ Termshark saves your selected theme against the terminal color mode, which can b
 - 256-color
 - truecolor i.e. 24-bit color
 
-The theme is saved in `termshark.toml` under, respectively, the keys:
+The theme is saved in the current profile's `termshark.toml` under, respectively, the keys:
 
 - `main.theme-16`
 - `main.theme-256`
@@ -612,7 +650,9 @@ widgets that will have focus when control returns to the container. Unselected m
 
 ### Config File
 
-Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml` on Linux). All options are saved under the `[main]` section. The available options are:
+Termshark reads options from a TOML configuration file saved in `$XDG_CONFIG_HOME/termshark/termshark.toml` (e.g. `~/.config/termshark/termshark.toml`
+on Linux) if you are using the default profile. If you are using a profile called "work", the settings are saved in
+`$XDG_CONFIG_HOME/termshark/profiles/work/termshark.toml`. All options are saved under the `[main]` section. The available options are:
 
 - `always-keep-pcap` (bool) - if true, and if termshark is run on a live packet source (`-i`), when termshark is asked to exit, it will not prompt the user to choose whether to keep or delete the capture.
 - `auto-scroll` (bool) - if true, termshark will automatically scroll down when packets are read in a live-capture mode (e.g. `-i eth0`)

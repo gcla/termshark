@@ -92,7 +92,7 @@ If you start to page up quickly, you will likely approach a range of packets tha
 
 ## Termshark is too bright!
 
-Termshark v2 supports dark-mode! Hit Esc to bring up the main menu then "Toggle Dark Mode". See the [User Guide](UserGuide.md#dark-mode).
+Termshark v2 supports dark-mode! Hit Esc to bring up the main menu then "Toggle Dark Mode". See the [User Guide](UserGuide.md#dark-mode). As of termshark v2.4, dark-mode is the default.
 
 ## Termshark's colors are wrong!
 
@@ -310,6 +310,14 @@ tshark -G fields
 
 then parsing the output into a nested collection of Go maps, and serializing it to `$XDG_CACHE_HOME/termshark/tsharkfieldsv3.gob.gz`.
 
+If the user creates a new termshark profile, an option is provided to link to a Wireshark profile. To gather a list of these profiles, termshark runs
+
+```bash
+tshark -G folders
+```
+
+and parses out the global and personal configuration directories.
+
 Finally, termshark runs tshark to generate the list of all valid columns and their names. These are used to populate a dropdown menu showing valid column choices when the user configures their column set. Termshark runs
 
 ```bash
@@ -437,9 +445,10 @@ As much as possible, I want termshark to work "right out of the box", and to me 
 
 ## What's next?
 
-Termshark v2 implemented stream reassembly, a "What's next" feature from v1. For Termshark v3, some possibilities are:
+As I write this, I'm about to release termshark v2.4. Here's what might come in v2.5 and beyond:
 
+- Built-in support for editing packet color profiles
 - Expose many more of tshark's `-z` options
 - HTTP statistics and Wireshark's I/O graph
 - Allow the user to start reading from available interfaces once the UI has started
-- And since tshark can be customized via the TOML config file, don't be so trusting of its output - there are surely bugs lurking here
+- Anything you raise on Github issues - let me know what features you'd like!

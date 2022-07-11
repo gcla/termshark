@@ -1,7 +1,6 @@
 # Changelog
 
-## [Unreleased]
-
+## [2.4.0] - 2022-07-11
 ### Added
 
 - You can now search for information in packets, in similar fashion to Wireshark's packet search. Hit `ctrl-f`
@@ -12,6 +11,7 @@
 
 ### Changed
 
+- Now you can build and install termshark with one command: `go install github.com/gcla/termshark/v2/cmd/termshark`
 - Fixed a bug that resulted in stream reassembly sporadically failing and displaying a blank screen.
 - Termshark will now, by default, suppress errors from tshark. You can change this via the minibuffer
   `set suppress-tshark-errors` command.
