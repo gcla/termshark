@@ -6,7 +6,7 @@ A terminal user-interface for tshark, inspired by Wireshark.
 
 **V2.4 is out now with packet search and profiles for colors and columns! See the [ChangeLog](CHANGELOG.md#changelog).**
 
-![demo21](/../gh-pages/images/demo21.png?raw=true)
+![demo24](/../gh-pages/images/demo4.gif?raw=true)
 
 If you're debugging on a remote machine with a large pcap and no desire to scp it back to your desktop, termshark can help!
 
