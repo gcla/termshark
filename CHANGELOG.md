@@ -13,6 +13,8 @@
 ### Changed
 
 - Now you can build and install termshark with one command: `go install github.com/gcla/termshark/v2/cmd/termshark`
+- Termshark will now, by default, suppress errors from tshark. You can change this via the minibuffer
+  `set suppress-tshark-errors` command.
 - Added a summary of standard error to the error dialogs displayed when a tshark process fails to run
   correctly (has a non-zero exit code).
 - Fixed a race condition that caused extcap captures (e.g. randpkt) to sporadically fail.
