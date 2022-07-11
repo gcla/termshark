@@ -20,9 +20,9 @@ import (
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/termshark/v2"
-	"github.com/gcla/termshark/v2/pkg/cli"
 	"github.com/gcla/termshark/v2/configs/profiles"
 	"github.com/gcla/termshark/v2/pkg/capinfo"
+	"github.com/gcla/termshark/v2/pkg/cli"
 	"github.com/gcla/termshark/v2/pkg/confwatcher"
 	"github.com/gcla/termshark/v2/pkg/convs"
 	"github.com/gcla/termshark/v2/pkg/fields"
@@ -41,7 +41,6 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 
 	"net/http"
 	_ "net/http"
@@ -1357,7 +1356,7 @@ Loop:
 
 		case <-watcher.ConfigChanged():
 			// Re-read so changes that can take effect immediately do so
-			if err := viper.ReadInConfig(); err != nil {
+			if err := profiles.ReadDefaultConfig(dirs[0].Path); err != nil {
 				log.Warnf("Unexpected error re-reading toml config: %v", err)
 			}
 			ui.UpdateRecentMenu(app)
