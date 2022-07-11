@@ -143,7 +143,7 @@ func TestArgConv(t *testing.T) {
 #gui.interfaces_remote_display: TRUE
 
 # Hide the given interface types in the startup list.
-# A commma-separated string of interface type values (e.g. 5,9).
+# A comma-separated string of interface type values (e.g. 5,9).
 # 0 = Wired,
 # 1 = AirPCAP,
 # 2 = Pipe,
@@ -163,7 +163,7 @@ func TestArgConv(t *testing.T) {
 # A six-digit hexadecimal RGB color triplet (e.g. fce94f)
 #gui.active_frame.fg: 000000
 
-# Backgound color for an active selected item
+# Background color for an active selected item
 # A six-digit hexadecimal RGB color triplet (e.g. fce94f)
 #gui.active_frame.bg: cbe8ff
 
@@ -176,7 +176,7 @@ func TestArgConv(t *testing.T) {
 # A six-digit hexadecimal RGB color triplet (e.g. fce94f)
 #gui.inactive_frame.fg: 000000
 
-# Backgound color for an inactive selected item
+# Background color for an inactive selected item
 # A six-digit hexadecimal RGB color triplet (e.g. fce94f)
 #gui.inactive_frame.bg: efefef
 
@@ -2291,7 +2291,7 @@ gui.qt.font_name: Liberation Mono,11,-1,5,50,0,0,0,0,0
 
 # Whether the dissector should print items of h245 Info column in reversed order
 # TRUE or FALSE (case-insensitive)
-#h245.prepand: FALSE
+#h245.prepend: FALSE
 
 # Desegment H.501 messages that span more TCP segments
 # TRUE or FALSE (case-insensitive)
@@ -4407,7 +4407,7 @@ gui.qt.font_name: Liberation Mono,11,-1,5,50,0,0,0,0,0
 # TRUE or FALSE (case-insensitive)
 #sip.delay_sdp_changes: FALSE
 
-# Whether the generated call id should be hiddden(not displayed) in the tree or not.
+# Whether the generated call id should be hidden (not displayed) in the tree or not.
 # TRUE or FALSE (case-insensitive)
 #sip.hide_generatd_call_id: FALSE
 

@@ -349,7 +349,7 @@ To display a table of conversations represented in the current pcap, go to the "
 
 ![convs1](/../gh-pages/images/convs1.png?raw=true)
 
-You can make termshark filter the packets displayed according to the current conversation selected. The "Prepare..." button will set termshark's display filter field, but *not* apply it, letting you futher edit it first. The "Apply..." button will set the display filter and apply it immediately. Navigate to the interesting conversation, then click either "Prepare..." or "Apply..."
+You can make termshark filter the packets displayed according to the current conversation selected. The "Prepare..." button will set termshark's display filter field, but *not* apply it, letting you further edit it first. The "Apply..." button will set the display filter and apply it immediately. Navigate to the interesting conversation, then click either "Prepare..." or "Apply..."
 
 ![convs2](/../gh-pages/images/convs2.png?raw=true)
 
