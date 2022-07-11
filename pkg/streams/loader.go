@@ -205,9 +205,9 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 
 	log.Infof("Started stream reassembly command %v with pid %d", c.streamCmd, c.streamCmd.Pid())
 
-	termshark.TrackedGo(func() {
+	defer func() {
 		termChan <- c.streamCmd.Wait()
-	}, Goroutinewg)
+	}()
 
 	pid = c.streamCmd.Pid()
 	procChan <- pid
@@ -219,7 +219,7 @@ func (c *Loader) loadStreamReassemblyAsync(pcapf string, proto string, idx int, 
 	func() {
 		_, err := ParseReader("", streamOut, ops...)
 		if err != nil {
-			log.Infof("Stream parser reported error: %v", err)
+			log.Warnf("Stream parser reported error: %v", err)
 		}
 	}()
 
