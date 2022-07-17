@@ -23,7 +23,7 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Install tshark as prequisite for testing
+    - name: Install tshark as prerequisite for testing
       run: sudo sh -c 'export DEBIAN_FRONTEND=noninteractive ; apt -y update && apt -y install tshark'
       
     - name: Test

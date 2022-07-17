@@ -182,7 +182,7 @@ func (p *psmlColumnsModel) AddRow() {
 	p.Widget = table.New(p)
 }
 
-// cacheHaveCustom keeps track of whther the current model has any custom columns. This
+// cacheHaveCustom keeps track of whether the current model has any custom columns. This
 // is done each time the model is updated. If custom columns are present, the table is
 // displayed with two extra columns.
 func (p *psmlColumnsModel) cacheHaveCustom() {

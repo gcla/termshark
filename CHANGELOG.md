@@ -154,7 +154,7 @@ termshark -i eth0 --tty=/dev/pts/5
   see differences between packets more easily.
 - Termshark can now be installed for MacOS from [Homebrew](docs/FAQ.md#homebrew). 
 - Termshark now respects job control signals sent via the shell i.e. SIGTSTP and SIGCONT.
-- Termshark on Windows no longer depends on the Cywgin tail command (and thus a Cygwin installation).
+- Termshark on Windows no longer depends on the Cygwin tail command (and thus a Cygwin installation).
 - The current packet capture source (file, interface, pipe, etc) is displayed in the termshark title bar.
 - Termshark can be configured to eagerly load all pcap PDML data, rather than 1000 packets at a time.
 
@@ -167,7 +167,7 @@ termshark -i eth0 --tty=/dev/pts/5
 
 - Initial release.
 
-[Unreleased]: https://github.com/gcla/termshark/commpare/v2.1.1...HEAD
+[Unreleased]: https://github.com/gcla/termshark/compare/v2.1.1...HEAD
 [1.0.0]: https://github.com/gcla/termshark/releases/tag/v1.0.0
 [2.0.0]: https://github.com/gcla/termshark/releases/tag/v2.0.0
 [2.0.3]: https://github.com/gcla/termshark/releases/tag/v2.0.3
