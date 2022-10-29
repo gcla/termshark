@@ -153,6 +153,7 @@ Thanks to everyone that's contributed ports, patches and effort!
     <td align="center"><a href="https://github.com/nmeum"><img src="https://avatars.githubusercontent.com/u/2326560?v=4?s=100" width="100px;" alt=""/><br /><sub><b>nmeum</b></sub></a><br /><a href="#ideas-nmeum" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://deftly.net"><img src="https://avatars.githubusercontent.com/u/68368?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Aaron Bieber</b></sub></a><br /><a href="#ideas-qbit" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/elig0n"><img src="https://avatars.githubusercontent.com/u/31196036?v=4?s=100" width="100px;" alt=""/><br /><sub><b>elig0n</b></sub></a><br /><a href="#ideas-elig0n" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://github.com/luzpaz"><img src="https://avatars.githubusercontent.com/u/4140247?v=4?s=100" width="100px;" alt=""/><br /><sub><b>luzpaz</b></sub></a><br /><a href="https://github.com/gcla/termshark/commits?author=luzpaz" title="Documentation">📖</a></td>
   </tr>
 </table>
 
