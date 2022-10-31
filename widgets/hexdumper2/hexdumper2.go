@@ -557,13 +557,11 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 
 	if scrollDown {
 		if moveCursor {
-			if pos+16 < len(w.data) {
-				w.SetPosition(pos+16, app)
-				if atBottom {
-					w.offset += 1
-				}
-				res = true
+			w.SetPosition(gwutil.Min(pos+16, len(w.data)-1), app)
+			if atBottom {
+				w.offset += 1
 			}
+			res = true
 		} else {
 			w.offset += 1
 			if w.offset > (len(w.data)/16)-(canvasRows-1) {
