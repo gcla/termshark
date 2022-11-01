@@ -18,6 +18,7 @@ import (
 	"github.com/gcla/gowid/vim"
 	"github.com/gcla/gowid/widgets/list"
 	"github.com/gcla/gowid/widgets/styled"
+	"github.com/gcla/termshark/v2"
 	"github.com/gcla/termshark/v2/pkg/format"
 	"github.com/gdamore/tcell/v2"
 )
@@ -64,6 +65,7 @@ type Widget struct {
 	styled.UsePaletteIfSelectedForCopy
 	Callbacks *gowid.Callbacks
 	gowid.IsSelectable
+	keyState termshark.KeyState
 }
 
 var _ gowid.IWidget = (*Widget)(nil)
@@ -482,28 +484,49 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 	scrollDown := false
 	scrollUp := false
 	moveCursor := true
+	partialgCmd := false
+	goToFirstRow := false
+	goToLastRow := false
 
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
 
-		switch {
-		case vim.KeyIn(ev, w.opt.RightKeys):
-			//res = Scroll(w, 1, w.Wrap(), app)
-			pos := w.Position()
-			if pos < len(w.data) {
-				w.SetPosition(pos+1, app)
-				res = true
+		isrune := ev.Key() == tcell.KeyRune
+
+		if w.keyState.PartialgCmd {
+			partialgCmd = true
+			w.keyState.PartialgCmd = false
+		}
+
+		if isrune && ev.Rune() == 'g' {
+			if partialgCmd {
+				goToFirstRow = true
+			} else {
+				w.keyState.PartialgCmd = true
+				return true
 			}
-		case vim.KeyIn(ev, w.opt.LeftKeys):
-			pos := w.Position()
-			if pos > 0 {
-				w.SetPosition(pos-1, app)
-				res = true
+		} else if isrune && ev.Rune() == 'G' {
+			goToLastRow = true
+		} else {
+			switch {
+			case vim.KeyIn(ev, w.opt.RightKeys):
+				//res = Scroll(w, 1, w.Wrap(), app)
+				pos := w.Position()
+				if pos < len(w.data) {
+					w.SetPosition(pos+1, app)
+					res = true
+				}
+			case vim.KeyIn(ev, w.opt.LeftKeys):
+				pos := w.Position()
+				if pos > 0 {
+					w.SetPosition(pos-1, app)
+					res = true
+				}
+			case vim.KeyIn(ev, w.opt.DownKeys):
+				scrollDown = true
+			case vim.KeyIn(ev, w.opt.UpKeys):
+				scrollUp = true
 			}
-		case vim.KeyIn(ev, w.opt.DownKeys):
-			scrollDown = true
-		case vim.KeyIn(ev, w.opt.UpKeys):
-			scrollUp = true
 		}
 
 	case *tcell.EventMouse:
@@ -555,15 +578,20 @@ func (w *Widget) realUserInput(ev interface{}, size gowid.IRenderSize, focus gow
 	atTop = ((pos / 16) == w.offset)
 	atBottom = ((pos / 16) == (w.offset + canvasRows - 1))
 
-	if scrollDown {
+	if goToFirstRow {
+		w.SetPosition(pos%16, app)
+		res = true
+	} else if goToLastRow {
+		lastPos := len(w.data) - 1
+		w.SetPosition(gwutil.Min(lastPos, lastPos-lastPos%16+pos%16), app)
+		res = true
+	} else if scrollDown {
 		if moveCursor {
-			if pos+16 < len(w.data) {
-				w.SetPosition(pos+16, app)
-				if atBottom {
-					w.offset += 1
-				}
-				res = true
+			w.SetPosition(gwutil.Min(pos+16, len(w.data)-1), app)
+			if atBottom {
+				w.offset += 1
 			}
+			res = true
 		} else {
 			w.offset += 1
 			if w.offset > (len(w.data)/16)-(canvasRows-1) {
