@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Better navigation defaults for the hex view, and some vim key integration (thanks @uzxmx).
+
 ## [2.4.0] - 2022-07-11
 ### Added
 
