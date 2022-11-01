@@ -9,7 +9,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/flytam/filenamify v1.1.0
 	github.com/gcla/deep v1.0.2
-	github.com/gcla/gowid v1.4.0
+	github.com/gcla/gowid v1.4.1-0.20221101015339-ce29e21d2804
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gcla/term v0.0.0-20220601234708-3e6af2ebff27
 	github.com/gdamore/tcell/v2 v2.5.0
