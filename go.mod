@@ -13,7 +13,7 @@ require (
 	github.com/gcla/tail v1.0.1-0.20190505190527-650e90873359
 	github.com/gcla/term v0.0.0-20220601234708-3e6af2ebff27
 	github.com/gdamore/tcell/v2 v2.5.0
-	github.com/gin-gonic/gin v1.7.0 // indirect
+	github.com/gin-gonic/gin v1.7.7 // indirect
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/jessevdk/go-flags v1.4.0
