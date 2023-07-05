@@ -693,7 +693,7 @@ func KeyValueErrorString(err gowid.KeyValueError) string {
 	for k := range err.KeyVals {
 		ks = append(ks, k)
 	}
-	sort.Sort(sort.StringSlice(ks))
+	sort.Strings(ks)
 	for _, k := range ks {
 		kvs = append(kvs, fmt.Sprintf("%v: %v", k, err.KeyVals[k]))
 	}
