@@ -47,7 +47,7 @@ type IGoToLineRequested interface {
 	GoToNth(gowid.IApp, int) bool
 }
 
-// GotoHander retrusn a function suitable for the appkeys widget - it will
+// GotoHander returns a function suitable for the appkeys widget - it will
 // check to see if the key represents a supported action on the table and
 // then runs the action if so.
 func GotoHandler(t IGoToLineRequested) appkeys.KeyInputFn {
