@@ -4,7 +4,7 @@ Here's how to install termshark on various OSes and with various package manager
 
 ## Arch Linux
 
-- [termshark](https://archlinux.org/packages/community/x86_64/termshark/): The
+- [termshark](https://archlinux.org/packages/extra/x86_64/termshark/): The
    official package.
 - [termshark-git](https://aur.archlinux.org/packages/termshark-git): Compiles
   from source, made by [Thann](https://github.com/Thann)
