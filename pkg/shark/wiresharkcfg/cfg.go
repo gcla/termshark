@@ -55,6 +55,7 @@ func (c *Config) PopulateFrom(filename string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	parsed, err := ParseReader("", file)
 	if err != nil {
 		return err
