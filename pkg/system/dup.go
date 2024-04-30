@@ -5,6 +5,7 @@
 // +build !windows
 // +build !linux !arm64
 // +build !linux !riscv64
+// +build !linux !loong64
 
 package system
 
