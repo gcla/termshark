@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/Jille/contextcond"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/widgets/table"
 	"github.com/gcla/termshark/v2"
@@ -23,7 +24,6 @@ import (
 	"github.com/gcla/termshark/v2/pkg/pcap"
 	"github.com/gcla/termshark/v2/widgets/search"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/jonas.jasas/condchan"
 )
 
 //======================================================================
@@ -57,7 +57,7 @@ type filterSearchState struct {
 	pcapInfo os.FileInfo
 
 	// To protect below:
-	cc *condchan.CondChan
+	cc *contextcond.Cond
 
 	// State covered by cc and ccMtx
 	first         int         // first packet found; from here, jump into nextMap
@@ -82,7 +82,7 @@ func newFilterSearchState(filename string, cmd pcap.IPcapCommand) (*filterSearch
 		cancelFn: cancelFn,
 		pcapInfo: info,
 	}
-	res.cc = condchan.New(&sync.Mutex{})
+	res.cc = contextcond.NewCond(&sync.Mutex{})
 	return res, nil
 }
 
@@ -293,17 +293,12 @@ Loop:
 		}
 
 		if !mpval.finished {
-			mpval.cc.Select(func(c <-chan struct{}) { // Waiting with select
-				// Either of these two channels mean we should proceed. The first
-				// means that some search state has changed - maybe a new result,
-				// maybe a cancellation, maybe the end of the process execution. The
-				// second means something else interrupted - e.g. user hit the stop
-				// button.
-				select {
-				case <-c:
-				case <-mpval.ctx.Done():
-				}
-			})
+			// Either a Broadcast or context cancellation means we should proceed.
+			// The first means that some search state has changed - maybe a new
+			// result, maybe a cancellation, maybe the end of the process
+			// execution. The second means something else interrupted - e.g. user
+			// hit the stop button.
+			_ = mpval.cc.WaitContext(mpval.ctx)
 		}
 	}
 }
