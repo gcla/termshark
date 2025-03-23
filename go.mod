@@ -3,6 +3,7 @@ module github.com/gcla/termshark/v2
 go 1.13
 
 require (
+	github.com/Jille/contextcond v1.0.0
 	github.com/adam-hanna/arrayOperations v0.2.6
 	github.com/antchfx/xmlquery v1.3.3
 	github.com/antchfx/xpath v1.1.11 // indirect
@@ -29,7 +30,6 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.7.1
 	github.com/tevino/abool v1.2.0
-	gitlab.com/jonas.jasas/condchan v0.0.0-20190210165812-36637ad2b5bc
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
