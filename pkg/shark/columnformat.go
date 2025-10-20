@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -239,8 +238,6 @@ func (w *ColumnsFromTshark) InitFromCache() error {
 }
 
 func (w *ColumnsFromTshark) InitNoCache() error {
-	re := regexp.MustCompile("\\s+")
-
 	cmd := exec.Command(termshark.TSharkBin(), []string{"-G", "column-formats"}...)
 
 	out, err := cmd.StdoutPipe()
@@ -254,11 +251,17 @@ func (w *ColumnsFromTshark) InitNoCache() error {
 
 	scanner := bufio.NewScanner(out)
 	for scanner.Scan() {
-		fields := re.Split(scanner.Text(), 2)
-		if len(fields) == 2 && strings.HasPrefix(fields[0], "%") {
+		fields := strings.Split(scanner.Text(), "\t")
+
+		// Column 0: The format
+		// Column 1: The title of the column
+		// Column 2: The display filter field (optional)
+		if (len(fields) == 2 || len(fields) == 3) && strings.HasPrefix(fields[0], "%") {
+			// Remove trailing whitespace, if any
+			columnTitle := strings.TrimRight(fields[1], " ")
 			w.fields = append(w.fields, PsmlColumnSpec{
 				Field: PsmlField{Token: fields[0]},
-				Name:  fields[1],
+				Name:  columnTitle,
 			})
 		}
 	}
