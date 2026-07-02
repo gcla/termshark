@@ -16,6 +16,7 @@
 * [Can I pass extra arguments to tshark?](#can-i-pass-extra-arguments-to-tshark)
 * [How does termshark use tshark?](#how-does-termshark-use-tshark)
 * [How can I make termshark run without root?](#how-can-i-make-termshark-run-without-root)
+* [How can I troubleshoot live-capture permissions and tshark path issues?](#how-can-i-troubleshoot-live-capture-permissions-and-tshark-path-issues)
 * [Why is termshark generating traffic on port 5037?](#why-is-termshark-generating-traffic-on-port-5037)
 * [How can termshark capture from extcap interfaces with dumpcap?](#how-can-termshark-capture-from-extcap-interfaces-with-dumpcap)
 * [Termshark is laggy or using a lot of RAM](#termshark-is-laggy-or-using-a-lot-of-ram)
@@ -350,6 +351,50 @@ sudo setcap cap_net_raw,cap_net_admin+eip /usr/sbin/dumpcap
 ```
 
 You can find more detail at https://wiki.wireshark.org/CaptureSetup/CapturePrivileges.
+
+## How can I troubleshoot live-capture permissions and tshark path issues?
+
+When termshark can open saved capture files but live capture fails, the problem is usually in the Wireshark command-line tools rather than termshark itself. A quick way to narrow it down is to run the same tools that termshark launches and confirm they work for your user account.
+
+- Confirm the binaries that termshark depends on are on your `PATH`:
+
+```bash
+command -v tshark
+command -v dumpcap
+command -v capinfos
+```
+
+- Check the version that will be used from your shell. This also catches a stale or unexpected Wireshark installation earlier in `PATH`:
+
+```bash
+tshark --version
+dumpcap --version
+```
+
+- List interfaces outside termshark. If this fails or shows no interfaces, fix Wireshark/dumpcap permissions first:
+
+```bash
+tshark -D
+dumpcap -D
+```
+
+- Try a very small capture with the same user. Replace `eth0` with one of the names from `tshark -D`:
+
+```bash
+dumpcap -P -i eth0 -c 1 -w /tmp/termshark-test.pcap
+termshark -r /tmp/termshark-test.pcap
+```
+
+- On Linux, verify that group membership or file capabilities are visible in the current login session. After changing groups, log out and back in, or run `newgrp wireshark`, before retrying:
+
+```bash
+groups
+getcap "$(command -v dumpcap)"
+```
+
+- On macOS or package-manager installs, make sure the shell that launches termshark sees the same `PATH` as the shell where `tshark --version` works. If needed, start termshark from that shell or update your shell profile so the Wireshark binaries are found consistently.
+
+If all of these commands work but termshark still cannot capture, run `termshark --debug`, reproduce the failure, and include `~/.cache/termshark/termshark.log` (or the platform-specific log path listed above) when opening an issue.
 
 ## Why is termshark generating traffic on port 5037?
 
