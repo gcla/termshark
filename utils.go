@@ -31,7 +31,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/adam-hanna/arrayOperations"
+	arrayOperations "github.com/adam-hanna/arrayOperations"
 	"github.com/blang/semver"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/gwutil"
@@ -600,13 +600,8 @@ func ConvTypes() []string {
 	defs := []string{"eth", "ip", "ipv6", "tcp", "udp"}
 	ctypes := profiles.ConfStrings("main.conv-types")
 	if len(ctypes) > 0 {
-		z, ok := arrayOperations.Intersect(defs, ctypes)
-		if ok {
-			res, ok := z.Interface().([]string)
-			if ok {
-				return res
-			}
-		}
+		z := arrayOperations.Intersect(defs, ctypes)
+		return z
 	}
 	return defs
 }
