@@ -68,7 +68,19 @@ func main() {
 	confwatcher.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
-	ensureGoroutinesStopWG.Wait()
+
+	// Wait briefly for background goroutines to finish cleanly, but do not
+	// block process termination indefinitely if any background goroutine leaks.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ensureGoroutinesStopWG.Wait()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+	}
 
 	if !termshark.ShouldSwitchTerminal && !termshark.ShouldSwitchBack {
 		os.Exit(res)
