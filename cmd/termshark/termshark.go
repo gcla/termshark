@@ -68,7 +68,19 @@ func main() {
 	confwatcher.Goroutinewg = &ensureGoroutinesStopWG
 
 	res := cmain()
-	ensureGoroutinesStopWG.Wait()
+
+	// Wait briefly for background goroutines to finish cleanly, but do not
+	// block process termination indefinitely if any background goroutine leaks.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ensureGoroutinesStopWG.Wait()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+	}
 
 	if !termshark.ShouldSwitchTerminal && !termshark.ShouldSwitchBack {
 		os.Exit(res)
@@ -1017,6 +1029,8 @@ func cmain() int {
 	checkPcapCacheDuration := 5 * time.Second
 	checkPcapCacheTimer := time.NewTimer(checkPcapCacheDuration)
 
+	var quitRequestedTime time.Time
+
 Loop:
 	for {
 		var finChan <-chan time.Time
@@ -1026,6 +1040,10 @@ Loop:
 		var tcellEvents <-chan tcell.Event
 		var opsChan <-chan gowid.RunFunction
 		var afterRenderEvents <-chan gowid.IAfterRenderEvent
+		var quitTimeoutChan <-chan time.Time
+		if ui.QuitRequested {
+			quitTimeoutChan = time.After(50 * time.Millisecond)
+		}
 		// For setting struct views empty. This isn't done as soon as a load is initiated because
 		// in the case we are loading from an interface and following new packets, we get an ugly
 		// blinking effect where the loading message is displayed, shortly followed by the struct or
@@ -1058,11 +1076,10 @@ Loop:
 				// backwards)
 				prevProgPercentage = 0.0
 			}
+		}
 
-			// EnableOpsVar will be enabled when all the handlers have run, which happen in the main goroutine.
-			// I need them to run because the loader channel is closed in one, and the ticker goroutines
-			// don't terminate until these goroutines stop
-			if ui.QuitRequested {
+		if ui.QuitRequested {
+			if !ui.Loader.LoadingAnything() || (!quitRequestedTime.IsZero() && time.Since(quitRequestedTime) > 1500*time.Millisecond) {
 				if ui.Running {
 					if !quitIssuedToApp {
 						app.Quit()
@@ -1247,17 +1264,18 @@ Loop:
 				ui.Running = false
 			}()
 
+		case <-quitTimeoutChan:
+			// Wake up periodically when quit is requested to re-evaluate exit condition
+
 		case fn := <-opsChan:
 			app.Run(fn)
 
 		case <-ui.QuitRequestedChan:
 			ui.QuitRequested = true
-			// Without this, a quit during a pcap load won't happen until the load is finished
-			if ui.Loader.LoadingAnything() {
-				// We know we're not idle, so stop any load so the quit op happens quickly for the user. Quit
-				// will happen next time round because the quitRequested flag is checked.
-				stopLoaders()
+			if quitRequestedTime.IsZero() {
+				quitRequestedTime = time.Now()
 			}
+			stopLoaders()
 
 		case sig := <-sigChan:
 			if system.IsSigTSTP(sig) {
@@ -1343,9 +1361,6 @@ Loop:
 			checkPcapCacheTimer.Reset(checkPcapCacheDuration)
 
 		case ev, ok := <-afterRenderEvents:
-			// This means app.Quit() has been called, which closes the AfterRenderEvents
-			// channel - and then will accept no more events. select will then return
-			// nil on this channel - which we then use to break the loop
 			if !ok {
 				break Loop
 			}

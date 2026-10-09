@@ -424,6 +424,10 @@ func (p *ParentLoader) MainRun(fn gowid.RunFunction) {
 func (c *ParentLoader) CloseMain() {
 	c.psmlStoppedDeliberately_ = true
 	c.pdmlStoppedDeliberately_ = true
+	c.stopTail()
+	c.stopLoadPsml()
+	c.stopLoadIface()
+	c.stopLoadPdml()
 	if c.mainCancelFn != nil {
 		c.mainCancelFn()
 		c.mainCancelFn = nil
